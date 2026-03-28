@@ -10,7 +10,6 @@
 	font-display: swap;
 }
 
-
 @theme {
 	--font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 	--font-mono: "JetBrains Mono", monospace;
@@ -639,7 +638,6 @@ legal-page {
 	display: inline-block;
 	animation: decode-char 0.08s ease both;
 }
-
 
 /* ── Learn page: WPM bar chart ── */
 .learn-bar-fill {
