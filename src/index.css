@@ -1,0 +1,747 @@
+@import url("https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;1,14..32,300&family=JetBrains+Mono:wght@400;500&family=Fira+Mono:wght@400;500&family=Source+Code+Pro:wght@400;500&family=Inconsolata:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+@plugin "daisyui";
+
+@font-face {
+	font-family: "OpenDyslexic";
+	src: url("https://cdn.jsdelivr.net/gh/antijingoist/opendyslexic@master/compiled/OpenDyslexic-Regular.woff2")
+		format("woff2");
+	font-weight: 400;
+	font-display: swap;
+}
+
+
+@theme {
+	--font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+	--font-mono: "JetBrains Mono", monospace;
+
+	/* UI type scale: (marketing, learn, profile prose) */
+	--text-ui-body: 1rem;
+	--text-ui-body--line-height: 1.625;
+	--text-ui-title: 1.25rem;
+	--text-ui-title--line-height: 1.35;
+	--text-ui-hero: clamp(2.125rem, 5.5vw, 3rem);
+	--text-ui-hero--line-height: 1.12;
+
+	/* Motion tokens */
+	--ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+	--ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Stronger dark surfaces and section separation than default DaisyUI dark */
+@layer base {
+	[data-theme="dark"] {
+		--color-base-100: oklch(29% 0.019 252.42);
+		--color-base-200: oklch(24% 0.016 253.1);
+		--color-base-300: oklch(18% 0.013 254.09);
+	}
+
+	[data-theme="light"] {
+		--color-base-200: oklch(96.5% 0.007 285.885);
+		--color-base-300: oklch(90% 0.012 285.885);
+	}
+}
+
+/* ── Base ── */
+:root {
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	height: 100%;
+}
+
+body {
+	background-color: var(--color-base-100);
+	color: var(--color-base-content);
+
+	/* Subtle animated dot grid for texture */
+	background-image: radial-gradient(
+		color-mix(in oklab, var(--color-base-content) 10%, transparent) 1.5px,
+		transparent 1.5px
+	);
+	background-size: 28px 28px;
+	background-position: 0 0;
+	animation: bgDrift 80s linear infinite;
+}
+
+@keyframes bgDrift {
+	from {
+		background-position: 0 0;
+	}
+	to {
+		background-position: 280px 280px;
+	}
+}
+
+/* ── Page transitions ── */
+.page-enter {
+	animation: pageEnter 0.35s var(--ease-out-quart) both;
+}
+
+@keyframes pageEnter {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* ── Fade-in for marketing sections (scroll reveal) ── */
+.fade-up {
+	opacity: 0;
+	transform: translateY(18px);
+	transition:
+		opacity 0.5s var(--ease-out-quart),
+		transform 0.5s var(--ease-out-quart);
+}
+.fade-up.visible {
+	opacity: 1;
+	transform: translateY(0);
+}
+
+/* ── Welcome banner dismiss ── */
+.welcome-banner {
+	transition:
+		opacity 0.25s var(--ease-out-quart),
+		transform 0.25s var(--ease-out-quart),
+		max-height 0.3s var(--ease-out-quart);
+	max-height: 200px;
+	overflow: hidden;
+}
+.welcome-banner.dismissed {
+	opacity: 0;
+	transform: translateY(-4px);
+	max-height: 0;
+	pointer-events: none;
+}
+
+/* ── Word flash ── */
+.word-flash {
+	animation: wordFlash 0.08s ease;
+}
+
+@keyframes wordFlash {
+	from {
+		opacity: 0.3;
+		transform: scale(0.97);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+/* ── Marketing: staggered feature item reveal ── */
+.mkt-feat-item:nth-child(1) {
+	transition-delay: 0ms;
+}
+.mkt-feat-item:nth-child(2) {
+	transition-delay: 60ms;
+}
+.mkt-feat-item:nth-child(3) {
+	transition-delay: 120ms;
+}
+.mkt-feat-item:nth-child(4) {
+	transition-delay: 180ms;
+}
+.mkt-feat-item:nth-child(5) {
+	transition-delay: 240ms;
+}
+.mkt-feat-item:nth-child(6) {
+	transition-delay: 300ms;
+}
+.mkt-feat-item:nth-child(7) {
+	transition-delay: 360ms;
+}
+
+/* Gentle lift on marketing feature items */
+.mkt-feat-item {
+	transition: transform 0.2s var(--ease-out-quart);
+}
+.mkt-feat-item:hover {
+	transform: translateX(4px);
+}
+
+/*
+ * Reading box — fixed width so the pivot never moves. Always uses full viewport width
+ * (minus padding) so long words fit; 1fr auto 1fr keeps the highlight in the same spot.
+ * pivotOffset is applied as translateX on this element (see rsvp-reader.ts).
+ */
+.reading-box {
+	width: calc(100vw - 2rem);
+	max-width: calc(100vw - 2rem);
+	flex-shrink: 0;
+	padding-inline: 0.25em;
+}
+
+@media (max-width: 480px) {
+	.reading-box {
+		width: calc(100vw - 0.5rem);
+		max-width: calc(100vw - 0.5rem);
+	}
+}
+
+/* Dim prev/next line; narrow width keeps text near fixation */
+.peripheral-context {
+	text-align: center;
+	max-width: min(420px, 85%);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/*
+ * ORP fixed-pivot layout: pivot is always in the same spot (centre of .reading-box).
+ * 1fr auto 1fr gives equal space to before/after; overflow-x clips long text.
+ * line-height slightly > 1 so descenders (g, y, p, q, j) are not clipped by the line box.
+ */
+.orp-container {
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	align-items: center;
+	width: 100%;
+	min-width: 0;
+	line-height: 1.15;
+}
+.orp-before {
+	text-align: end;
+	white-space: nowrap;
+	min-width: 0;
+	padding-inline-start: 0.15em;
+}
+.orp-before-inner {
+	display: inline-block;
+}
+.orp-pivot-col {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	flex-shrink: 0;
+	gap: 0.18em;
+}
+.orp-after {
+	text-align: start;
+	white-space: nowrap;
+	min-width: 0;
+	padding-inline-end: 0.15em;
+}
+.orp-guide {
+	width: 2px;
+	background: currentColor;
+	opacity: 0.3;
+	border-radius: 1px;
+	height: 0.45em;
+}
+
+/* Quote / aside tints (theme tokens) */
+.rsvp-context-quote {
+	color: var(--color-secondary);
+}
+.rsvp-context-parens {
+	color: var(--color-primary);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background: color-mix(in oklab, var(--color-base-content) 12%, transparent);
+	border-radius: 99px;
+	border: 1px solid transparent;
+	background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: color-mix(in oklab, var(--color-base-content) 25%, transparent);
+	border-color: transparent;
+	background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+	background: transparent;
+}
+
+/* Textarea-specific scrollbar: thinner and more subtle */
+textarea::-webkit-scrollbar {
+	width: 4px;
+}
+textarea::-webkit-scrollbar-track {
+	background: transparent;
+	margin: 4px 0;
+}
+textarea::-webkit-scrollbar-thumb {
+	background: color-mix(in oklab, var(--color-base-content) 10%, transparent);
+	border-radius: 99px;
+}
+textarea::-webkit-scrollbar-thumb:hover {
+	background: color-mix(in oklab, var(--color-base-content) 20%, transparent);
+}
+
+/* ── Modern input / textarea overrides (Radix-UI-inspired) ── */
+/*
+ * Replace the heavy DaisyUI "input-bordered" look with a lighter,
+ * more refined style: thin border, subtle focus ring, no inner shadow.
+ */
+.input,
+.textarea {
+	border-color: color-mix(in oklab, var(--color-base-content) 15%, transparent);
+	background-color: var(--color-base-100);
+	font-weight: 400;
+	transition:
+		border-color 0.15s ease,
+		box-shadow 0.15s ease;
+	box-shadow: none;
+}
+.input:focus,
+.textarea:focus {
+	outline: none;
+	border-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+	box-shadow: 0 0 0 3px
+		color-mix(in oklab, var(--color-primary) 12%, transparent);
+}
+.input::placeholder,
+.textarea::placeholder {
+	color: color-mix(in oklab, var(--color-base-content) 45%, transparent);
+}
+.textarea,
+textarea {
+	resize: vertical;
+}
+.textarea::-webkit-resizer,
+textarea::-webkit-resizer {
+	background: transparent;
+	border: 0;
+}
+
+/* ── Range ── */
+input[type="range"] {
+	accent-color: var(--color-primary);
+}
+
+/* ── Focus ── */
+:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+/* ── Theme transitions ── */
+html,
+body,
+app-shell,
+marketing-page,
+app-page,
+benchmark-test,
+rsvp-reader,
+settings-panel,
+stats-dashboard,
+profile-page,
+share-card,
+share-view,
+wellness-overlay,
+legal-page {
+	transition:
+		background-color 0.2s ease,
+		color 0.2s ease,
+		border-color 0.2s ease;
+}
+
+/* ── App shell: ensure full viewport height ── */
+app-shell {
+	display: block;
+	min-height: 100vh;
+}
+
+learn-page,
+changelog-page,
+donate-page,
+promote-page,
+legal-page {
+	display: block;
+}
+
+/* ── Button micro-interactions ── */
+.btn {
+	transition:
+		opacity 0.15s ease,
+		transform 0.15s var(--ease-out-quart),
+		background-color 0.15s ease,
+		border-color 0.15s ease,
+		box-shadow 0.15s ease !important;
+}
+.btn:active:not(:disabled) {
+	transform: scale(0.96);
+}
+
+/* ── Countdown: scale-in per number ── */
+.countdown-number {
+	animation: countIn 0.3s var(--ease-out-expo) both;
+}
+
+@keyframes countIn {
+	from {
+		opacity: 0;
+		transform: scale(1.4);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+/* ── Irlen overlay colors (CSS custom properties for theming) ── */
+:root {
+	--irlen-peach: rgba(255, 160, 80, 0.18);
+	--irlen-mint: rgba(80, 200, 140, 0.18);
+	--irlen-parchment: rgba(210, 185, 110, 0.18);
+}
+
+/* ── Tabular numbers for stats ── */
+.tabular-nums {
+	font-variant-numeric: tabular-nums;
+}
+
+/* ── Reduced motion: respect user preference ── */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+	body,
+	.fade-up,
+	[data-reveal] {
+		animation: none !important;
+	}
+	.fade-up,
+	[data-reveal] {
+		opacity: 1;
+		transform: none;
+	}
+	.mkt-badge-shimmer {
+		animation: none !important;
+		background-image: none;
+	}
+	.mkt-cta-glow {
+		animation: none !important;
+	}
+	.mkt-scroll-line {
+		animation: none !important;
+		opacity: 0.4;
+	}
+}
+
+/* ── Hero RSVP demo: constrain reading-box inside hero container ── */
+.mkt-hero-demo-wrap .reading-box {
+	width: 100% !important;
+	max-width: 100% !important;
+}
+
+/* ── Marketing: kinetic hero word flash ── */
+@keyframes mkt-word-in {
+	from {
+		opacity: 0;
+		transform: scale(0.94) translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1) translateY(0);
+	}
+}
+.mkt-hero-word {
+	animation: mkt-word-in 0.12s var(--ease-out-expo) both;
+}
+
+/* ── Marketing: accent line draw on scroll reveal ── */
+@keyframes accent-draw {
+	from {
+		transform: scaleY(0);
+	}
+	to {
+		transform: scaleY(1);
+	}
+}
+.mkt-feat-accent {
+	transform-origin: top center;
+	transform: scaleY(0);
+	transition: transform 0.45s var(--ease-out-expo);
+}
+.fade-up.visible .mkt-feat-accent {
+	transform: scaleY(1);
+}
+
+/* ── Animated counter via @property ── */
+@property --counter-val {
+	syntax: "<integer>";
+	inherits: false;
+	initial-value: 0;
+}
+@keyframes count-up {
+	from {
+		--counter-val: 0;
+	}
+	to {
+		--counter-val: var(--counter-target, 100);
+	}
+}
+.mkt-counter {
+	animation: count-up 1.4s var(--ease-out-expo) both;
+	animation-play-state: paused;
+	counter-reset: mkt-count var(--counter-val);
+}
+.mkt-counter::before {
+	content: counter(mkt-count);
+}
+.mkt-counter.counting {
+	animation-play-state: running;
+}
+
+/* ── Marketing: eyebrow badge shimmer ── */
+@keyframes mkt-badge-shimmer {
+	0% {
+		background-position: -200% center;
+	}
+	100% {
+		background-position: 200% center;
+	}
+}
+.mkt-badge-shimmer {
+	background-image: linear-gradient(
+		105deg,
+		oklch(var(--p) / 0.08) 0%,
+		oklch(var(--p) / 0.08) 40%,
+		oklch(var(--p) / 0.18) 50%,
+		oklch(var(--p) / 0.08) 60%,
+		oklch(var(--p) / 0.08) 100%
+	);
+	background-size: 200% 100%;
+	animation: mkt-badge-shimmer 3.5s linear infinite;
+}
+
+/* ── Marketing: CTA button glow pulse ── */
+@keyframes mkt-cta-glow-pulse {
+	0%,
+	100% {
+		box-shadow:
+			0 0 30px oklch(var(--p) / 0.35),
+			0 4px 16px oklch(var(--p) / 0.2);
+	}
+	50% {
+		box-shadow:
+			0 0 50px oklch(var(--p) / 0.5),
+			0 4px 24px oklch(var(--p) / 0.3);
+	}
+}
+.mkt-cta-glow {
+	animation: mkt-cta-glow-pulse 2.5s ease-in-out infinite;
+}
+.mkt-cta-glow:hover {
+	animation: none;
+	box-shadow:
+		0 0 50px oklch(var(--p) / 0.55),
+		0 4px 24px oklch(var(--p) / 0.35) !important;
+}
+
+/* ── Marketing: scroll indicator line ── */
+@keyframes mkt-scroll-drip {
+	0% {
+		transform: scaleY(0) translateY(0);
+		transform-origin: top;
+		opacity: 1;
+	}
+	60% {
+		transform: scaleY(1) translateY(0);
+		transform-origin: top;
+		opacity: 1;
+	}
+	100% {
+		transform: scaleY(1) translateY(0);
+		transform-origin: top;
+		opacity: 0;
+	}
+}
+.mkt-scroll-line {
+	width: 1px;
+	height: 2rem;
+	background: linear-gradient(to bottom, oklch(var(--p) / 0.5), transparent);
+	animation: mkt-scroll-drip 1.8s var(--ease-out-expo) infinite;
+}
+
+/*
+ * Learn route: paint a flat base-100 layer without the body dot grid.
+ * Otherwise axe can sample gradient dots and report false color-contrast failures.
+ */
+.learn-reading-surface {
+	min-height: 100vh;
+	width: 100%;
+	background-color: var(--color-base-100);
+	background-image: none;
+}
+
+/*
+ * Scoped sRGB pairs for learn prose (axe + WCAG AA): some engines mis-resolve
+ * oklch/color-mix against the dotted body background; this subtree is self-consistent.
+ */
+[data-theme="light"] .learn-reading-surface {
+	--color-base-100: #ffffff;
+	--color-base-content: #16161d;
+}
+
+[data-theme="dark"] .learn-reading-surface {
+	--color-base-100: #2c303c;
+	--color-base-content: #eef0f5;
+}
+
+/* ── Learn page: scroll progress bar ── */
+.learn-progress-bar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	height: 2px;
+	background: linear-gradient(
+		to right,
+		var(--color-primary),
+		oklch(0.72 0.14 55)
+	);
+	width: calc(var(--scroll-progress, 0) * 100%);
+	z-index: 100;
+	transition: width 0.1s linear;
+	transform-origin: left;
+}
+
+/* ── Learn page: section heading decode animation ── */
+@keyframes decode-char {
+	0% {
+		opacity: 0.3;
+	}
+	50% {
+		opacity: 0.7;
+	}
+	100% {
+		opacity: 1;
+	}
+}
+.learn-heading-char {
+	display: inline-block;
+	animation: decode-char 0.08s ease both;
+}
+
+
+/* ── Learn page: WPM bar chart ── */
+.learn-bar-fill {
+	height: 100%;
+	width: 0%;
+	border-radius: 2px;
+	transition: width 0.7s var(--ease-out-expo);
+}
+.learn-bar-fill.visible {
+	width: var(--bar-width, 50%);
+}
+
+/* ── Learn page: tips accordion ── */
+.learn-tip-body {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition: grid-template-rows 0.32s var(--ease-out-quart);
+}
+.learn-tip-body.open {
+	grid-template-rows: 1fr;
+}
+.learn-tip-inner {
+	overflow: hidden;
+}
+
+/* ── Learn page: ORP interactive hover ── */
+.learn-orp-word {
+	cursor: default;
+	transition: color 0.15s ease;
+}
+.learn-orp-word:hover .learn-orp-pivot {
+	color: var(--color-primary);
+	font-weight: 700;
+}
+.learn-orp-word:hover .learn-orp-side {
+	color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+}
+
+/* Fixed portals: zero footprint in normal flow */
+feedback-modal,
+toast-container,
+onboarding-modal {
+	display: block;
+	position: fixed;
+	width: 0;
+	height: 0;
+	pointer-events: none;
+	border: 0;
+	margin: 0;
+	padding: 0;
+	overflow: visible;
+	z-index: 9999;
+}
+
+global-tooltip {
+	position: fixed;
+	display: block;
+	top: 0;
+	left: 0;
+	z-index: 9999;
+	pointer-events: none;
+}
+
+/*
+ * DaisyUI `.tab` inactive labels use 50% base-content mix — fails WCAG AA on `bg-base-100`.
+ * Unlayered so this wins over Daisy’s `@layer utilities` without !important.
+ */
+.tabs > button.tab:not(.tab-active):not(:hover) {
+	color: color-mix(in oklab, var(--color-base-content) 74%, transparent);
+}
+.tabs > button.tab:not(.tab-active):hover {
+	color: var(--color-base-content);
+}
+.tabs > button.tab.tab-active,
+.tabs > button.tab[aria-selected="true"] {
+	color: var(--color-base-content);
+}
+
+/*
+ * Muted prose + decode scramble: unlayered so these win over Daisy `@layer utilities`
+ * (same class names, clearer contrast inheritance than duplicating hex per route).
+ */
+.text-ui-muted {
+	color: color-mix(
+		in oklab,
+		var(--color-base-content) 93%,
+		var(--color-base-100)
+	);
+}
+
+.text-ui-muted-subtle {
+	color: color-mix(
+		in oklab,
+		var(--color-base-content) 87%,
+		var(--color-base-100)
+	);
+}
+
+.learn-heading-scramble {
+	color: color-mix(
+		in oklab,
+		var(--color-base-content) 82%,
+		var(--color-base-100)
+	);
+}

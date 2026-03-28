@@ -1,0 +1,17 @@
+The "Speeedy" reader is a high-performance RSVP engine designed to test every "limit" of human perception.
+"It's not just about speed," she whispered, "it's about the 'flow' of the words." (Are you ready?) [Really?]
+
+Let's test long words: Anticonstitucionalmente and Pneumonoultramicroscopicsilicovolcanoconiosis.
+Numbers: 1,234.56 or 100% or $99.99! Punctuation edge-cases: Why??? How... What?! --- Just testing.
+
+Now, a world of scripts:
+Arabic (RTL): مرحباً بك في مستقبل القراءة السريعة. هل يمكنك رؤية هذا بوضوح؟
+Hebrew (RTL): שלום! זהו מבחן לקריאה מהירה בעברית. האם הניקוד עובד?
+Japanese: 速読の世界へようこそ。漢字、ひらがな、カタカナが混ざっても大丈夫ですか？
+Chinese: 欢迎来到快速阅读的世界。您的眼睛能跟上这个速度吗？
+Korean: 속독의 세계에 오신 것을 환영합니다. 이 텍스트가 잘 보이나요?
+
+Mixed Example: The word "Apple" is translated as "تفاحة" in Arabic, "りんご" in Japanese, "苹果" in chinese and "사과" in Korean.
+Complex symbols: 1/2 + 3/4 = 5/4 [125%]. Also, emojis: 🚀 📚 ⚡.
+URL test: Check out https://speeedy.app for more info. Contact: support@example.co.uk.
+Final sentence with multiple trailing symbols: Is this the end?! (I think so...) "Goodbye!"
