@@ -56,6 +56,7 @@ export const DEFAULT_SETTINGS: ReaderSettings = {
 	pomodoroBreakMinutes: 5,
 	pomodoroLongBreakMinutes: 20,
 	pomodoroSessionsBeforeLongBreak: 4,
+	removeCitations: false,
 };
 
 export const AVATAR_EMOJIS = [

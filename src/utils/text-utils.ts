@@ -71,3 +71,22 @@ export function htmlToPlainText(html: string): string {
 	traverse(body);
 	return text.trim();
 }
+
+/** Strip inline academic citations from text.
+ *  Handles numeric brackets [1], [1, 2], [1-5] and
+ *  author-year parentheticals (Smith, 2020), (Smith et al., 2020; Jones, 2021). */
+export function stripCitations(text: string): string {
+	// Numeric bracket citations: [1], [1, 2], [1-5], [1, 3–7]
+	const numericBracket = /\[\s*\d[\d,;\s\u2013-]*\]/g;
+
+	// Author-year parenthetical citations:
+	// (Smith, 2020), (Smith et al., 2020), (Smith & Jones, 2019; Doe, 2021)
+	const authorYear =
+		/\(\s*[A-Z][A-Za-z''\u2019.&\s]+(?:et\s+al\.?)?,?\s*\d{4}[a-z]?(?:\s*[;,]\s*[A-Z][A-Za-z''\u2019.&\s]+(?:et\s+al\.?)?,?\s*\d{4}[a-z]?)*\s*\)/g;
+
+	return text
+		.replace(numericBracket, "")
+		.replace(authorYear, "")
+		.replace(/ {2,}/g, " ")
+		.trim();
+}

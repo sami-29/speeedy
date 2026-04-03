@@ -416,6 +416,12 @@ export class SettingsPanel extends LitElement {
               @change=${(e: CustomEvent) => this.emit({ hidePunctuationInDisplay: e.detail.value })}
             ></speeedy-toggle>
             <speeedy-toggle
+              label="Remove citations"
+              ?checked=${s.removeCitations ?? false}
+              tip="Strip inline citations like [1], [1-3], and (Smith et al., 2020) for distraction-free academic reading."
+              @change=${(e: CustomEvent) => this.emit({ removeCitations: e.detail.value })}
+            ></speeedy-toggle>
+            <speeedy-toggle
               label="Smart speed logic"
               ?checked=${s.smartSpeed}
               tip=${TOOLTIPS.smartSpeed}

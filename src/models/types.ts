@@ -105,6 +105,8 @@ export interface ReaderSettings {
 	pomodoroLongBreakMinutes: number;
 	/** Number of focus sessions before a long break. */
 	pomodoroSessionsBeforeLongBreak: number;
+	/** Strip inline citations (e.g. [1], (Smith et al., 2020)) from text for cleaner academic reading. */
+	removeCitations: boolean;
 }
 
 export interface ReadingSession {

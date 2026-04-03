@@ -18,6 +18,7 @@ import { applyBionicReading } from "../services/text-parser.js";
 import { applyTheme } from "../services/theme-service.js";
 import { trackEvent, wpmBracket } from "../utils/analytics.js";
 import { emitProfileUpdated, navigate } from "../utils/events.js";
+import { stripCitations } from "../utils/text-utils.js";
 import "./settings-panel.ts";
 import "./wellness-overlay.ts";
 
@@ -49,6 +50,8 @@ export class RsvpReader extends LitElement {
 	private wasPlayingBeforeSeek = false;
 	private countdownTimer: ReturnType<typeof setTimeout> | null = null;
 	private seekingPointerId: number | null = null;
+	/** Stores the raw (unprocessed) document text so we can re-tokenize when settings like removeCitations change. */
+	private rawDocText = "";
 
 	private keyHandler = (e: KeyboardEvent): void => {
 		if (
@@ -257,7 +260,11 @@ export class RsvpReader extends LitElement {
 	private loadDoc(doc: ParsedDocument): void {
 		this.docTitle = doc.title;
 		this.totalDocWords = doc.wordCount;
-		this.engine.load(doc.text, this.settings);
+		this.rawDocText = doc.text;
+		const textToLoad = this.settings.removeCitations
+			? stripCitations(doc.text)
+			: doc.text;
+		this.engine.load(textToLoad, this.settings);
 		if (this.resumeWordIndex > 0) {
 			const startIndex = Math.max(
 				0,
@@ -325,9 +332,23 @@ export class RsvpReader extends LitElement {
 
 	private handleSettingsChange(e: CustomEvent): void {
 		const newSettings = e.detail as ReaderSettings;
+		const citationsToggled =
+			newSettings.removeCitations !== this.settings.removeCitations;
 		this.settings = newSettings;
 		this.engine.setWpm(newSettings);
 		applyTheme(newSettings.theme);
+
+		// Re-tokenize when the citations toggle changes
+		if (citationsToggled && this.rawDocText) {
+			const currentIndex = this.engine.getState().wordIndex;
+			const textToLoad = newSettings.removeCitations
+				? stripCitations(this.rawDocText)
+				: this.rawDocText;
+			this.engine.load(textToLoad, newSettings);
+			this.engine.seekToWord(
+				Math.min(currentIndex, this.engine.tokens.length - 1),
+			);
+		}
 
 		const updatedProfile: UserProfile = {
 			...this.profile,
