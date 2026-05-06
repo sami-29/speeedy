@@ -4,7 +4,7 @@ import { Heart } from "lucide";
 import type { UserProfile } from "../models/types.js";
 import { icon } from "../utils/icons.js";
 
-const SESSIONS_BEFORE_SHOW = 3;
+const SESSIONS_BEFORE_SHOW = 2;
 
 @customElement("donation-banner")
 export class DonationBanner extends LitElement {
@@ -35,7 +35,7 @@ export class DonationBanner extends LitElement {
           <div class="flex items-center gap-2.5 min-w-0">
             ${icon(Heart, "w-3 h-3 text-error shrink-0")}
             <p class="text-[0.7rem] uppercase tracking-wider text-base-content/50 font-medium">
-              Speeedy is free & ad-free — consider a small donation to keep it running
+              Speeedy is built solo, ad-free. Support the dev →
             </p>
           </div>
 

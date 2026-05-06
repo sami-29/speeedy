@@ -2,4 +2,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://speeedy.app/sitemap.xml
+Sitemap: https://speeedy.pages.dev/sitemap.xml

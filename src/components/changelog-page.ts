@@ -13,6 +13,20 @@ interface Release {
 
 const RELEASES: Release[] = [
 	{
+		version: "1.1.0",
+		date: "2026-05-06",
+		sections: [
+			{
+				title: "Added",
+				items: [
+					'Ticker mode — alternative to RSVP flash: text scrolls horizontally at your WPM pace. Speed, pause, and seek all work as normal. Toggle in Settings under "Ticker mode"',
+					"Remove citations toggle — strips inline references like [1], [1-3], and (Smith et al., 2020) from text for distraction-free academic reading",
+					"Donate page: feature bounty section — roadmap items (cloud sync, browser extension, mobile wrapper) that contributions help fund",
+				],
+			},
+		],
+	},
+	{
 		version: "1.0.0",
 		date: "2026-03-27",
 		sections: [

@@ -53,6 +53,14 @@ export class RsvpReader extends LitElement {
 	/** Stores the raw (unprocessed) document text so we can re-tokenize when settings like removeCitations change. */
 	private rawDocText = "";
 
+	// ── Ticker mode bookkeeping ──────────────────────────────────────────────
+
+	private _handleResize = (): void => {
+		if (this.settings?.tickerMode && this.playbackState) {
+			requestAnimationFrame(() => this._positionTicker());
+		}
+	};
+
 	private keyHandler = (e: KeyboardEvent): void => {
 		if (
 			e.target instanceof HTMLInputElement ||
@@ -158,6 +166,7 @@ export class RsvpReader extends LitElement {
 		}
 
 		window.addEventListener("keydown", this.keyHandler);
+		window.addEventListener("resize", this._handleResize);
 	}
 
 	private async restoreLastDocument() {
@@ -185,6 +194,7 @@ export class RsvpReader extends LitElement {
 		this.engine.stop();
 		audioService.stopAmbientNoise();
 		window.removeEventListener("keydown", this.keyHandler);
+		window.removeEventListener("resize", this._handleResize);
 		this._rtlResizeObserver?.disconnect();
 		this._rtlResizeObserver = null;
 	}
@@ -205,6 +215,11 @@ export class RsvpReader extends LitElement {
 					activeWord.scrollIntoView({ behavior: "smooth", block: "center" });
 				}
 			});
+		}
+
+		// Ticker: position the strip via DOM measurement after every render.
+		if (this.settings?.tickerMode && this.playbackState) {
+			requestAnimationFrame(() => this._positionTicker());
 		}
 
 		this.alignRtlPivot();
@@ -644,13 +659,13 @@ export class RsvpReader extends LitElement {
 						${
 							!s || s.totalWords === 0
 								? this.renderEmptyState()
-								: (
-											!s.playing &&
-												(this.settings.pauseView === "fulltext" ||
-													this.settings.pauseView === "context")
-										)
-									? this.renderFullTextPauseView(s)
-									: this.renderWordDisplay(s)
+								: this.settings.tickerMode
+									? this.renderTickerDisplay(s)
+									: !s.playing &&
+											(this.settings.pauseView === "fulltext" ||
+												this.settings.pauseView === "context")
+										? this.renderFullTextPauseView(s)
+										: this.renderWordDisplay(s)
 						}
 					</div>
 
@@ -920,6 +935,142 @@ export class RsvpReader extends LitElement {
 				}
       </div>
     `;
+	}
+
+	/**
+	 * Ticker (horizontal scrolling) display mode.
+	 *
+	 * Renders a sliding window of words as a single `whitespace-nowrap` strip
+	 * inside an `overflow:hidden` container. The strip's `translateX` is set
+	 * imperatively in `_positionTicker()` after each render, using the real
+	 * `offsetLeft` of the current-word span — no pixel estimation.
+	 */
+	private renderTickerDisplay(s: PlaybackState) {
+		const tokens = this.engine.tokens;
+		const isDyslexia = this.settings.dyslexiaMode;
+		const fontFamily = isDyslexia
+			? "OpenDyslexic"
+			: `'${this.settings.fontFamily}', 'Amiri Quran', 'Hiragino Sans', sans-serif`;
+		const letterSpacing = isDyslexia
+			? Math.max(this.settings.letterSpacing + 0.08, 0.08)
+			: this.settings.letterSpacing;
+		const fontWeight = this.settings.fontWeight ?? 400;
+		const fontSize = this.settings.fontSize;
+
+		// On mobile portrait, narrow width makes ticker difficult.
+		// Adapt by forcing a maximum font size and centering the anchor to maximize context on both sides.
+		const isMobile = window.innerWidth < 768;
+		const effectiveFontSize = isMobile ? Math.min(fontSize, 32) : fontSize;
+		const anchorPercent = isMobile ? 50 : 30;
+
+		// Sliding window: 30 words behind, 50 ahead of current index.
+		const idx = s.displayWordIndex;
+		const windowBehind = 30;
+		const windowAhead = 50;
+		const windowStart = Math.max(0, idx - windowBehind);
+		const windowEnd = Math.min(tokens.length, idx + windowAhead);
+		const windowTokens = tokens.slice(windowStart, windowEnd);
+
+		const highlightColor = this.settings.highlightColor;
+
+		// Render each word as a span; the current word gets data-ticker-current
+		// and the highlight colour so _positionTicker() can find it via querySelector.
+		const spans = windowTokens.map((token, wi) => {
+			const globalIdx = windowStart + wi;
+			const isCurrent = globalIdx === idx;
+			const isPast = globalIdx < idx;
+
+			if (isCurrent) {
+				return html`<span
+					data-ticker-current
+					style="color:${highlightColor};font-weight:bold;"
+				>${token.text} </span>`;
+			}
+			const opacity = isPast ? "0.25" : "0.75";
+			return html`<span style="opacity:${opacity};">${token.text} </span>`;
+		});
+
+		// Font/spacing styles — applied to the strip so they affect offsetLeft measures.
+		const stripStyle = [
+			`font-size: ${effectiveFontSize}px`,
+			`font-family: ${fontFamily}`,
+			`letter-spacing: ${letterSpacing}em`,
+			`font-weight: ${fontWeight}`,
+			`word-spacing: ${isDyslexia ? "0.2em" : "normal"}`,
+			`line-height: 1`,
+		].join(";");
+
+		// NOTE: transform/transition are NOT set here — they are applied
+		// imperatively by _positionTicker() after the DOM has painted.
+
+		return html`
+      <div
+        id="ticker-container"
+        class="w-full h-full flex items-center overflow-hidden relative"
+        aria-live="polite"
+        aria-label="Reading: ${s.currentTokens.map((t) => t.text).join(" ")}"
+      >
+        <!-- Right fade mask -->
+        <div class="absolute inset-y-0 right-0 w-6 md:w-20 z-10 pointer-events-none"
+          style="background: linear-gradient(to right, transparent, oklch(var(--b1) / 0.9))"
+        ></div>
+        <!-- Left fade mask -->
+        <div class="absolute inset-y-0 left-0 w-6 md:w-16 z-10 pointer-events-none"
+          style="background: linear-gradient(to left, transparent, oklch(var(--b1) / 0.9))"
+        ></div>
+        <!-- Central focal reticle -->
+        <div class="absolute inset-y-0 z-10 pointer-events-none flex flex-col justify-between py-2" style="left: ${anchorPercent}%; width: 0px;">
+          <!-- Top notch -->
+          <div class="absolute top-1/2 -mt-6 -ml-[1px] w-[2px] h-2 bg-primary/50"></div>
+          <!-- Bottom notch -->
+          <div class="absolute top-1/2 mt-4 -ml-[1px] w-[2px] h-2 bg-primary/50"></div>
+        </div>
+        <!-- Scrolling text strip (transform set imperatively) -->
+        <div
+          id="ticker-strip"
+          class="absolute whitespace-nowrap select-none will-change-transform"
+          style="${stripStyle}"
+        >
+          ${spans}
+        </div>
+      </div>
+    `;
+	}
+
+	/**
+	 * Imperatively positions the ticker strip so the current word sits at 30%
+	 * of the container width. Called from `updated()` via `requestAnimationFrame`
+	 * so the DOM has fully painted before we measure.
+	 *
+	 * Uses `span.offsetLeft` — the real browser-computed position — not any
+	 * estimated pixel width, so it's accurate at every font size and screen width.
+	 */
+	private _positionTicker(): void {
+		const container =
+			this.renderRoot.querySelector<HTMLElement>("#ticker-container");
+		const strip = this.renderRoot.querySelector<HTMLElement>("#ticker-strip");
+		const current = strip?.querySelector<HTMLElement>("[data-ticker-current]");
+		if (!container || !strip || !current) return;
+
+		const s = this.playbackState;
+		if (!s) return;
+
+		// 50% left edge on mobile, 30% otherwise (matching the reticle UI)
+		const isMobile = window.innerWidth < 768;
+		const anchorX = container.clientWidth * (isMobile ? 0.5 : 0.3);
+
+		// The span's natural offsetLeft within the strip (no transform applied yet).
+		// offsetLeft is relative to the offsetParent; since the strip is `position:absolute`
+		// and the container is `position:relative`, current.offsetLeft is relative to the strip.
+		const wordLeft = current.offsetLeft;
+
+		// We want: strip.translateX + wordLeft === anchorX
+		const target = anchorX - wordLeft;
+
+		// We use "stepped" mode (instant snap, no linear transition) instead of
+		// smooth scrolling to prevent 'smooth pursuit' eye strain.
+		strip.style.transition = "none";
+		strip.style.transform = `translateX(${target}px)`;
 	}
 
 	private renderOrpWord(

@@ -110,7 +110,7 @@ export class ShareCard extends LitElement {
         ${wpms.length >= 2 ? this.renderMiniChart(wpms) : ""}
 
         <!-- Footer -->
-        <div style="margin-top: 20px; font-size: 10px; color: rgba(255,255,255,0.18); text-align: center; letter-spacing: 0.25em; text-transform: uppercase;">speeedy.app · read faster, every day</div>
+        <div style="margin-top: 20px; font-size: 10px; color: rgba(255,255,255,0.18); text-align: center; letter-spacing: 0.25em; text-transform: uppercase;">speeedy.pages.dev · read faster, every day</div>
       </div>
     `;
 	}

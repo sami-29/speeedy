@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-05-06
+
+### Added
+- **Ticker mode** — alternative to RSVP flash: text scrolls horizontally at your WPM pace. Speed, pause, and seek all work as normal. Toggle in Settings under "Ticker mode"
+- **Remove citations toggle** — strips inline references like `[1]`, `[1-3]`, and `(Smith et al., 2020)` from text for distraction-free academic reading
+- **Donate page: feature bounty section** — roadmap items (cloud sync, browser extension, mobile wrapper) that contributions help fund
+
 ## [1.0.0] - 2026-03-27
 
 ### Added
@@ -50,4 +57,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Donation and support page with crypto wallets, QR codes, and supporters wall
 - In-app changelog
 
+[1.1.0]: https://github.com/sami-29/speeedy/releases/tag/v1.1.0
 [1.0.0]: https://github.com/sami-29/speeedy/releases/tag/v1.0.0

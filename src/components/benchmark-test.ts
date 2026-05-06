@@ -1,5 +1,6 @@
 import { html, LitElement } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
+import { Heart } from "lucide";
 import type { BenchmarkPassage } from "../data/benchmark-passages.js";
 import { pickPassage } from "../data/benchmark-passages.js";
 import type { UserProfile } from "../models/types.js";
@@ -10,6 +11,7 @@ import {
 	wpmBracket,
 } from "../utils/analytics.js";
 import { emitProfileUpdated, navigate } from "../utils/events.js";
+import { icon } from "../utils/icons.js";
 import "./ui/page-nav.js";
 
 type Phase = "intro" | "reading" | "quiz" | "results";
@@ -336,6 +338,21 @@ export class BenchmarkTest extends LitElement {
           <p class="text-xs text-ui-muted font-light leading-relaxed">
             Your baseline WPM has been saved to your profile and set as your starting speed in the app.
           </p>
+
+          <div class="rounded-xl border border-base-200/60 bg-base-200/20 px-5 py-4 flex flex-col gap-2.5">
+            <p class="text-sm font-light text-ui-muted leading-relaxed">
+              You just measured <strong class="text-base-content font-medium">${this.resultWpm} WPM</strong> with <strong class="text-base-content font-medium">${this.resultComprehension}% comprehension</strong>.
+              Speeedy is 100% free, no ads, no tracking. If it helped you today, consider supporting it.
+            </p>
+            <a
+              href="#/donate"
+              class="btn btn-outline border-error/30 text-error hover:bg-error/10 hover:border-error btn-sm w-fit gap-1.5"
+              data-umami-event="benchmark-donate-nudge-click"
+            >
+              ${icon(Heart, "w-3.5 h-3.5")}
+              Support Speeedy
+            </a>
+          </div>
 
           <div class="flex flex-col gap-3 pb-8">
             <a href="#/app" class="btn btn-primary btn-lg rounded-xl">Start reading →</a>

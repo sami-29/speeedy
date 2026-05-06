@@ -4,7 +4,11 @@
 
 Speeedy is a local-first reading product that helps users read faster with **RSVP (Rapid Serial Visual Presentation)** and **ORP (Optimal Recognition Point)** alignment, while also supporting accessibility, benchmarking, analytics, profile sharing, and offline use.
 
+**The best free open-source alternative to Spreeder and Outread.** A private, local-first speed reader for PDFs and EPUBs — no account, no ads, no data collection. Built-in ADHD and dyslexia support.
+
 → **[speeedy.pages.dev](https://speeedy.pages.dev)**
+
+> **Support the project:** If Speeedy saves you time, consider [supporting development](https://speeedy.pages.dev/#/donate) ❤️
 
 ---
 
@@ -15,7 +19,8 @@ Traditional reading is slowed down by constant eye movement across lines of text
 It is not just a basic word flasher. It is a full reading system with:
 - a custom RSVP engine with adaptive timing
 - deep reading personalization
-- accessibility-focused display modes
+- **accessibility-focused modes** — Dyslexia (OpenDyslexic), Bionic Reading, Irlen overlays
+- **ADHD support** — Pomodoro timer, focus/immersion mode, ambient noise, 20-20-20 reminders
 - reading benchmarks and progress tracking
 - local-first persistence with no account required
 - profile sharing and installable PWA support

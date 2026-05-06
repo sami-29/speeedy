@@ -24,6 +24,7 @@ import {
 import { icon } from "../utils/icons.js";
 import { countWords, estimateReadingMinutes } from "../utils/text-utils.js";
 import "./donation-banner.ts";
+import "./github-star-prompt.ts";
 import "./ui/file-uploader.ts";
 import "./ui/input.ts";
 
@@ -212,6 +213,7 @@ export class AppPage extends LitElement {
           </div>
         </nav>
 
+        <github-star-prompt .profile=${this.profile}></github-star-prompt>
         <donation-banner .profile=${this.profile}></donation-banner>
 
         <main class="flex-1 flex flex-col items-center justify-center px-4 min-h-0 overflow-auto">

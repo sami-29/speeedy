@@ -422,6 +422,12 @@ export class SettingsPanel extends LitElement {
               @change=${(e: CustomEvent) => this.emit({ removeCitations: e.detail.value })}
             ></speeedy-toggle>
             <speeedy-toggle
+              label="Ticker mode"
+              ?checked=${s.tickerMode ?? false}
+              tip="Instead of flashing one word at a time, text scrolls horizontally at your configured WPM. Speed, pause, and seek all work as normal."
+              @change=${(e: CustomEvent) => this.emit({ tickerMode: e.detail.value })}
+            ></speeedy-toggle>
+            <speeedy-toggle
               label="Smart speed logic"
               ?checked=${s.smartSpeed}
               tip=${TOOLTIPS.smartSpeed}

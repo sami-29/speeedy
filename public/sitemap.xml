@@ -1,26 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://speeedy.app/</loc>
-    <lastmod>2026-03-10</lastmod>
+    <loc>https://speeedy.pages.dev/</loc>
+    <lastmod>2026-04-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://speeedy.app/#/learn</loc>
-    <lastmod>2026-03-10</lastmod>
+    <loc>https://speeedy.pages.dev/#/learn</loc>
+    <lastmod>2026-04-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://speeedy.app/#/benchmark</loc>
-    <lastmod>2026-03-10</lastmod>
+    <loc>https://speeedy.pages.dev/#/benchmark</loc>
+    <lastmod>2026-04-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://speeedy.app/#/donate</loc>
-    <lastmod>2026-03-10</lastmod>
+    <loc>https://speeedy.pages.dev/#/promote</loc>
+    <lastmod>2026-04-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://speeedy.pages.dev/#/donate</loc>
+    <lastmod>2026-04-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>

@@ -119,7 +119,7 @@ export class PromotePage extends LitElement {
                 </h3>
                 <ul class="text-xs text-ui-muted flex flex-col gap-2 font-light list-disc list-inside">
                   <li>Respects reader privacy (no cookies)</li>
-                  <li>Great for long-form summaries</li>
+                  <li>Ideal for long articles, essays, and newsletters</li>
                   <li>Works on any device (PWA)</li>
                   <li>Completely free & open access</li>
                 </ul>

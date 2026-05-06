@@ -182,6 +182,73 @@ export class MarketingPage extends LitElement {
 		}
 	}
 
+	private renderPersonas() {
+		const PERSONAS: [string, string, string][] = [
+			[
+				"01",
+				"Students & Researchers",
+				"Work through papers, textbooks, and reading lists faster. PDF and EPUB import, no account required, no data leaving your device.",
+			],
+			[
+				"02",
+				"ADHD & Neurodivergent",
+				"Irlen overlays, OpenDyslexic font, Pomodoro with auto-pause, focus mode, ambient noise, and 20-20-20 eye rest — all in one place.",
+			],
+			[
+				"03",
+				"Avid Readers",
+				"Track sessions, WPM trends, streaks, and daily word targets. Your reading history stays in your browser — no cloud, no sync, just data.",
+			],
+			[
+				"04",
+				"Writers & Professionals",
+				"Run your own drafts through RSVP to catch pacing issues and awkward phrasing. Import DOCX, TXT, or Markdown and read at speed.",
+			],
+		];
+		return PERSONAS.map(
+			([num, title, desc]) => html`
+        <div class="rounded-2xl border border-base-200 p-6 flex flex-col gap-3 hover:border-primary/30 transition-colors" data-reveal>
+          <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary font-mono text-xs font-semibold select-none" aria-hidden="true">${num}</span>
+          <h3 class="text-ui-title font-semibold text-base-content">${title}</h3>
+          <p class="text-ui-body text-ui-muted leading-[1.85]">${desc}</p>
+        </div>
+      `,
+		);
+	}
+
+	private renderComparisonRows() {
+		type Row = [string, true | string, boolean | string, boolean | string];
+		const ROWS: Row[] = [
+			["Free to use", true, "Freemium", "Subscription"],
+			["Open source", true, false, false],
+			["PDF / EPUB import", true, "Limited", true],
+			["No account required", true, false, false],
+			["Local-first / private", true, false, false],
+			["ADHD / Dyslexia modes", true, false, false],
+			["Bionic Reading", true, false, false],
+			["Pomodoro timer", true, false, false],
+			["ORP alignment", true, false, false],
+			["PWA / offline", true, false, false],
+		];
+		const cell = (val: boolean | string) => {
+			if (val === true)
+				return html`<span class="text-success font-bold text-base" aria-label="Yes">✓</span>`;
+			if (val === false)
+				return html`<span class="text-ui-muted-subtle text-sm" aria-label="No">—</span>`;
+			return html`<span class="text-xs text-ui-muted">${val}</span>`;
+		};
+		return ROWS.map(
+			([feat, speeedy, spreeder, readwise]) => html`
+        <tr class="border-b border-base-200/50 hover:bg-base-200/20 transition-colors">
+          <td class="py-3 pr-6 text-ui-muted">${feat}</td>
+          <td class="py-3 px-4 text-center">${cell(speeedy)}</td>
+          <td class="py-3 px-4 text-center">${cell(spreeder)}</td>
+          <td class="py-3 px-4 text-center hidden sm:table-cell">${cell(readwise)}</td>
+        </tr>
+      `,
+		);
+	}
+
 	private themeIcon(theme: ThemeName) {
 		const effective = theme === "system" ? getResolvedTheme(theme) : theme;
 		return effective === "dark"
@@ -370,7 +437,7 @@ export class MarketingPage extends LitElement {
               <div>
                 <p class="text-ui-body tracking-[0.35em] uppercase text-primary/80 mb-3 font-semibold" data-reveal>What's inside</p>
                 <h2 class="text-ui-hero font-semibold text-base-content leading-tight" data-reveal>
-                  Everything you need,<br/><span class="font-semibold">nothing you don't.</span>
+                  Eight features.<br/><span class="font-semibold">Zero bloat.</span>
                 </h2>
               </div>
               <a href="#/app" class="btn btn-outline btn-sm rounded-full px-6 self-start md:self-end shrink-0" data-reveal>
@@ -403,6 +470,51 @@ export class MarketingPage extends LitElement {
               `,
 							)}
             </div>
+          </div>
+        </section>
+
+        <!-- Who is Speeedy for? -->
+        <section class="py-24 px-6 md:px-12 border-b border-base-300/60">
+          <div class="max-w-5xl mx-auto">
+            <div class="mb-14" data-reveal>
+              <p class="text-ui-body tracking-[0.35em] uppercase text-primary/80 mb-3 font-semibold">Who it's for</p>
+              <h2 class="text-ui-hero font-semibold text-base-content leading-tight">
+                Built for every kind<br/><span class="font-semibold">of reader.</span>
+              </h2>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              ${this.renderPersonas()}
+            </div>
+          </div>
+        </section>
+
+        <!-- Comparison table: Speeedy vs Spreeder vs Readwise Reader -->
+        <section class="py-24 px-6 md:px-12 border-b border-base-300/60 bg-base-200/25">
+          <div class="max-w-4xl mx-auto">
+            <div class="mb-12" data-reveal>
+              <p class="text-ui-body tracking-[0.35em] uppercase text-primary/80 mb-3 font-semibold">How it compares</p>
+              <h2 class="text-ui-hero font-semibold text-base-content leading-tight">
+                Free, open, and<br/><span class="font-semibold">more capable.</span>
+              </h2>
+            </div>
+            <div class="overflow-x-auto" data-reveal>
+              <table class="w-full text-ui-body border-collapse">
+                <thead>
+                  <tr class="border-b border-base-300/60">
+                    <th class="text-left py-3 pr-6 text-ui-muted font-medium text-xs uppercase tracking-widest w-1/2">Feature</th>
+                    <th class="py-3 px-4 text-center text-ui-body font-semibold text-primary text-sm">Speeedy</th>
+                    <th class="py-3 px-4 text-center text-ui-muted font-normal text-sm">Spreeder</th>
+                    <th class="py-3 px-4 text-center text-ui-muted font-normal text-sm hidden sm:table-cell">Readwise Reader</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${this.renderComparisonRows()}
+                </tbody>
+              </table>
+            </div>
+            <p class="text-[0.7rem] text-ui-muted-subtle mt-4 italic" data-reveal>
+              Comparison based on publicly available information. Last reviewed April 2026.
+            </p>
           </div>
         </section>
 
@@ -469,7 +581,7 @@ export class MarketingPage extends LitElement {
                   <span class="text-ui-body tracking-[0.25em] font-semibold text-base-content uppercase select-none">speeedy</span>
                 </div>
                 <p class="text-ui-body text-ui-muted leading-relaxed max-w-[18ch]">
-                  Free, open-source RSVP speed reader.
+                  Open-source RSVP speed reader. No account, no ads, no tracking.
                 </p>
               </div>
               <div class="flex flex-col gap-2.5">
@@ -492,12 +604,15 @@ export class MarketingPage extends LitElement {
               <p class="text-ui-body text-ui-muted-subtle">
                 MIT License · No ads · No cookies · No account required
               </p>
-              <div class="flex flex-wrap items-center justify-center gap-6 opacity-30 hover:opacity-70 transition-opacity grayscale hover:grayscale-0">
+              <div class="flex flex-wrap items-center justify-center gap-6">
                 <a href="https://ufind.best/products/speeedy?utm_source=ufind.best" target="_blank" rel="noopener">
                   <img src=${badgeUrls.ufind} alt="Featured on ufind.best" width="100" />
                 </a>
                 <a href="https://www.producthunt.com/products/speeedy?utm_source=other&utm_medium=social" target="_blank" rel="noopener">
                   <img src=${badgeUrls.productHunt} alt="Speeedy - Featured on Product Hunt" width="140" style="height: 30px;" />
+                </a>
+                <a href="https://alternativeto.net/software/speeedy/" target="_blank" rel="noopener" class="text-ui-body text-ui-muted-subtle hover:text-ui-muted transition-colors text-xs underline underline-offset-2">
+                  Listed on AlternativeTo
                 </a>
               </div>
             </div>

@@ -179,7 +179,7 @@ export class OnboardingModal extends LitElement {
           </div>
           <h2 class="text-3xl font-semibold mb-3 tracking-tight">Welcome to Speeedy</h2>
           <p class="text-base-content/60 font-light leading-relaxed mb-8">
-            Tailor your experience to fit your reading style.
+            Two quick options, then you're in.
           </p>
           <button @click=${this.handleNext} class="btn btn-primary btn-lg rounded-2xl px-12 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
             Get Started

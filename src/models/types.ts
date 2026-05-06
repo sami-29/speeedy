@@ -107,6 +107,8 @@ export interface ReaderSettings {
 	pomodoroSessionsBeforeLongBreak: number;
 	/** Strip inline citations (e.g. [1], (Smith et al., 2020)) from text for cleaner academic reading. */
 	removeCitations: boolean;
+	/** When on, text scrolls horizontally left-to-right at WPM pace instead of RSVP flashing. */
+	tickerMode: boolean;
 }
 
 export interface ReadingSession {
@@ -142,6 +144,7 @@ export interface UserProfile {
 	baselineWpm: number | null;
 	baselineComprehension: number | null;
 	onboardingSeen: boolean;
+	githubStarPromptDismissed?: boolean;
 }
 
 export interface ParsedDocument {
