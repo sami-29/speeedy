@@ -7,6 +7,7 @@ import type {
 	ThemeName,
 	UserProfile,
 } from "../models/types.js";
+import { tokenize } from "../services/rsvp-engine.js";
 import {
 	deleteSavedDocument,
 	getSavedDocuments,
@@ -25,6 +26,7 @@ import { icon } from "../utils/icons.js";
 import { countWords, estimateReadingMinutes } from "../utils/text-utils.js";
 import "./donation-banner.ts";
 import "./github-star-prompt.ts";
+import "./start-preview-dialog.ts";
 import "./ui/file-uploader.ts";
 import "./ui/input.ts";
 
@@ -44,9 +46,12 @@ export class AppPage extends LitElement {
 	@state() private savedDocs: SavedDocument[] = [];
 	@state() private welcomeDismissed = false;
 	@state() private recentMinimized = false;
+	@state() private previewOpen = false;
 
 	private static readonly WELCOME_DISMISSED_KEY = "speeedy:welcome-dismissed";
 	private static readonly RECENT_MINIMIZED_KEY = "speeedy:recent-minimized";
+	/** Auto-open start preview when a file has at least this many words. */
+	private static readonly PREVIEW_AUTO_OPEN_WORDS = 400;
 
 	override async connectedCallback(): Promise<void> {
 		super.connectedCallback();
@@ -144,6 +149,13 @@ export class AppPage extends LitElement {
 			? (doc.title.split(".").pop()?.toLowerCase() ?? "unknown")
 			: "unknown";
 		trackEvent("file-uploaded", { type: ext, words: doc.wordCount });
+		if (doc.wordCount >= AppPage.PREVIEW_AUTO_OPEN_WORDS) {
+			this.previewOpen = true;
+			trackEvent("preview-opened", {
+				source: "auto-upload",
+				words: doc.wordCount,
+			});
+		}
 	};
 
 	private handleFileError = (e: CustomEvent<{ message: string }>): void => {
@@ -151,29 +163,61 @@ export class AppPage extends LitElement {
 		showToast(e.detail.message, "error");
 	};
 
-	private handleStartReading = async (): Promise<void> => {
+	private openPreview = (): void => {
+		if (!this.pastedText.trim()) {
+			this.error =
+				"Nothing to preview yet. Paste some text or load a file first.";
+			return;
+		}
+		this.error = "";
+		this.previewOpen = true;
+		trackEvent("preview-opened", {
+			source: "manual",
+			words: countWords(this.pastedText),
+		});
+	};
+
+	private handleStartReading = async (startWordIndex = 0): Promise<void> => {
 		const text = this.pastedText.trim();
 		if (!text) {
 			this.error = "Nothing to read yet. Paste some text or load a file first.";
 			return;
 		}
 		const wordCount = countWords(text);
+		const tokenCount = tokenize(text).length;
+		const safeStart = Math.max(
+			0,
+			Math.min(startWordIndex, Math.max(0, tokenCount - 1)),
+		);
 		const baseTitle =
 			this.customTitle.trim() || this.loadedDocTitle || "Pasted Text";
 		const isModified =
 			this.loadedDocText.length > 0 && text !== this.loadedDocText;
 		const title = isModified ? `${baseTitle} – modified` : baseTitle;
-		const saved = await saveDocument({
-			title,
-			text,
-			wordCount,
-			resumeWordIndex: 0,
-			completionPercent: 0,
-		});
+		const completionPercent =
+			wordCount > 0 ? Math.round((safeStart / wordCount) * 100) : 0;
+		let saved: SavedDocument;
+		try {
+			saved = await saveDocument({
+				title,
+				text,
+				wordCount,
+				resumeWordIndex: safeStart,
+				completionPercent,
+			});
+		} catch (err) {
+			console.error("[speeedy] Failed to save document:", err);
+			this.error =
+				"Could not save this document. Try again, or paste a shorter text.";
+			showToast(this.error, "error");
+			return;
+		}
 		trackEvent("reader-opened", {
 			source: this.loadedDocTitle ? "file" : "paste",
 			words: wordCount,
+			startWordIndex: safeStart,
 		});
+		this.previewOpen = false;
 		this.loadedDocTitle = "";
 		this.loadedDocText = "";
 		this.customTitle = "";
@@ -363,6 +407,18 @@ export class AppPage extends LitElement {
 
         ${this.savedDocs.length > 0 ? this.renderLibrary() : ""}
 
+        <start-preview-dialog
+          .open=${this.previewOpen}
+          .title=${this.customTitle.trim() || this.loadedDocTitle || "Choose where to start"}
+          .text=${this.pastedText}
+          @preview-close=${() => {
+						this.previewOpen = false;
+					}}
+          @preview-start=${(e: CustomEvent<{ startWordIndex: number }>) => {
+						void this.handleStartReading(e.detail.startWordIndex);
+					}}
+        ></start-preview-dialog>
+
         <footer class="shrink-0 px-4 md:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-base-200/60">
           <span class="text-xs tracking-[0.3em] text-ui-muted-subtle font-light">speeedy</span>
           <div class="flex flex-wrap justify-center gap-4 sm:gap-6 text-xs">
@@ -463,11 +519,20 @@ export class AppPage extends LitElement {
 						this.pastedText = e.detail.value;
 					}}
         ></speeedy-textarea>
+        ${
+					words >= AppPage.PREVIEW_AUTO_OPEN_WORDS
+						? html`
+          <p class="text-xs text-ui-muted font-light leading-relaxed -mt-1">
+            Long document — use <span class="text-base-content/80">Preview</span> to skip copyright / front matter and start where the book begins.
+          </p>
+        `
+						: ""
+				}
         <div class="flex items-center justify-between gap-2">
           <span class="text-xs text-ui-muted font-mono">
             ${words > 0 ? `${words.toLocaleString()} words${timeDisplay}` : ""}
           </span>
-          <div class="flex gap-2">
+          <div class="flex gap-2 flex-wrap justify-end">
             ${
 							this.pastedText
 								? html`
@@ -480,6 +545,12 @@ export class AppPage extends LitElement {
             `
 								: ""
 						}
+            <button
+              class="btn btn-outline btn-sm"
+              data-umami-event="open-preview"
+              ?disabled=${!this.pastedText.trim()}
+              @click=${this.openPreview}
+            >Preview</button>
             <button
               class="btn btn-primary btn-sm"
               data-umami-event="begin-reading"

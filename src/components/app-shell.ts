@@ -197,7 +197,15 @@ export class AppShell extends LitElement {
 
 	private handleUnhandledRejection = (e: PromiseRejectionEvent): void => {
 		const msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
-		if (msg) showToast(msg, "error");
+		if (!msg) return;
+		const isInternal =
+			e.reason instanceof TypeError || /cannot read propert/i.test(msg);
+		showToast(
+			isInternal
+				? "Something went wrong. Refresh the page — if it keeps happening, send us feedback."
+				: msg,
+			"error",
+		);
 	};
 
 	private handleProfileUpdated = async (e: Event): Promise<void> => {

@@ -131,10 +131,52 @@ async function decompressData(data: Uint8Array): Promise<ArrayBuffer> {
 	return new Response(stream.readable).arrayBuffer();
 }
 
-export async function getSavedDocuments(): Promise<SavedDocument[]> {
-	const db = await getDb();
-	const docs = (await db.getAll(DOCS_STORE)) as SavedDocument[];
+/** True when a library record is complete enough to list, hash, or resume. */
+export function isValidSavedDocument(value: unknown): value is SavedDocument {
+	if (value === null || typeof value !== "object") return false;
+	const doc = value as Record<string, unknown>;
+	return (
+		typeof doc.id === "string" &&
+		doc.id.length > 0 &&
+		typeof doc.title === "string" &&
+		typeof doc.text === "string" &&
+		typeof doc.savedAt === "string" &&
+		typeof doc.wordCount === "number"
+	);
+}
+
+/** Drop unreadable library rows (including null values) so they cannot crash save/load. */
+async function purgeInvalidDocuments(db: IDBPDatabase): Promise<void> {
+	try {
+		const tx = db.transaction(DOCS_STORE, "readwrite");
+		let cursor = await tx.store.openCursor();
+		while (cursor) {
+			if (!isValidSavedDocument(cursor.value)) {
+				await cursor.delete();
+			}
+			cursor = await cursor.continue();
+		}
+		await tx.done;
+	} catch (err) {
+		console.error("[speeedy] Failed to repair document library:", err);
+	}
+}
+
+async function readSavedDocuments(db: IDBPDatabase): Promise<SavedDocument[]> {
+	await purgeInvalidDocuments(db);
+	const raw = await db.getAll(DOCS_STORE);
+	const docs = (Array.isArray(raw) ? raw : []).filter(isValidSavedDocument);
 	return docs.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+}
+
+export async function getSavedDocuments(): Promise<SavedDocument[]> {
+	try {
+		const db = await getDb();
+		return await readSavedDocuments(db);
+	} catch (err) {
+		console.error("[speeedy] Failed to load saved documents:", err);
+		return [];
+	}
 }
 
 async function hashContent(text: string): Promise<string> {
@@ -152,7 +194,7 @@ export async function saveDocument(
 ): Promise<SavedDocument> {
 	const db = await getDb();
 	const contentHash = await hashContent(doc.text);
-	const all = (await db.getAll(DOCS_STORE)) as SavedDocument[];
+	const all = await readSavedDocuments(db);
 
 	for (const existing of all) {
 		const existingHash =
@@ -195,9 +237,7 @@ export async function deleteSavedDocument(id: string): Promise<void> {
 }
 
 async function pruneDocuments(db: IDBPDatabase): Promise<void> {
-	const all = ((await db.getAll(DOCS_STORE)) as SavedDocument[]).sort((a, b) =>
-		b.savedAt.localeCompare(a.savedAt),
-	);
+	const all = await readSavedDocuments(db);
 	if (all.length > MAX_SAVED_DOCS) {
 		const toDelete = all.slice(MAX_SAVED_DOCS);
 		for (const doc of toDelete) {

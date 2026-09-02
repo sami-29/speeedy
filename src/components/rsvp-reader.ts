@@ -226,12 +226,10 @@ export class RsvpReader extends LitElement {
 		if (docs.length === 0) return;
 
 		const lastId = localStorage.getItem("speeedy:last-doc-id");
-		let docToLoad = docs.find((d) => d.id === lastId);
-		if (!docToLoad) {
-			docToLoad = docs[0];
-			localStorage.setItem("speeedy:last-doc-id", docToLoad.id);
-		}
+		const docToLoad = docs.find((d) => d.id === lastId) ?? docs[0];
+		if (!docToLoad) return;
 
+		localStorage.setItem("speeedy:last-doc-id", docToLoad.id);
 		this.savedDocId = docToLoad.id;
 		this.resumeWordIndex = docToLoad.resumeWordIndex;
 		this.loadDoc({
