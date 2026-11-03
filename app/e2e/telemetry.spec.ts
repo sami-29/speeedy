@@ -102,3 +102,27 @@ test.describe("flags on startup", () => {
 		});
 	});
 });
+
+test.describe("error capture", () => {
+	test("an uncaught error is reported by code and frames, never its message", async ({
+		page,
+	}) => {
+		const events = await captureEvents(page);
+		await page.goto("/reader");
+		// The first pageview means the app has started, handlers included.
+		await expect
+			.poll(() => pageviews(events).length, { timeout: 10_000 })
+			.toBe(1);
+		await page.evaluate(() => {
+			setTimeout(() => {
+				throw new Error("canary-secret-text-from-a-document");
+			}, 0);
+		});
+		await expect
+			.poll(() => events.filter((e) => e.event === "$exception").length, {
+				timeout: 10_000,
+			})
+			.toBeGreaterThan(0);
+		expect(JSON.stringify(events)).not.toContain("canary-secret-text");
+	});
+});

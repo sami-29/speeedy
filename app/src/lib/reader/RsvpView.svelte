@@ -1,96 +1,51 @@
 <script lang="ts">
-import {
-	createEngine,
-	createTimerClock,
-	type Engine,
-	type Frame,
-} from "@speeedy/engine";
-import { library } from "#lib/library/instance.ts";
+import type { Frame } from "@speeedy/engine";
 import { m } from "#lib/paraglide/messages.js";
-import { recordSessions } from "#lib/stats/record.ts";
 import type { ModeProps } from "./modes.ts";
 
-let {
-	timeline,
-	wpm,
-	autoplay = true,
-	startAt,
-	onposition,
-}: ModeProps = $props();
+let { engine, autoplay = true }: ModeProps = $props();
 
-// The word is written straight into these three nodes from the engine's frame events.
+// The word is written straight into these nodes from the engine's frame events.
 // Nothing about the word is reactive state, so playing never re-renders the component.
+let word: HTMLElement | undefined;
 let before: HTMLElement | undefined;
 let pivot: HTMLElement | undefined;
 let after: HTMLElement | undefined;
-let toggle: HTMLButtonElement | undefined;
-let engine: Engine | undefined;
-
-// Only the button label follows this, and it changes on play and pause, not per word.
-let playing = $state(false);
 
 $effect(() => {
-	const clock = createTimerClock();
-	const current = createEngine({ clock, timeline });
-	const recording = recordSessions({
-		engine: current,
-		clock,
-		store: library(),
-	});
-	const paint = (frame: Frame) => {
+	const current = engine;
+	let words = "";
+	const show = (frame: Frame) => {
 		if (before) before.textContent = frame.orp.before;
 		if (pivot) pivot.textContent = frame.orp.pivot;
 		if (after) after.textContent = frame.orp.after;
+		// A chunk of several words is set smaller so it still fits beside the axis.
+		const next = String(frame.words);
+		if (word && next !== words) {
+			words = next;
+			word.style.setProperty("--words", next);
+		}
 	};
 	const stops = [
-		current.on("frameShown", ({ frame }) => {
-			paint(frame);
-			onposition?.(frame.position, false);
-		}),
-		current.on("play", () => {
-			playing = true;
-		}),
-		current.on("pause", ({ position }) => {
-			playing = false;
-			onposition?.(position, true);
-		}),
-		current.on("end", ({ position }) => {
-			playing = false;
-			onposition?.(position, true);
+		current.on("frameShown", ({ frame }) => show(frame)),
+		// A rewind or seek while paused moves the Cursor without a `frameShown`.
+		current.on("seek", () => {
+			if (current.frame) show(current.frame);
 		}),
 	];
-	engine = current;
-	if (startAt) current.seek(startAt);
+	if (current.frame) show(current.frame);
 	if (autoplay) current.play();
-	else if (current.frame) paint(current.frame);
-	toggle?.focus();
 	return () => {
 		current.pause();
-		recording.end();
 		for (const stop of stops) stop();
 	};
 });
-
-function onToggle() {
-	if (!engine) return;
-	if (engine.playing) engine.pause();
-	else engine.play();
-}
 </script>
 
 <section class="stage" data-testid="stage" aria-label={m.reader_stage_label()}>
 	<div class="axis" aria-hidden="true"></div>
-	<p class="word" data-testid="word"><span class="side before" data-part="before" bind:this={before}></span><span class="pivot" data-part="pivot" bind:this={pivot}></span><span class="side after" data-part="after" bind:this={after}></span></p>
+	<p class="word" data-testid="word" bind:this={word}><span class="side before" data-part="before" bind:this={before}></span><span class="pivot" data-part="pivot" bind:this={pivot}></span><span class="side after" data-part="after" bind:this={after}></span></p>
 </section>
-
-<div class="poster pt-s-3">
-	<p class="numeral-small poster-head" data-testid="wpm">{m.reader_wpm({ wpm })}</p>
-	<div>
-		<button type="button" class="button-primary" bind:this={toggle} onclick={onToggle}>
-			{playing ? m.reader_pause() : m.reader_play()}
-		</button>
-	</div>
-</div>
 
 <style>
 	/* The stage is as wide as <main>, so its 35% is the page's reading axis. */
@@ -125,7 +80,9 @@ function onToggle() {
 		grid-template-columns: 1fr auto 1fr;
 		width: calc(70% + 3px);
 		margin: 0;
-		font-size: clamp(2.25rem, 1rem + 5.5vw, 5.5rem);
+		font-size: calc(
+			clamp(2.25rem, 1rem + 5.5vw, 5.5rem) / (1 + (var(--words, 1) - 1) * 0.45)
+		);
 		font-weight: 600;
 		font-variation-settings: "wdth" 100;
 		line-height: 1.1;
@@ -142,13 +99,5 @@ function onToggle() {
 
 	.pivot {
 		color: var(--color-red);
-	}
-
-	.numeral-small {
-		font-size: 1.75rem;
-		font-weight: 820;
-		line-height: 1.2;
-		font-variation-settings: "wdth" 112;
-		margin: 0;
 	}
 </style>

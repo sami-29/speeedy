@@ -1,18 +1,23 @@
 /**
- * Web Worker entry: builds the first Timeline off the main thread. The app starts it with
- * `new Worker(new URL("@speeedy/engine/worker", import.meta.url), { type: "module" })` and
- * posts a `BuildRequest`. Playback itself stays on the main thread.
+ * Web Worker entry: builds the Timeline off the main thread, and rebuilds it when settings
+ * change. The app starts it with `import TimelineWorker from "@speeedy/engine/worker?worker"`
+ * and posts `TimelineRequest`s; each is answered with `TimelineReply`s. Playback itself
+ * stays on the main thread.
  */
 import {
-	type BuildRequest,
-	type BuildResponse,
-	handleBuildRequest,
-} from "./build-request";
+	createTimelineSession,
+	type TimelineReply,
+	type TimelineRequest,
+} from "./timeline-session";
 
 type WorkerScope = {
-	onmessage: ((event: { data: BuildRequest }) => void) | null;
-	postMessage(message: BuildResponse): void;
+	onmessage: ((event: { data: TimelineRequest }) => void) | null;
+	postMessage(message: TimelineReply): void;
 };
 
 const scope = globalThis as unknown as WorkerScope;
-scope.onmessage = (event) => scope.postMessage(handleBuildRequest(event.data));
+const session = createTimelineSession();
+// Each reply is posted as it is made, so a rebuild's first Frames leave before the rest are built.
+scope.onmessage = (event) => {
+	session.handle(event.data, (reply) => scope.postMessage(reply));
+};

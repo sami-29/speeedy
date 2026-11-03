@@ -9,30 +9,27 @@ import {
 	streaks,
 } from "@speeedy/engine";
 import type { StoredSession } from "#lib/library/store.ts";
+import { SPEED_ZONES, type SpeedZoneId, zoneFor } from "#lib/reader/zones.ts";
 
-export type SpeedBandId = "study" | "read" | "skim";
+export type SpeedBandId = SpeedZoneId;
 
 /**
- * The Speed Zone bands the speed chart is drawn over. These are the same ranges the reader's
- * Speed Zones use: below 200 is study, 200 to 349 is read, 350 and up is skim.
+ * The Speed Zone bands the speed chart is drawn over: the reader's own Speed Zones, so the
+ * chart and the reader never disagree. The chart is drawn from 0, so the first band starts
+ * there; each band ends where the next begins and the last has no end.
  */
 export const SPEED_BANDS: readonly {
 	id: SpeedBandId;
 	min: number;
 	/** The first speed above the band; the last band has none. */
 	upTo: number | null;
-}[] = [
-	{ id: "study", min: 0, upTo: 200 },
-	{ id: "read", min: 200, upTo: 350 },
-	{ id: "skim", min: 350, upTo: null },
-];
+}[] = SPEED_ZONES.map((zone, i) => ({
+	id: zone.id,
+	min: i === 0 ? 0 : zone.min,
+	upTo: i === SPEED_ZONES.length - 1 ? null : zone.max + 1,
+}));
 
-export function speedBandFor(wpm: number): SpeedBandId {
-	for (const band of SPEED_BANDS) {
-		if (band.upTo === null || wpm < band.upTo) return band.id;
-	}
-	return "skim";
-}
+export const speedBandFor = (wpm: number): SpeedBandId => zoneFor(wpm).id;
 
 /** How many Sessions the speed chart plots. */
 export const CHART_POINTS = 20;
