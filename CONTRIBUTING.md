@@ -28,7 +28,7 @@ The repo is a pnpm workspace: `app`, `worker`, `packages/engine`, `packages/pars
 | `pnpm lint:fix` | Auto-fix lint errors |
 | `pnpm test:unit` | Run the workspace-shape test and each package's unit tests |
 | `pnpm test:worker` | Run the Worker tests |
-| `pnpm e2e` | Run end-to-end tests (none yet) |
+| `pnpm e2e` | Run the app's Playwright tests. They build and serve the site on port 4173; set `PW_PORT` to use another port (a busy port fails the run, it is never reused) |
 
 ---
 
