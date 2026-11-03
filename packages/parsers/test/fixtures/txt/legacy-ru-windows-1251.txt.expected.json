@@ -1,0 +1,14 @@
+{
+	"hints": {
+		"encoding": "windows-1251"
+	},
+	"outcome": "document",
+	"format": "txt",
+	"title": "legacy-ru-windows-1251",
+	"encoding": "windows-1251",
+	"language": "ru",
+	"blocks": 2,
+	"first": "Старик медленно шёл по дороге и думал о ",
+	"last": "Привет, мир.",
+	"words": [24, 28]
+}
