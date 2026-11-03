@@ -1,4 +1,4 @@
-import { createRegistry } from "@speeedy/contracts";
+import { createRegistry, type Position } from "@speeedy/contracts";
 import type { Timeline } from "@speeedy/engine";
 import type { Component } from "svelte";
 
@@ -6,6 +6,10 @@ import type { Component } from "svelte";
 export type ModeProps = {
 	timeline: Timeline;
 	wpm: number;
+	/** Where to start reading. Without it the mode starts at the first Frame. */
+	startAt?: Position;
+	/** Told where the reader is: on each Frame, and `final` on a pause or the end. */
+	onposition?: (position: Position, final: boolean) => void;
 };
 
 /** A mode's view is loaded on demand, so the registry carries no component code. */

@@ -1,13 +1,26 @@
 <script lang="ts">
+import type { Document, Position } from "@speeedy/contracts";
 import type { Timeline } from "@speeedy/engine";
-import { onDestroy } from "svelte";
+import { onDestroy, onMount } from "svelte";
+import { library } from "#lib/library/instance.ts";
+import {
+	createPositionSaver,
+	type PositionSaver,
+} from "#lib/library/position-saver.ts";
+import { progressTracker } from "#lib/library/progress.ts";
+import { type DocumentSource, effectiveLanguage } from "#lib/library/store.ts";
+import { documentTitle } from "#lib/library/title.ts";
 import { m } from "#lib/paraglide/messages.js";
 import { readerModes } from "#lib/reader/modes.ts";
 import { createReaderLoader, type ReaderSource } from "#lib/reader/open.ts";
 import { READER_SETTINGS } from "#lib/reader/settings.ts";
 
 const loader = createReaderLoader();
-onDestroy(() => loader.dispose());
+let saver: PositionSaver | undefined;
+onDestroy(() => {
+	saver?.dispose();
+	loader.dispose();
+});
 
 const mode = readerModes.get("rsvp");
 
@@ -15,15 +28,108 @@ let text = $state("");
 let error = $state("");
 let opening = $state(false);
 let dragging = $state(false);
-let session = $state.raw<{ timeline: Timeline; title: string | null }>();
+let session = $state.raw<{
+	timeline: Timeline;
+	title: string | null;
+	source: DocumentSource;
+	startAt: Position | undefined;
+	onposition: ((position: Position, final: boolean) => void) | undefined;
+}>();
+
+/** Reading starts from the Position the Library holds, unless that was the end. */
+const resumeAt = (position: Position, progress: number) =>
+	progress <= 0 || progress >= 1 ? undefined : position;
+
+/** Show a Timeline. A document in the Library also gets its Position saved as it is read. */
+function show(
+	timeline: Timeline,
+	title: string | null,
+	source: DocumentSource,
+	kept?: { id: string; document: Document },
+	startAt?: Position,
+) {
+	saver?.dispose();
+	saver = undefined;
+	if (kept) {
+		const store = library();
+		const id = kept.id;
+		saver = createPositionSaver({
+			save: (position, progress) => store.savePosition(id, position, progress),
+			progress: progressTracker(kept.document),
+		});
+	}
+	session = { timeline, title, source, startAt, onposition: saver?.record };
+}
 
 async function open(source: ReaderSource) {
 	error = "";
 	opening = true;
 	const result = await loader.open(source);
+	if (!result.ok) {
+		opening = false;
+		error = result.message;
+		return;
+	}
+	try {
+		const store = library();
+		const { meta, duplicate } = await store.addDocument({
+			document: result.document,
+			title: documentTitle(result.title, result.document),
+			language: result.language,
+		});
+		await store.setCurrent(meta.id);
+		const kept = { id: meta.id, document: result.document };
+		const startAt = duplicate
+			? resumeAt(meta.position, meta.progress)
+			: undefined;
+		// A text that is already in the Library carries on from its Position.
+		const timeline = startAt
+			? await loader.build(result.document, {
+					language: effectiveLanguage(meta),
+					anchor: startAt,
+				})
+			: result.timeline;
+		show(timeline ?? result.timeline, meta.title, meta.source, kept, startAt);
+	} catch {
+		// The Library is out of reach (private window, storage blocked): read without keeping.
+		show(result.timeline, result.title, "own");
+	}
 	opening = false;
-	if (result.ok) session = { timeline: result.timeline, title: result.title };
-	else error = result.message;
+}
+
+/** Open the document the Library holds as current, at its Position. */
+async function restore() {
+	try {
+		const store = library();
+		const id = await store.currentId();
+		if (!id || session) return;
+		const loaded = await store.load(id);
+		if (!loaded || session) return;
+		const { meta, document } = loaded;
+		const startAt = resumeAt(meta.position, meta.progress);
+		const timeline = await loader.build(document, {
+			language: effectiveLanguage(meta),
+			anchor: startAt,
+		});
+		if (!timeline || session) return;
+		show(timeline, meta.title, meta.source, { id, document }, startAt);
+	} catch {
+		// Nothing to resume: the start panel stays.
+	}
+}
+
+onMount(() => {
+	void restore();
+});
+
+/** Back to the start panel. The next refresh shows the panel too. */
+function leave() {
+	saver?.dispose();
+	saver = undefined;
+	session = undefined;
+	void library()
+		.setCurrent(null)
+		.catch(() => undefined);
 }
 
 function onSubmit(event: SubmitEvent) {
@@ -65,14 +171,21 @@ function onPick(event: Event) {
 </svelte:head>
 
 {#if session && mode}
-	<h1 class="sr-only">{session.title ?? m.reader_reading()}</h1>
+	<h1 class="sr-only" data-testid="reader-source" data-source={session.source}>
+		{session.title ?? m.reader_reading()}
+	</h1>
 	<div class="px-gutter pt-s-2">
-		<button type="button" class="segment border-2 border-ink" onclick={() => (session = undefined)}>
+		<button type="button" class="segment border-2 border-ink" onclick={leave}>
 			{m.reader_new_text()}
 		</button>
 	</div>
 	{#await mode.view() then view}
-		<view.default timeline={session.timeline} wpm={READER_SETTINGS.wpm} />
+		<view.default
+			timeline={session.timeline}
+			wpm={READER_SETTINGS.wpm}
+			startAt={session.startAt}
+			onposition={session.onposition}
+		/>
 	{/await}
 {:else}
 	<section
@@ -106,7 +219,11 @@ function onPick(event: Event) {
 				</label>
 			</div>
 			<p class="caption mt-s-2 text-ink-2">
-				{dragging ? m.reader_drop_active() : opening ? m.reader_opening() : m.reader_drop_hint()}
+				{dragging
+					? m.reader_drop_active()
+					: opening
+						? m.reader_opening()
+						: m.reader_drop_hint()}
 			</p>
 		</form>
 	</section>
