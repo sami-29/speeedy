@@ -195,6 +195,49 @@ describe("fuzz: random bytes never break the contract", () => {
 	});
 });
 
+/**
+ * Wall-clock budgets are flaky when several test suites share a machine, and
+ * the point of these cases is to catch a superlinear blowup (regex
+ * backtracking, a quadratic loop), not to benchmark. So each hostile case is
+ * timed against a plain document of the same byte size and format, parsed in
+ * the same run under the same load. Load slows both sides alike; a blowup
+ * misses the ratio by orders of magnitude. The 30 s test timeout is the
+ * absolute ceiling.
+ */
+const LINEAR_UNITS: Record<string, string> = {
+	"a.md": "lorem ipsum dolor sit. ",
+	"a.txt": "lorem ipsum dolor sit. ",
+	"a.csv": "lorem,ipsum dolor,sit\n",
+};
+const SLOWDOWN_LIMIT = 50;
+
+async function timeParse(bytes: Uint8Array, name: string): Promise<number> {
+	const started = performance.now();
+	await parse(bytes, name);
+	return performance.now() - started;
+}
+
+/** The slower of two runs of a plain document of `size` bytes, in ms. */
+async function linearBaseline(name: string, size: number): Promise<number> {
+	const unit = LINEAR_UNITS[name] ?? "lorem ipsum dolor sit. ";
+	const bytes = utf8(unit.repeat(Math.ceil(size / unit.length)));
+	const first = await timeParse(bytes, name);
+	const second = await timeParse(bytes, name);
+	return Math.max(first, second);
+}
+
+async function expectNoBlowup(
+	name: string,
+	bytes: Uint8Array,
+	elapsed: number,
+): Promise<void> {
+	const baseline = await linearBaseline(name, bytes.length);
+	expect(
+		elapsed,
+		`${elapsed.toFixed(0)} ms against a ${baseline.toFixed(0)} ms linear baseline`,
+	).toBeLessThan(baseline * SLOWDOWN_LIMIT);
+}
+
 describe("hostile and huge input finishes quickly with a valid outcome", () => {
 	const N = 1_000_000;
 	const cases: [string, string, string][] = [
@@ -266,25 +309,36 @@ describe("hostile and huge input finishes quickly with a valid outcome", () => {
 			const outcome = await parse(bytes, name);
 			const elapsed = performance.now() - started;
 			expectWellFormed(outcome);
-			expect(elapsed).toBeLessThan(5000);
+			await expectNoBlowup(name, bytes, elapsed);
 		},
 		30_000,
 	);
 
-	it("parses a 20 MB single-paragraph file in a reasonable time", async () => {
-		const bytes = utf8("lorem ipsum dolor sit amet. ".repeat(750_000));
+	it("parses a 20 MB single-paragraph file in linear time", async () => {
+		const unit = "lorem ipsum dolor sit amet. ";
+		const bytes = utf8(unit.repeat(750_000));
 		expect(bytes.length).toBeGreaterThan(20_000_000);
+		const small = utf8(unit.repeat(75_000));
+		const smallMs = Math.max(
+			await timeParse(small, "small.txt"),
+			await timeParse(small, "small.txt"),
+		);
 		const started = performance.now();
 		const outcome = await parse(bytes, "big.txt");
+		const bigMs = performance.now() - started;
 		expectSuccess(outcome);
-		expect(performance.now() - started).toBeLessThan(8000);
+		// 10x the bytes: linear is about 10x, quadratic about 100x.
+		expect(
+			bigMs,
+			`${bigMs.toFixed(0)} ms against ${smallMs.toFixed(0)} ms for a tenth of the bytes`,
+		).toBeLessThan(smallMs * 35);
 	}, 30_000);
 
 	it("stops with too-big instead of building millions of blocks", async () => {
 		const bytes = utf8("a\n\n".repeat(2_000_000));
 		const started = performance.now();
 		expectError(await parse(bytes, "many.txt"), "too-big");
-		expect(performance.now() - started).toBeLessThan(5000);
+		await expectNoBlowup("a.txt", bytes, performance.now() - started);
 	}, 30_000);
 
 	it("stops with too-big for a CSV with millions of rows", async () => {

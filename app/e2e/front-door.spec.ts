@@ -162,6 +162,35 @@ test.describe("paste or drop box", () => {
 		await expect(page.getByRole("alert")).toContainText("not text");
 	});
 
+	test("pasted text wins over the Library's current document, and is kept in the Library", async ({
+		page,
+	}) => {
+		const earlier = `Earlier note\n\n${"before ".repeat(80)}`.trim();
+		const fresh = `Fresh paste\n\n${"after ".repeat(80)}`.trim();
+		// The Library already holds a current document.
+		await page.goto("/reader");
+		await page.getByRole("textbox", { name: "Text to read" }).fill(earlier);
+		await page.getByRole("button", { name: "Start" }).click();
+		await expect(page.getByTestId("word")).toHaveText("before");
+
+		await page.goto("/");
+		await page.getByRole("textbox", { name: "Text to read" }).fill(fresh);
+		await page.getByRole("button", { name: "Start" }).click();
+		await expect(page).toHaveURL(/\/reader$/);
+		await expect(page.getByTestId("word")).toHaveText("after");
+		await page.waitForTimeout(500);
+		await expect(page.getByTestId("word")).not.toHaveText("before");
+
+		await page.getByRole("button", { name: "Pause" }).click();
+		await page.goto("/library");
+		await expect(
+			page.getByRole("row").filter({ hasText: "Fresh paste" }),
+		).toHaveCount(1);
+		await expect(
+			page.getByRole("row").filter({ hasText: "Earlier note" }),
+		).toHaveCount(1);
+	});
+
 	test("the text never goes into the URL or a request", async ({ page }) => {
 		const secret = "kumquat-marmalade-zebra";
 		const urls: string[] = [];

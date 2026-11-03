@@ -3,9 +3,15 @@ import adapter from "@sveltejs/adapter-static";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
+import { sourcemapPlan } from "./scripts/sourcemaps-plan.ts";
 import { handlePrerenderError } from "./src/lib/seo/planned.ts";
 
 export default defineConfig({
+	build: {
+		// Source maps are built only when `scripts/upload-sourcemaps.ts` will upload and then
+		// delete them, so a local or pull-request build never publishes one.
+		sourcemap: sourcemapPlan(process.env).buildSourcemap,
+	},
 	plugins: [
 		tailwindcss(),
 		// The locale lives in the URL (English has no prefix, a future locale gets `/<lang>/`)

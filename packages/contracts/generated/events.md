@@ -47,3 +47,25 @@ Sent by: the server. Schema version 1.
 | Property | Value | Required |
 | --- | --- | --- |
 | `interval` | one of `monthly`, `annual` | yes |
+
+## `newsletter_signup`
+
+A reader asked to join the newsletter and the signup was passed on for confirmation. Carries the topic and the page of the form only, never the address.
+
+Sent by: the server. Schema version 1.
+
+| Property | Value | Required |
+| --- | --- | --- |
+| `topic` | one of `speeedy`, `speeedy_building` | yes |
+| `page` | one of `home`, `library`, `stats`, `account`, `support`, `about`, `changelog`, `other` | yes |
+
+## `$exception`
+
+An error report. It carries an error code and stack frames and nothing else: no error message, no variables, no source lines. A frame is one of the app's own bundle paths, a line, a column and a function name; code from anywhere else is a fixed `external` frame. It does not go through the registry above; it has its own fixed shape, and the server turns it into PostHog's `$exception` with an empty message, the code as the fingerprint and a fixed description per code.
+
+Sent by: the app. Schema version 1. At most 5 per Visit.
+
+| Property | Value | Required |
+| --- | --- | --- |
+| `code` | one of `unhandled_error`, `unhandled_rejection`, `render_error`, `parser_error`, `storage_error`, `audio_error` | yes |
+| `frames` | up to 20 stack frames, each one of the app's own bundle paths (no origin, query or hash) or the fixed marker `external`, a line, a column and a function name that is plain identifiers joined by dots (or `?`) | yes |

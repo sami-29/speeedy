@@ -9,13 +9,24 @@
 	// as a Custom Domain instead.
 	"routes": [{ "pattern": "speeedy.app/api/*", "zone_name": "speeedy.app" }],
 	"vars": {
-		"POSTHOG_HOST": "https://us.i.posthog.com"
+		"POSTHOG_HOST": "https://us.i.posthog.com",
+		"BUTTONDOWN_HOST": "https://api.buttondown.com"
 	},
+	// The signup limit, per IP. The IP is the limiter's key only; it is never stored or sent on.
+	// The limit is per Cloudflare location, not global, and the period must be 10 or 60 seconds.
+	"ratelimits": [
+		{
+			"name": "NEWSLETTER_LIMITER",
+			"namespace_id": "1001",
+			"simple": { "limit": 5, "period": 60 }
+		}
+	],
 	// The remote config of feature flags lives in KV so the owner can change it without a
 	// deploy: write the `config` key. No id yet; the deploy ticket creates the namespace
 	// (or Wrangler provisions it) and records the id. Locally this is an in-memory store.
 	"kv_namespaces": [{ "binding": "FLAGS_KV" }],
 	// Set for real with `wrangler secret put` by the deploy ticket. Locally it lives in
 	// worker/.dev.vars, which is gitignored.
-	"secrets": { "required": ["POSTHOG_PROJECT_TOKEN"] }
+	// BUTTONDOWN_API_TOKEN is the same: the owner creates it in Buttondown.
+	"secrets": { "required": ["POSTHOG_PROJECT_TOKEN", "BUTTONDOWN_API_TOKEN"] }
 }
