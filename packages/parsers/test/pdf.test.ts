@@ -102,6 +102,27 @@ const P3 =
 	"In the afternoon the group walked to the river and talked about everything except the meeting that had just finished";
 
 describe("pdf: paragraphs from line geometry", () => {
+	it("takes the title from the file when it has one worth using", async () => {
+		const { runs } = flow([P1]);
+		const titled = await open({
+			pages: [page(runs)],
+			title: "Annual Review of Careful Tests",
+		});
+		expect(expectSuccess(titled).title).toBe("Annual Review of Careful Tests");
+		for (const junk of [
+			"Microsoft Word - report.docx",
+			"Untitled",
+			"x",
+			"notes.pdf",
+		]) {
+			const outcome = await open(
+				{ pages: [page(runs)], title: junk },
+				"my notes.pdf",
+			);
+			expect(expectSuccess(outcome).title, junk).toBe("my notes");
+		}
+	});
+
 	it("reads one wrapped paragraph as one block with single spaces", async () => {
 		const { runs } = flow([P1]);
 		const outcome = await open({ pages: [page(runs)] });
@@ -267,6 +288,25 @@ describe("pdf: dehyphenation", () => {
 		]);
 	});
 
+	it("keeps the hyphen after a number word or a single letter", async () => {
+		expect(
+			await joinedFor([
+				"He gave one- and two-",
+				"word answers to every question that the interviewer put to him in the room.",
+			]),
+		).toEqual([
+			"He gave one- and two-word answers to every question that the interviewer put to him in the room.",
+		]);
+		expect(
+			await joinedFor([
+				"She sent the report by e-",
+				"mail to everyone on the team before the end of the working day on Friday.",
+			]),
+		).toEqual([
+			"She sent the report by e-mail to everyone on the team before the end of the working day on Friday.",
+		]);
+	});
+
 	it("keeps a hyphen before a capital letter or a digit", async () => {
 		expect(
 			await joinedFor([
@@ -294,6 +334,17 @@ describe("pdf: dehyphenation", () => {
 			]),
 		).toEqual([
 			"The pre- and post-war years were very different for the town and for the families there.",
+		]);
+	});
+
+	it("joins a line that ends in a dash to the next without a gap", async () => {
+		expect(
+			await joinedFor([
+				"The war lasted from 1914\u2013",
+				"1918 and changed the map of the whole of the continent for a very long time.",
+			]),
+		).toEqual([
+			"The war lasted from 1914\u20131918 and changed the map of the whole of the continent for a very long time.",
 		]);
 	});
 
@@ -350,15 +401,14 @@ describe("pdf: dehyphenation", () => {
 	});
 });
 
+/** What page `n` says. It has no digits, because headers are matched with digits ignored. */
+const bodyText = (n: number): string =>
+	`Section ${alpha(n)} begins here and says something that only this page says.`;
+
 const BODY_PAGE = (n: number): TextRun[] =>
-	flow(
-		[
-			`Page ${n} body begins here and says something that only this page says, number ${n * 7}.`,
-		],
-		{
-			chars: 120,
-		},
-	).runs;
+	flow([bodyText(n)], {
+		chars: 120,
+	}).runs;
 
 function furnished(options: {
 	pages: number;
@@ -391,11 +441,7 @@ function furnished(options: {
 }
 
 const bodies = (pages: number) =>
-	Array.from(
-		{ length: pages },
-		(_, i) =>
-			`Page ${i + 1} body begins here and says something that only this page says, number ${(i + 1) * 7}.`,
-	);
+	Array.from({ length: pages }, (_, i) => bodyText(i + 1));
 
 describe("pdf: headers, footers and page numbers", () => {
 	it("removes a running head and a numbered footer that repeat", async () => {
@@ -659,6 +705,19 @@ describe("pdf: files that cannot be read", () => {
 		expect(textsOf(outcome)).toEqual([P1]);
 	});
 
+	it("reports a lock with no key for it as locked", async () => {
+		const locked = buildPdf({
+			pages: [page(flow([P1]).runs)],
+			encrypt: { userPassword: "x" },
+		});
+		const text = Buffer.from(locked).toString("latin1");
+		const other = Buffer.from(
+			text.replace("/Filter /Standard", "/Filter /AdbePubS"),
+			"latin1",
+		);
+		expectError(await parse(other, "a.pdf"), "drm");
+	});
+
 	it("refuses bytes that only carry a PDF name", async () => {
 		const junk = new Uint8Array(500).map((_, i) => (i * 31) & 255);
 		expectError(await parse(junk, "fake.pdf"), "unsupported");
@@ -746,10 +805,10 @@ describe("pdf: hostile and damaged files", () => {
 	it("survives huge and tiny type sizes and coordinates", async () => {
 		const content = new TextEncoder().encode(
 			[
-				"BT /F1 1e9 Tf 1 0 0 1 72 700 Tm (enormous) Tj ET",
+				"BT /F1 1000000000 Tf 1 0 0 1 72 700 Tm (enormous) Tj ET",
 				"BT /F1 0 Tf 1 0 0 1 72 690 Tm (zero) Tj ET",
 				"BT /F1 -11 Tf 1 0 0 1 72 680 Tm (negative) Tj ET",
-				"BT /F1 11 Tf 1 0 0 1 1e30 650 Tm (faraway) Tj ET",
+				"BT /F1 11 Tf 1 0 0 1 5000000000 650 Tm (faraway) Tj ET",
 				"BT /F1 11 Tf 1 0 0 1 72 600 Tm (This line is ordinary and must survive the others.) Tj ET",
 			].join("\n"),
 		);
@@ -760,6 +819,21 @@ describe("pdf: hostile and damaged files", () => {
 		);
 		expect(text).not.toContain("faraway");
 	});
+
+	it("copes with a very long run of punctuation inside a hyphenated line", async () => {
+		const junk = `${"-".repeat(300_000)}a-`;
+		const runs: TextRun[] = [
+			{ x: 72, y: 700, text: junk },
+			{
+				x: 72,
+				y: 686,
+				text: "next line of the page that follows the long one",
+			},
+		];
+		const started = Date.now();
+		expectWellFormed(await open({ pages: [page(runs)] }));
+		expect(Date.now() - started).toBeLessThan(15_000);
+	}, 30_000);
 
 	it("drops text placed outside the page", async () => {
 		const runs: TextRun[] = [
@@ -814,9 +888,26 @@ describe("pdf: hostile and damaged files", () => {
 		);
 	});
 
+	it("stops when the time the reader allows runs out", async () => {
+		const pages = Array.from({ length: 300 }, (_, i) =>
+			page(flow([`${P1} number ${alpha(i)}`], { gap: 10 }).runs),
+		);
+		const bytes = buildPdf({ pages });
+		expectError(await parse(bytes, "a.pdf", { maxMillis: 1 }), "too-big");
+	}, 30_000);
+
 	it("stops at the size ceiling the reader sets", async () => {
 		const bytes = buildPdf({ pages: [page(flow([P1]).runs)] });
 		expectError(await parse(bytes, "a.pdf", { maxBytes: 100 }), "too-big");
+	});
+
+	it("reads a Node Buffer and a view into a larger buffer", async () => {
+		const bytes = buildPdf({ pages: [page(flow([P1]).runs)] });
+		expect(textsOf(await parse(Buffer.from(bytes), "a.pdf"))).toEqual([P1]);
+		const padded = new Uint8Array(bytes.length + 40).fill(7);
+		padded.set(bytes, 20);
+		const view = padded.subarray(20, 20 + bytes.length);
+		expect(textsOf(await parse(view, "a.pdf"))).toEqual([P1]);
 	});
 
 	it("leaves the caller's bytes intact", async () => {

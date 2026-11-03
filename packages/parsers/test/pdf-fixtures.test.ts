@@ -63,9 +63,9 @@ describe("pdf: real documents", () => {
 			"long-term",
 			"high-frequency",
 		]) {
-			expect(text).toContain(compound);
+			expect(text.toLowerCase()).toContain(compound);
 		}
-		expect(text).not.toMatch(/wellknown|selfpaced|longterm|highfrequency/);
+		expect(text).not.toMatch(/wellknown|selfpaced|longterm|highfrequency/i);
 	});
 
 	it("reads the title block of a two-column paper before its columns", async () => {

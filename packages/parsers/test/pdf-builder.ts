@@ -33,6 +33,8 @@ export type PdfOptions = {
 	encrypt?: { userPassword: string; ownerPassword?: string };
 	/** Write this page count into the page tree whatever the real number of pages is. */
 	claimedPageCount?: number;
+	/** The document title for the Info dictionary (ignored when encrypting). */
+	title?: string;
 };
 
 const PAD = Uint8Array.from([
@@ -213,6 +215,10 @@ export function buildPdf(options: PdfOptions): Uint8Array {
 	);
 	let encryptNumber = 0;
 	if (crypto) encryptNumber = add(crypto.encryptDict);
+	let infoNumber = 0;
+	if (options.title !== undefined && !crypto) {
+		infoNumber = add(`<< /Title (${escapeText(options.title)}) >>`);
+	}
 
 	const chunks: Uint8Array[] = [latin1("%PDF-1.4\n%âãÏÓ\n")];
 	const offsets: number[] = [];
@@ -231,7 +237,7 @@ export function buildPdf(options: PdfOptions): Uint8Array {
 	const id = crypto?.id ?? md5(latin1("speeedy-test-id"));
 	xref += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R ${
 		crypto ? `/Encrypt ${encryptNumber} 0 R ` : ""
-	}/ID [<${hex(id)}> <${hex(id)}>] >>\nstartxref\n${size}\n%%EOF\n`;
+	}${infoNumber ? `/Info ${infoNumber} 0 R ` : ""}/ID [<${hex(id)}> <${hex(id)}>] >>\nstartxref\n${size}\n%%EOF\n`;
 	chunks.push(latin1(xref));
 	return concat(chunks);
 }

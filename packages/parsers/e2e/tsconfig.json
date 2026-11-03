@@ -8,6 +8,6 @@
 		"types": ["node", "vite/client"],
 		"allowImportingTsExtensions": true
 	},
-	"include": ["./**/*.ts", "../playwright.config.ts"],
+	"include": ["./**/*.ts", "../playwright.config.ts", "../src/**/*.d.ts"],
 	"exclude": ["./dist"]
 }

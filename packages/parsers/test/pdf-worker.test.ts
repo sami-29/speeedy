@@ -74,6 +74,17 @@ describe("pdf through the worker boundary", () => {
 			expect(expectSuccess(result).document.blocks.length).toBeGreaterThan(10);
 	});
 
+	it("passes the time limit across the boundary", async () => {
+		const pages = Array.from({ length: 200 }, (_, i) => ({
+			runs: [{ x: 72, y: 700, text: `Page text number ${i}.` }],
+		}));
+		const bytes = buildPdf({ pages });
+		expectError(
+			await client.parse(bytes, "a.pdf", { maxMillis: 1 }),
+			"too-big",
+		);
+	}, 30_000);
+
 	it("answers a damaged PDF with a typed error and keeps serving", async () => {
 		const good = buildPdf({
 			pages: [{ runs: [{ x: 72, y: 700, text: "Still alive." }] }],

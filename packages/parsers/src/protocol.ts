@@ -150,6 +150,7 @@ function plainHints(hints: unknown): ParseHints | undefined {
 	if (typeof hints.language === "string") out.language = hints.language;
 	if (typeof hints.maxBytes === "number") out.maxBytes = hints.maxBytes;
 	if (typeof hints.maxBlocks === "number") out.maxBlocks = hints.maxBlocks;
+	if (typeof hints.maxMillis === "number") out.maxMillis = hints.maxMillis;
 	return out;
 }
 

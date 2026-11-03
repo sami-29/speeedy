@@ -1,13 +1,17 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { deflateSync } from "node:zlib";
 import { expect, type Page, test } from "@playwright/test";
 import { PDF_PRECACHE_EXCLUDE } from "../src/precache";
+import { buildPdf } from "../test/pdf-builder";
 
 /**
  * pdf.js inside the parser worker, in a real browser. The build is the one the production
- * build will use (an ES module worker with code splitting), so this proves three things:
- * the library runs inside the worker with no second worker or worker URL, it is fetched
- * only when a PDF is opened, and its files can be kept out of the service worker precache.
+ * build will use (an ES module worker with code splitting), so this proves four things:
+ * pdf.js runs from inside the parser worker, its code is fetched only when a PDF is opened,
+ * a file built to keep it busy is stopped by the time limit (which only works if pdf.js is
+ * in a worker of its own that can be killed), and its files can be kept out of the service
+ * worker precache.
  */
 const fixtures = join(import.meta.dirname, "..", "test", "fixtures", "pdf");
 const dist = join(import.meta.dirname, "dist");
@@ -23,16 +27,25 @@ type Outcome =
 	  }
 	| { ok: false; reason: string; message: string };
 
-async function open(
+async function openBase64(
 	page: Page,
-	name: string,
-	fileName = name,
+	data: string,
+	fileName: string,
+	hints?: { maxMillis?: number },
 ): Promise<Outcome> {
 	return page.evaluate(
-		([data, file]) => window.parseBase64(data as string, file as string),
-		[base64(name), fileName],
+		([payload, file, limits]) =>
+			window.parseBase64(
+				payload as string,
+				file as string,
+				limits as { maxMillis?: number } | undefined,
+			),
+		[data, fileName, hints],
 	) as Promise<Outcome>;
 }
+
+const open = (page: Page, name: string, fileName = name) =>
+	openBase64(page, base64(name), fileName);
 
 async function ready(page: Page, requests: string[]) {
 	page.on("request", (request) =>
@@ -101,6 +114,39 @@ test("keeps working after a damaged file", async ({ page }) => {
 	expect((await open(page, "textbook-pages.pdf")).ok).toBe(true);
 });
 
+test("stops a small file that would keep pdf.js busy for minutes", async ({
+	page,
+}) => {
+	await ready(page, []);
+	// Four million drawing operators that draw nothing: about 100 KB on disk, and minutes of
+	// work for pdf.js to interpret.
+	const operators = new TextEncoder().encode("q Q\n");
+	const stream = new Uint8Array(operators.length * 4_000_000);
+	for (let i = 0; i < 4_000_000; i++)
+		stream.set(operators, i * operators.length);
+	const bomb = buildPdf({
+		pages: [
+			{
+				content: {
+					data: deflateSync(stream, { level: 9 }),
+					filter: "FlateDecode",
+				},
+			},
+		],
+	});
+	const started = Date.now();
+	const outcome = await openBase64(
+		page,
+		Buffer.from(bomb).toString("base64"),
+		"bomb.pdf",
+		{ maxMillis: 3000 },
+	);
+	expect(outcome).toMatchObject({ ok: false, reason: "too-big" });
+	expect(Date.now() - started).toBeLessThan(15_000);
+	// The parser worker is still there and the next file reads normally.
+	expect((await open(page, "textbook-pages.pdf")).ok).toBe(true);
+});
+
 test("fetches the PDF code only when a PDF is opened", async ({ page }) => {
 	const requests: string[] = [];
 	await ready(page, requests);
@@ -113,19 +159,24 @@ test("fetches the PDF code only when a PDF is opened", async ({ page }) => {
 
 test("names the PDF.js files so the service worker can leave them out of its precache", async () => {
 	const assets = readdirSync(join(dist, "assets"));
-	const pdf = assets.filter((file) =>
-		PDF_PRECACHE_EXCLUDE.test(`assets/${file}`),
-	);
+	const pdf = assets.filter((file) => /pdf/i.test(file));
+	// Every PDF.js file (the library, its worker, the worker's loader) is caught by the pattern,
+	// and nothing else is.
 	expect(pdf.some((file) => file.startsWith("pdf.worker"))).toBe(true);
 	expect(pdf.some((file) => /^pdf-/.test(file))).toBe(true);
-	const others = assets.filter((file) => !pdf.includes(file));
-	for (const file of others) {
-		expect(PDF_PRECACHE_EXCLUDE.test(`assets/${file}`), file).toBe(false);
+	for (const file of assets) {
+		expect(PDF_PRECACHE_EXCLUDE.test(`assets/${file}`), file).toBe(
+			pdf.includes(file),
+		);
 	}
-	// The page and the parser worker only reach the PDF code through a dynamic import.
+	// Nothing outside the PDF files imports them up front, so they stay lazy.
 	const entry = readFileSync(join(dist, "index.html"), "utf8");
 	expect(entry).not.toMatch(/pdf/i);
-	const worker = assets.find((file) => file.startsWith("worker-")) ?? "";
-	const head = readFileSync(join(dist, "assets", worker), "utf8");
-	expect(head).not.toMatch(/^import[^;]*pdf/m);
+	for (const file of assets.filter(
+		(f) => !pdf.includes(f) && f.endsWith(".js"),
+	)) {
+		const code = readFileSync(join(dist, "assets", file), "utf8");
+		expect(code, file).not.toMatch(/^import[^\n]*["']\.\/pdf/m);
+		expect(code, file).not.toMatch(/^export[^\n]*from\s*["']\.\/pdf/m);
+	}
 });

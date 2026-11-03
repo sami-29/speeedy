@@ -14,7 +14,8 @@
 		"e2e": "playwright test"
 	},
 	"dependencies": {
-		"@speeedy/contracts": "workspace:*"
+		"@speeedy/contracts": "workspace:*",
+		"pdfjs-dist": "6.4.299"
 	},
 	"devDependencies": {
 		"@playwright/test": "1.64.1",
