@@ -33,3 +33,35 @@ export function zoneFor(wpm: number): SpeedZone {
 			: (SPEED_ZONES[SPEED_ZONES.length - 1] as SpeedZone))
 	);
 }
+
+/** A Speed Zone as a band of a speed chart. */
+export type ZoneBand = {
+	id: SpeedZoneId;
+	min: number;
+	/** The first speed above the band; the last band has none. */
+	upTo: number | null;
+};
+
+/**
+ * The Speed Zones as bands for a chart. Charts are drawn from 0, so the first band starts
+ * there; each band ends where the next begins and the last has no end. The stats page and
+ * the reader's progress chart both draw these, so they never disagree with the reader.
+ */
+export const ZONE_BANDS: readonly ZoneBand[] = SPEED_ZONES.map((zone, i) => ({
+	id: zone.id,
+	min: i === 0 ? 0 : zone.min,
+	upTo: i === SPEED_ZONES.length - 1 ? null : zone.max + 1,
+}));
+
+/** The top of a speed chart: room above the fastest speed, never below 500 WPM. */
+export const chartTop = (fastest: number): number =>
+	Math.max(500, Math.ceil(fastest / 100) * 100 + 50);
+
+/** A band as shares of the chart's height, measured from the bottom. */
+export const bandBox = (
+	band: Pick<ZoneBand, "min" | "upTo">,
+	top: number,
+): { bottom: number; height: number } => ({
+	bottom: (band.min / top) * 100,
+	height: (((band.upTo ?? top) - band.min) / top) * 100,
+});

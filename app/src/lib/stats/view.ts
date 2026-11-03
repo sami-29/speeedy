@@ -9,27 +9,9 @@ import {
 	streaks,
 } from "@speeedy/engine";
 import type { StoredSession } from "#lib/library/store.ts";
-import { SPEED_ZONES, type SpeedZoneId, zoneFor } from "#lib/reader/zones.ts";
+import { type SpeedZoneId, zoneFor } from "#lib/reader/zones.ts";
 
-export type SpeedBandId = SpeedZoneId;
-
-/**
- * The Speed Zone bands the speed chart is drawn over: the reader's own Speed Zones, so the
- * chart and the reader never disagree. The chart is drawn from 0, so the first band starts
- * there; each band ends where the next begins and the last has no end.
- */
-export const SPEED_BANDS: readonly {
-	id: SpeedBandId;
-	min: number;
-	/** The first speed above the band; the last band has none. */
-	upTo: number | null;
-}[] = SPEED_ZONES.map((zone, i) => ({
-	id: zone.id,
-	min: i === 0 ? 0 : zone.min,
-	upTo: i === SPEED_ZONES.length - 1 ? null : zone.max + 1,
-}));
-
-export const speedBandFor = (wpm: number): SpeedBandId => zoneFor(wpm).id;
+export const speedBandFor = (wpm: number): SpeedZoneId => zoneFor(wpm).id;
 
 /** How many Sessions the speed chart plots. */
 export const CHART_POINTS = 20;
@@ -42,7 +24,7 @@ export type ChartPoint = {
 	id: string;
 	date: string;
 	wpm: number;
-	band: SpeedBandId;
+	band: SpeedZoneId;
 };
 
 export type StatsView = {

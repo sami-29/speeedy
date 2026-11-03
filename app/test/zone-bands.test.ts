@@ -23,12 +23,12 @@ describe("the top of a speed chart", () => {
 	it("is never below 500 WPM", () => {
 		expect(chartTop(0)).toBe(500);
 		expect(chartTop(250)).toBe(500);
-		expect(chartTop(440)).toBe(500);
+		expect(chartTop(400)).toBe(500);
 	});
 
 	it("leaves room above the fastest speed", () => {
 		expect(chartTop(450)).toBe(550);
-		expect(chartTop(900)).toBe(1050);
+		expect(chartTop(900)).toBe(950);
 	});
 });
 

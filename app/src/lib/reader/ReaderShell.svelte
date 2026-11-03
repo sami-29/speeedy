@@ -1,19 +1,31 @@
 <script lang="ts">
+import type { Document } from "@speeedy/contracts";
+import type { BackUnit } from "@speeedy/engine";
 import { onMount } from "svelte";
 import { m } from "#lib/paraglide/messages.js";
-import { modeName } from "./copy.ts";
+import ChapterList from "./ChapterList.svelte";
+import { modeName, rewindName, shortcutName } from "./copy.ts";
 import { readerModes } from "./modes.ts";
+import type { Chapter } from "./navigation.ts";
+import ProgressChart from "./ProgressChart.svelte";
 import ReadingSettings from "./ReadingSettings.svelte";
 import type { Reading } from "./reading.ts";
 import Shortcuts from "./Shortcuts.svelte";
 import SpeedZones from "./SpeedZones.svelte";
 import { enginePatch, type ReaderSettings } from "./settings.ts";
-import { commandForKey, nextMode, type ReaderCommand } from "./shortcuts.ts";
+import {
+	commandForKey,
+	nextMode,
+	REWINDS,
+	type ReaderCommand,
+} from "./shortcuts.ts";
 import WpmSlider from "./WpmSlider.svelte";
 import { clampWpm } from "./wpm.ts";
 
 let {
 	reading,
+	doc,
+	chapters,
 	title,
 	source,
 	settings = $bindable(),
@@ -21,6 +33,10 @@ let {
 	onNewText,
 }: {
 	reading: Reading;
+	/** The text being read, for the progress bar. */
+	doc: Document;
+	/** Its chapters, from the headings. */
+	chapters: readonly Chapter[];
 	title: string | null;
 	/** Where the text came from, for the page to tell apart. */
 	source: string;
@@ -99,13 +115,19 @@ function togglePlay() {
 	else engine.play();
 }
 
+/** Rewind. There is nowhere to go back to without chapters, so that rewind does nothing. */
+function rewind(unit: BackUnit) {
+	if (unit === "chapter" && chapters.length === 0) return;
+	reading.engine.back(unit);
+}
+
 function run(command: ReaderCommand) {
 	switch (command.kind) {
 		case "toggle":
 			togglePlay();
 			break;
 		case "back":
-			reading.engine.back(command.unit);
+			rewind(command.unit);
 			break;
 		case "speed":
 			setWpm(settings.wpm + command.delta);
@@ -186,17 +208,29 @@ function onKeydown(event: KeyboardEvent) {
 		<WpmSlider wpm={settings.wpm} onchange={setWpm} />
 	</div>
 	<div class="stack">
+		<ProgressChart engine={reading.engine} {doc} {chapters} />
 		<div class="transport">
 			<button type="button" class="button-primary" bind:this={toggle} onclick={togglePlay}>
 				{playing ? m.reader_pause() : m.reader_play()}
 			</button>
-			<button
-				type="button"
-				class="segment border-2 border-ink"
-				onclick={() => reading.engine.back("sentence")}
-			>
-				{m.reader_back()}
-			</button>
+			<div role="group" aria-label={m.reader_rewind_label()} class="rewinds">
+				{#each REWINDS as entry (entry.unit)}
+					<button
+						type="button"
+						class="segment border-2 border-ink"
+						aria-label={shortcutName(entry.shortcut)}
+						aria-keyshortcuts={entry.keyshortcuts}
+						disabled={entry.unit === "chapter" && chapters.length === 0}
+						onclick={() => rewind(entry.unit)}
+					>
+						<span aria-hidden="true">←</span>
+						{rewindName(entry.unit)}
+					</button>
+				{/each}
+			</div>
+			{#if chapters.length > 0}
+				<ChapterList engine={reading.engine} {chapters} />
+			{/if}
 			<Shortcuts bind:open={helpOpen} />
 		</div>
 		{#if failed}
@@ -220,6 +254,12 @@ function onKeydown(event: KeyboardEvent) {
 		display: grid;
 		gap: var(--spacing-s-3);
 		align-content: start;
+	}
+
+	.rewinds {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-s-1);
 	}
 
 	.transport {

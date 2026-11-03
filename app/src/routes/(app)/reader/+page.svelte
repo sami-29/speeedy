@@ -11,6 +11,7 @@ import { type DocumentSource, effectiveLanguage } from "#lib/library/store.ts";
 import { documentTitle } from "#lib/library/title.ts";
 import { m } from "#lib/paraglide/messages.js";
 import { takeHandoff } from "#lib/reader/handoff.ts";
+import { type Chapter, chapterList } from "#lib/reader/navigation.ts";
 import {
 	type Built,
 	createReaderLoader,
@@ -40,6 +41,8 @@ let settings = $state<ReaderSettings>({ ...DEFAULT_READER_SETTINGS });
 let failed = $state(false);
 let session = $state.raw<{
 	reading: Reading;
+	document: Document;
+	chapters: Chapter[];
 	title: string | null;
 	source: DocumentSource;
 }>();
@@ -59,9 +62,10 @@ function stopReading() {
 /** Show a Timeline. A document in the Library also gets its Position saved as it is read. */
 function show(
 	built: Built,
+	document: Document,
 	title: string | null,
 	source: DocumentSource,
-	kept?: { id: string; document: Document },
+	kept?: { id: string },
 	startAt?: Position,
 ) {
 	stopReading();
@@ -70,18 +74,22 @@ function show(
 		const id = kept.id;
 		saver = createPositionSaver({
 			save: (position, progress) => store.savePosition(id, position, progress),
-			progress: progressTracker(kept.document),
+			progress: progressTracker(document),
 		});
 	}
 	failed = false;
+	const chapters = chapterList(document);
 	session = {
 		title,
 		source,
+		document,
+		chapters,
 		reading: startReading({
 			timeline: built.timeline,
 			settings,
 			client: built.client,
 			documentId: kept?.id ?? null,
+			chapters: chapters.map((chapter) => chapter.position),
 			startAt,
 			onposition: saver?.record,
 			onError: () => {
@@ -109,7 +117,7 @@ async function open(source: ReaderSource, from: DocumentSource = "own") {
 			source: from,
 		});
 		await store.setCurrent(meta.id);
-		const kept = { id: meta.id, document: result.document };
+		const kept = { id: meta.id };
 		const startAt = duplicate
 			? resumeAt(meta.position, meta.progress)
 			: undefined;
@@ -121,10 +129,17 @@ async function open(source: ReaderSource, from: DocumentSource = "own") {
 					settings,
 				)
 			: null;
-		show(resumed ?? result, meta.title, meta.source, kept, startAt);
+		show(
+			resumed ?? result,
+			result.document,
+			meta.title,
+			meta.source,
+			kept,
+			startAt,
+		);
 	} catch {
 		// The Library is out of reach (private window, storage blocked): read without keeping.
-		show(result, result.title, from);
+		show(result, result.document, result.title, from);
 	}
 	opening = false;
 }
@@ -145,7 +160,7 @@ async function restore() {
 			settings,
 		);
 		if (!built || session) return;
-		show(built, meta.title, meta.source, { id, document }, startAt);
+		show(built, document, meta.title, meta.source, { id }, startAt);
 	} catch {
 		// Nothing to resume: the start panel stays.
 	}
@@ -217,6 +232,8 @@ function onPick(event: Event) {
 	{#key session.reading}
 		<ReaderShell
 			reading={session.reading}
+			doc={session.document}
+			chapters={session.chapters}
 			title={session.title}
 			source={session.source}
 			bind:settings

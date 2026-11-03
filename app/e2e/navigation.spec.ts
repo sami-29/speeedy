@@ -427,7 +427,10 @@ test.describe("motion and dimming", () => {
 		page,
 	}) => {
 		await openBook(page);
-		await page.getByRole("button", { name: "Play" }).click();
+		// Setting a file never touched the pointer, so the Play button still shows its
+		// keyboard focus ring, and that keeps the controls lit. Take the focus off it first.
+		await focusPage(page);
+		await page.keyboard.press("k");
 		await page.getByTestId("stage").hover();
 		await expect(page.getByTestId("controls")).toHaveCSS("opacity", "0.35");
 		await expect(

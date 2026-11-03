@@ -1,3 +1,4 @@
+import type { BackUnit } from "@speeedy/engine";
 import { m } from "#lib/paraglide/messages.js";
 import type { ShortcutId } from "./shortcuts.ts";
 import { WPM_MAX } from "./wpm.ts";
@@ -25,6 +26,7 @@ export const shortcutName = (id: ShortcutId): string =>
 		toggle: m.shortcut_toggle,
 		back: m.shortcut_back,
 		back_paragraph: m.shortcut_back_paragraph,
+		back_chapter: m.shortcut_back_chapter,
 		speed: m.shortcut_speed,
 		speed_big: m.shortcut_speed_big,
 		mode: m.shortcut_mode,
@@ -33,3 +35,11 @@ export const shortcutName = (id: ShortcutId): string =>
 
 export const modeName = (id: string): string =>
 	id === "rsvp" ? m.mode_rsvp() : id;
+
+/** The short word on a rewind button; the full "Back one ..." wording is its accessible name. */
+export const rewindName = (unit: BackUnit): string =>
+	({
+		sentence: m.reader_rewind_sentence,
+		paragraph: m.reader_rewind_paragraph,
+		chapter: m.reader_rewind_chapter,
+	})[unit]();
