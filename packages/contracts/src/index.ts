@@ -4,6 +4,7 @@ export * from "./error-privacy.ts";
 export * from "./errors.ts";
 export * from "./events.ts";
 export * from "./flags.ts";
+export * from "./launcher.ts";
 export * from "./newsletter.ts";
 export * from "./plans";
 export * from "./position";
