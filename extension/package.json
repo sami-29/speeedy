@@ -1,9 +1,26 @@
 {
 	"name": "@speeedy/extension",
 	"private": true,
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"type": "module",
 	"scripts": {
-		"build": "node -e \"console.log('@speeedy/extension has nothing to build yet')\""
+		"build": "node scripts/build.ts",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test:unit": "vitest run",
+		"e2e": "playwright test"
+	},
+	"dependencies": {
+		"@mozilla/readability": "0.6.0",
+		"@speeedy/contracts": "workspace:*",
+		"@speeedy/parsers": "workspace:*"
+	},
+	"devDependencies": {
+		"@playwright/test": "1.64.1",
+		"@types/chrome": "0.3.5",
+		"@types/node": "22.20.5",
+		"esbuild": "0.28.2",
+		"jsdom": "30.1.2",
+		"typescript": "6.0.3",
+		"vitest": "4.1.2"
 	}
 }
