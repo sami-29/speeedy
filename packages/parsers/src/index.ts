@@ -1,6 +1,7 @@
 export { decodeBytes, sniffMetaCharset } from "./decode";
 export { detectLanguage, normalizeLanguageTag } from "./language";
 export { parse, parseText } from "./parse";
+export { PDF_PRECACHE_EXCLUDE } from "./precache";
 export {
 	attachParserWorker,
 	createParserClient,

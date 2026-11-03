@@ -22,6 +22,14 @@
 	},
 	"overrides": [
 		{
+			"includes": ["packages/parsers/test/**"],
+			"linter": {
+				"rules": {
+					"correctness": { "usePlaywrightValidDescribeCallback": "off" }
+				}
+			}
+		},
+		{
 			"includes": ["**/*.svelte"],
 			"linter": {
 				"rules": {
