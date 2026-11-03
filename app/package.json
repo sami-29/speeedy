@@ -9,7 +9,7 @@
 	},
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build && node scripts/upload-sourcemaps.ts",
+		"build": "vite build && node scripts/check-bundle-paths.ts && node scripts/upload-sourcemaps.ts",
 		"preview": "vite preview",
 		"prepare": "pnpm paraglide && svelte-kit sync",
 		"lint": "node scripts/lint-runes.ts",

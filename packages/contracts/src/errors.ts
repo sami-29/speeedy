@@ -44,7 +44,7 @@ export const EXCEPTION_LIMITS = {
 	/** Characters of a script path. */
 	file: 80,
 	/** Characters of a function name. */
-	function: 60,
+	function: 80,
 	maxLine: 10_000_000,
 	maxCol: 10_000_000,
 	/** Reports one Visit may send. A crash loop must not flood. */
@@ -75,18 +75,26 @@ export interface ExceptionProperties {
 }
 
 /**
- * The paths of the app's own build output: `/_app/immutable/<folder>/<name>.<hash>.js`, where
- * the hash is eight characters of base64url. Nothing a reader wrote can take this shape.
+ * The exact file names the build emits, and nothing else. `<hash>` is the eight characters of
+ * base64url that Vite puts in a name, so no free word fits anywhere in the path:
+ *   chunks/<hash>.js   entry/(app|start|payload).<hash>.js   nodes/<1-3 digits>.<hash>.js
+ * `app/scripts/bundle-paths.ts` checks every script in the built site against this, so a
+ * Vite or SvelteKit naming change fails the build instead of turning every frame external.
  */
 const BUNDLE_PATH =
-	/^\/_app\/immutable\/(?:chunks|entry|nodes|workers|assets)\/(?:[A-Za-z0-9_.]{1,24}[.-])?[A-Za-z0-9_-]{8}\.m?js$/;
-/** One or more JavaScript identifiers joined by dots. */
+	/^\/_app\/immutable\/(?:chunks\/[A-Za-z0-9_-]{8}|entry\/(?:app|start|payload)\.[A-Za-z0-9_-]{8}|nodes\/[0-9]{1,3}\.[A-Za-z0-9_-]{8})\.js$/;
+/** One to four JavaScript identifiers joined by dots, each up to 40 characters. */
 const FUNCTION_PATH =
-	/^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$/;
+	/^[A-Za-z_$][A-Za-z0-9_$]{0,39}(?:\.[A-Za-z_$][A-Za-z0-9_$]{0,39}){0,3}$/;
 const ORIGIN = /^[a-z][a-z0-9+.-]*:\/\/[^/?#]*/i;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** True for a path of one of the app's own built scripts. */
+export function isBundlePath(path: string): boolean {
+	return BUNDLE_PATH.test(path);
 }
 
 function isFile(value: unknown): value is string {

@@ -280,7 +280,7 @@ export function hostileErrors(): unknown[] {
 					"entry/app.the_cat.js",
 					"nodes/the_cat.AbCd1234.js",
 					"nodes/2.the_cat.AbCd1234.js",
-					"nodes/2.elephant.js",
+					"nodes/2.elephants.js",
 					"workers/the_cat-AbCd1234.js",
 					"assets/the_cat.AbCd1234.js",
 				].map(
