@@ -65,13 +65,25 @@ const modeButton = (page: Page, name: string) =>
 		.getByRole("group", { name: "Reading Mode" })
 		.getByRole("button", { name });
 
-/** Is the element inside the pane's visible box? */
-const inView = (target: Locator) =>
-	target.first().evaluate((el) => {
-		const box = el.closest('[data-testid="pacer"]')?.getBoundingClientRect();
+/**
+ * True when the first element matching `selector` is inside the pane's visible box, else
+ * where it was. One call in the page, because the current word's node is replaced when the
+ * reader moves to another block.
+ */
+const inView = (page: Page, selector: string) =>
+	pane(page).evaluate((root, query) => {
+		const el = root.querySelector(query);
+		if (!el) return `no ${query}`;
+		const box = root.getBoundingClientRect();
 		const rect = el.getBoundingClientRect();
-		return !!box && rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1;
-	});
+		const inside = rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1;
+		return (
+			inside ||
+			`${el.textContent} at ${rect.top}-${rect.bottom} outside ${box.top}-${box.bottom}, scrollTop ${root.scrollTop}`
+		);
+	}, selector);
+
+const NOW = '[data-state="now"]';
 
 test.describe("Reading Mode switch", () => {
 	test("offers RSVP and Pacer, and the Pacer button switches the view", async ({
@@ -239,9 +251,11 @@ test.describe("the document's shape", () => {
 
 	test("emphasis, strong and links keep their own look", async ({ page }) => {
 		await openDocument(page);
-		const emphasis = pane(page).getByText("emphasis", { exact: true });
+		const emphasis = pane(page).locator("[data-em]").first();
+		await expect(emphasis).toContainText("emphasis");
 		await expect(emphasis).toHaveCSS("font-style", "italic");
-		const strong = pane(page).getByText("strong", { exact: true });
+		const strong = pane(page).locator("[data-strong]").first();
+		await expect(strong).toContainText("strong");
 		expect(
 			Number(await strong.evaluate((el) => getComputedStyle(el).fontWeight)),
 		).toBeGreaterThan(500);
@@ -342,17 +356,17 @@ test.describe("the highlight", () => {
 			})
 			.toBeGreaterThan(100);
 		for (let i = 0; i < 5; i++) {
-			expect(await inView(now(page))).toBe(true);
+			expect(await inView(page, NOW)).toBe(true);
 			await page.waitForTimeout(200);
 		}
 		await page.keyboard.press("k");
 		await page.getByRole("slider", { name: "Reading progress" }).focus();
 		await page.keyboard.press("End");
 		await expect(now(page).first()).toContainText(/last|words\./);
-		expect(await inView(now(page))).toBe(true);
+		expect(await inView(page, NOW)).toBe(true);
 		await page.keyboard.press("Home");
 		await expect(now(page).first()).toHaveText("Heading");
-		expect(await inView(now(page))).toBe(true);
+		expect(await inView(page, NOW)).toBe(true);
 		expect(await pane(page).evaluate((el) => el.scrollTop)).toBe(0);
 	});
 
@@ -409,9 +423,9 @@ test.describe("keyboard", () => {
 		await expect(
 			pane(page).getByRole("heading", { name: "Heading two" }),
 		).toBeVisible();
-		expect(
-			await inView(pane(page).getByRole("heading", { name: "Heading two" })),
-		).toBe(true);
+		expect(await inView(page, '[data-kind="heading"][data-level="2"]')).toBe(
+			true,
+		);
 	});
 });
 

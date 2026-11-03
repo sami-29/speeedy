@@ -47,6 +47,7 @@ describe("followCursor", () => {
 		expect(textOf(ranges[0] as PacerRange)).toBe("Title");
 	});
 
+	// The Engine has no Frames for an image's alt text, so the Cursor passes over the place.
 	it("follows the Cursor Frame by Frame as the Clock advances", () => {
 		const { clock, engine, ranges } = setup();
 		engine.play();
@@ -67,9 +68,6 @@ describe("followCursor", () => {
 			"delta",
 			"epsilon",
 			"zeta.",
-			"a",
-			"red",
-			"fox",
 			"quoted",
 			"line",
 			"here.",

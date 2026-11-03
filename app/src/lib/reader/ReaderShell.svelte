@@ -5,9 +5,10 @@ import { onMount } from "svelte";
 import { m } from "#lib/paraglide/messages.js";
 import ChapterList from "./ChapterList.svelte";
 import { modeName, rewindName, shortcutName } from "./copy.ts";
-import { readerModes } from "./modes.ts";
+import { pausesWhenHidden, readerModes } from "./modes.ts";
 import type { Chapter } from "./navigation.ts";
 import ProgressChart from "./ProgressChart.svelte";
+import { pauseWhenHidden } from "./pacer/hidden.ts";
 import ReadingSettings from "./ReadingSettings.svelte";
 import type { Reading } from "./reading.ts";
 import Shortcuts from "./Shortcuts.svelte";
@@ -48,6 +49,9 @@ let {
 const modes = readerModes.modes();
 let modeId = $state(modes[0]?.id ?? "rsvp");
 const mode = $derived(readerModes.get(modeId));
+// A shared text waits for Play. After a switch, the next mode plays if the last one was.
+// svelte-ignore state_referenced_locally
+let autoplay = $state(source !== "share");
 
 let playing = $state(false);
 let helpOpen = $state(false);
@@ -99,6 +103,12 @@ $effect(() => {
 	};
 });
 
+// A visual mode pauses on a hidden tab, so the reader does not lose text they never saw.
+$effect(() => {
+	if (!mode || !pausesWhenHidden(mode)) return;
+	return pauseWhenHidden(reading.engine, { document });
+});
+
 function setSettings(change: Partial<ReaderSettings>) {
 	settings = { ...settings, ...change };
 	reading.live.change(enginePatch(change));
@@ -107,6 +117,12 @@ function setSettings(change: Partial<ReaderSettings>) {
 function setWpm(wpm: number) {
 	const next = clampWpm(wpm);
 	if (next !== settings.wpm) setSettings({ wpm: next });
+}
+
+function selectMode(id: string) {
+	if (id === modeId) return;
+	autoplay = reading.engine.playing;
+	modeId = id;
 }
 
 function togglePlay() {
@@ -133,10 +149,12 @@ function run(command: ReaderCommand) {
 			setWpm(settings.wpm + command.delta);
 			break;
 		case "mode":
-			modeId = nextMode(
-				modes.map((entry) => entry.id),
-				modeId,
-				command.step,
+			selectMode(
+				nextMode(
+					modes.map((entry) => entry.id),
+					modeId,
+					command.step,
+				),
 			);
 			break;
 		case "help":
@@ -191,7 +209,7 @@ function onKeydown(event: KeyboardEvent) {
 				type="button"
 				class="segment"
 				aria-pressed={entry.id === modeId}
-				onclick={() => (modeId = entry.id)}>{modeName(entry.id)}</button
+				onclick={() => selectMode(entry.id)}>{modeName(entry.id)}</button
 			>
 		{/each}
 	</div>
@@ -199,7 +217,7 @@ function onKeydown(event: KeyboardEvent) {
 
 {#if mode}
 	{#await mode.view() then view}
-		<view.default engine={reading.engine} autoplay={source !== "share"} />
+		<view.default engine={reading.engine} {doc} {autoplay} />
 	{/await}
 {/if}
 
