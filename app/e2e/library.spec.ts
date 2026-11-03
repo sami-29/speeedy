@@ -127,6 +127,8 @@ test.describe("the Library", () => {
 		await page.getByRole("button", { name: "Edit Mots" }).click();
 		await page.getByRole("combobox", { name: "Language" }).selectOption("fr");
 		await page.getByRole("button", { name: "Save" }).click();
+		// Save closes the form only once the write has committed. Reloading before then aborts it.
+		await expect(page.getByRole("button", { name: "Save" })).toBeHidden();
 		await page.reload();
 		await page.getByRole("button", { name: "Edit Mots" }).click();
 		await expect(page.getByRole("combobox", { name: "Language" })).toHaveValue(

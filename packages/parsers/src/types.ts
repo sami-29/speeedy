@@ -42,6 +42,7 @@ export type SourceFormat =
 	| "markdown"
 	| "csv"
 	| "html"
+	| "docx"
 	| "pasted"
 	| "pdf";
 

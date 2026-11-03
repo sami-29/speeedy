@@ -14,7 +14,7 @@ test.describe("landing /", () => {
 		request,
 	}) => {
 		const html = await (await request.get("/")).text();
-		expect(html).toMatch(/<h1[^>]*>[^<]*Read/);
+		expect(html).toMatch(/<h1[^>]*>[^<]*speed reader/i);
 		expect(html).toContain('lang="en"');
 		expect(html).not.toMatch(/name="robots"[^>]*noindex/);
 	});
