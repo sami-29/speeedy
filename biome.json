@@ -11,7 +11,8 @@
 			"!**/*.md",
 			"!pnpm-lock.yaml",
 			"!app/static",
-			"!app/brand"
+			"!app/brand",
+			"!packages/parsers/test/fixtures"
 		]
 	},
 	"css": {

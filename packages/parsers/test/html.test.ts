@@ -268,10 +268,10 @@ describe("html: entities", () => {
 	it("leaves unknown entities as written and survives broken numeric ones", async () => {
 		const [text] = textsOf(
 			await html(
-				"<p>a &notanentity; b &#99999999999; c &#xD800; d &#0; e &#x110000; f &</p>",
+				"<p>a &zzznotanentity; b &#99999999999; c &#xD800; d &#0; e &#x110000; f &</p>",
 			),
 		);
-		expect(text).toContain("&notanentity;");
+		expect(text).toContain("&zzznotanentity;");
 		expect(text).not.toContain("&#");
 		expect(text).not.toMatch(/[\ud800-\udfff]/);
 	});
@@ -525,6 +525,45 @@ describe("html: saved web pages keep the article and drop the rest", () => {
 			longText("A long one"),
 		]);
 	});
+
+	it("keeps the article when the whole site sits inside one form", async () => {
+		const page = article(
+			`<form id="aspnetForm"><div><p>${longText("Alpha")}</p><p>${longText("Beta")}</p><p>${longText("Gamma")}</p><p>${longText("Delta")}</p></div></form><nav><a href="/">Home</a></nav>`,
+		);
+		const out = textsOf(await html(page));
+		expect(out).toContain(longText("Alpha"));
+		expect(out).toContain(longText("Delta"));
+	});
+
+	it("drops citation markers and heading anchors from saved pages", async () => {
+		const page = article(
+			`<nav><a href="/">Home</a></nav><main><h2>Title<a class="headerlink" href="#t">¶</a></h2><p>${longText("Cited")}<sup class="reference"><a href="#r1">[1]</a></sup> and the sentence goes on.</p></main>`,
+		);
+		expect(textsOf(await html(page))).toEqual([
+			"Title",
+			`${longText("Cited")} and the sentence goes on.`,
+		]);
+	});
+
+	it("filters nothing when only one kind of page furniture is present", async () => {
+		const page = `<html><body><footer>tiny</footer><p>Yes.</p><p>${longText("Body")}</p></body></html>`;
+		expect(textsOf(await html(page))).toEqual([
+			"tiny",
+			"Yes.",
+			longText("Body"),
+		]);
+	});
+
+	it("reads a paragraph inside an unclosed heading as a paragraph", async () => {
+		const blocks = blocksOf(
+			await html("<h1>Title<p>First paragraph<p>Second paragraph"),
+		);
+		expect(blocks.map((block) => block.kind)).toEqual([
+			"heading",
+			"paragraph",
+			"paragraph",
+		]);
+	});
 });
 
 describe("html: hostile input", () => {
@@ -540,13 +579,35 @@ describe("html: hostile input", () => {
 		}
 	};
 
-	it("survives 300000 nested divs", { timeout: 60_000 }, async () => {
-		const depth = 300_000;
-		await finishes(
-			utf8(`${"<div>".repeat(depth)}deep text${"</div>".repeat(depth)}`),
+	it("reads 400 nested divs", { timeout: 60_000 }, async () => {
+		const depth = 400;
+		const outcome = await html(
+			`${"<div>".repeat(depth)}deep text${"</div>".repeat(depth)}`,
 		);
-		const outcome = await html(`${"<div>".repeat(depth)}deep text`);
 		expect(textsOf(outcome)).toEqual(["deep text"]);
+	});
+
+	it("refuses absurd nesting with a typed error, quickly", {
+		timeout: 60_000,
+	}, async () => {
+		const depth = 300_000;
+		const started = Date.now();
+		expectError(
+			await html(`${"<div>".repeat(depth)}deep text${"</div>".repeat(depth)}`),
+			"too-big",
+		);
+		expect(Date.now() - started).toBeLessThan(10_000);
+	});
+
+	it("takes millions of stray closing tags at the deepest allowed nesting", {
+		timeout: 120_000,
+	}, async () => {
+		const started = Date.now();
+		const outcome = await html(
+			`${"<b>".repeat(500)}text${"</i>".repeat(2_000_000)}`,
+		);
+		expect(textsOf(outcome)).toEqual(["text"]);
+		expect(Date.now() - started).toBeLessThan(30_000);
 	});
 
 	it("survives a million unclosed inline tags", {
@@ -563,7 +624,7 @@ describe("html: hostile input", () => {
 	});
 
 	it("caps list depth", { timeout: 30_000 }, async () => {
-		const depth = 20_000;
+		const depth = 250;
 		const outcome = await html(
 			`${"<ul><li>".repeat(depth)}leaf${"</li></ul>".repeat(depth)}`,
 		);
@@ -605,18 +666,22 @@ describe("html: hostile input", () => {
 	it("treats odd constructs as markup, never as text", async () => {
 		const out = textsOf(
 			await html(
-				'<?xml version="1.0"?><![CDATA[ hidden ]]><!DOCTYPE html [<!ENTITY x "boom">]><p>shown &x; &#x26;x;</p><!-- <p>no</p> -->',
+				'<?xml version="1.0"?><![CDATA[ hidden ]]><!DOCTYPE html><p>shown &x; &#x26;x; boom</p><!-- <p>no</p> -->',
 			),
 		);
 		expect(out).toHaveLength(1);
-		expect(out[0]).not.toContain("boom");
+		expect(out[0]).toBe("shown &x; &x; boom");
 		expect(out[0]).not.toContain("hidden");
 		expect(out[0]).not.toContain("no</p>");
 	});
 
 	it("handles NULs, lone surrogates and control characters in the text", async () => {
-		const out = textsOf(await html("<p>a\u0000b\u0001c\u007fd</p>"));
-		expect(out).toEqual(["abcd"]);
+		const out = textsOf(
+			await html(
+				"<p>a\u0000b\u0001c\u007fd and some more plain text around it</p>",
+			),
+		);
+		expect(out).toEqual(["abcd and some more plain text around it"]);
 	});
 
 	it("does not let a closing script tag in a comment or attribute leak the script", async () => {

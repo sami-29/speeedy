@@ -1,0 +1,13 @@
+{
+	"outcome": "document",
+	"format": "html",
+	"title": "nested-400",
+	"encoding": "utf-8",
+	"language": "und",
+	"blocks": 3,
+	"first": "Deep paragraph one.\nDeep item\nShallow pa",
+	"last": "p item\nShallow paragraph after the nest.",
+	"words": [9, 11],
+	"kinds": ["paragraph", "list-item", "paragraph"],
+	"spans": 0
+}

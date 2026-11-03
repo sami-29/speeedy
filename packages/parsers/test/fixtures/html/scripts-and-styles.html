@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Scripts and styles</title>
+<style>p { color: red; } /* never text */</style>
+<script>var secret = "<p>not a paragraph</p>"; document.write("also not text");</script>
+</head>
+<body>
+<p>The first visible paragraph.</p>
+<script type="text/javascript">alert("no");</script>
+<noscript>Please enable JavaScript to view this page.</noscript>
+<!-- <p>commented out</p> -->
+<style>.x { content: "css text"; }</style>
+<template><p>template text</p></template>
+<svg width="10" height="10"><title>svg title</title><text>svg text</text></svg>
+<iframe src="https://example.com/">iframe fallback</iframe>
+<div hidden><p>hidden by attribute</p></div>
+<div style="display:none"><p>hidden by style</p></div>
+<button>Click me</button>
+<select><option>Option text</option></select>
+<p>The second visible paragraph.</p>
+</body>
+</html>
