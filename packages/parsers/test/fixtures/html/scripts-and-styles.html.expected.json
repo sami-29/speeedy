@@ -1,0 +1,13 @@
+{
+	"outcome": "document",
+	"format": "html",
+	"title": "Scripts and styles",
+	"encoding": "utf-8",
+	"language": "en",
+	"blocks": 2,
+	"first": "The first visible paragraph.\nThe second ",
+	"last": "paragraph.\nThe second visible paragraph.",
+	"words": [7, 9],
+	"kinds": ["paragraph", "paragraph"],
+	"spans": 0
+}

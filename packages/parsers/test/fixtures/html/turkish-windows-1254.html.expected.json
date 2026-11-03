@@ -1,0 +1,13 @@
+{
+	"outcome": "document",
+	"format": "html",
+	"title": "Bahçedeki Çocuk",
+	"encoding": "windows-1254",
+	"language": "tr",
+	"blocks": 3,
+	"first": "Bahçedeki Çocuk\nÇocuk bahçede ıslak çime",
+	"last": ", İ ve ı harflerini birlikte öğrenmişti.",
+	"words": [31, 33],
+	"kinds": ["heading", "paragraph", "paragraph"],
+	"spans": 2
+}

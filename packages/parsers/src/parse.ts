@@ -6,6 +6,7 @@ import {
 import { clip, normalizeText, scanControls, tidyLine } from "./clean";
 import { csvToBlocks } from "./csv";
 import { decodeBytes } from "./decode";
+import { htmlToBlocks } from "./html";
 import { detectLanguage, normalizeLanguageTag } from "./language";
 import { type MarkdownMeta, markdownToBlocks } from "./markdown";
 import { plainTextToBlocks } from "./plain";
@@ -29,6 +30,7 @@ const LANGUAGE_SAMPLE = 20_000;
 
 const MARKDOWN_EXTENSIONS = new Set(["md", "markdown", "mdown", "mkd"]);
 const CSV_EXTENSIONS = new Set(["csv"]);
+const HTML_EXTENSIONS = new Set(["html", "htm"]);
 
 /** Extensions that are never text, whatever the bytes look like. */
 const BINARY_EXTENSIONS = new Set([
@@ -64,8 +66,6 @@ const NOT_YET_EXTENSIONS = new Set([
 	"doc",
 	"odt",
 	"rtf",
-	"html",
-	"htm",
 	"xhtml",
 	"mhtml",
 	"mobi",
@@ -243,7 +243,7 @@ function finish(
 	};
 }
 
-type TextFormat = "txt" | "markdown" | "csv" | "pasted";
+type TextFormat = "txt" | "markdown" | "csv" | "html" | "pasted";
 
 function buildBlocks(
 	format: TextFormat,
@@ -251,6 +251,7 @@ function buildBlocks(
 	sink: BlockSink,
 ): MarkdownMeta | null {
 	if (format === "markdown") return markdownToBlocks(text, sink);
+	if (format === "html") return htmlToBlocks(text, sink);
 	if (format === "csv") csvToBlocks(text, sink);
 	else plainTextToBlocks(text, sink);
 	return null;
@@ -363,8 +364,13 @@ export async function parse(
 			? "markdown"
 			: CSV_EXTENSIONS.has(extension)
 				? "csv"
-				: "txt";
-		const decoded = decodeBytes(view, { encoding: options.encoding });
+				: HTML_EXTENSIONS.has(extension)
+					? "html"
+					: "txt";
+		const decoded = decodeBytes(view, {
+			encoding: options.encoding,
+			sniffMeta: format === "html",
+		});
 		return parseTextFormat(
 			format,
 			decoded.text,

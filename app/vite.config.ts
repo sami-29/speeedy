@@ -5,6 +5,10 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+	// The parser worker loads pdf.js on demand. Only an ES module worker can split that into
+	// chunks of its own; the default format would fold all of pdf.js into the worker file, which
+	// every visit downloads.
+	worker: { format: "es" },
 	plugins: [
 		tailwindcss(),
 		// The locale lives in the URL (English has no prefix, a future locale gets `/<lang>/`)

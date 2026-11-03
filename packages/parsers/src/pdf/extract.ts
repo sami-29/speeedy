@@ -1,3 +1,4 @@
+/// <reference path="./modules.d.ts" />
 /**
  * The only file that touches pdf.js.
  *
