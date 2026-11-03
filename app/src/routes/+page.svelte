@@ -9,7 +9,11 @@ import { goto } from "$app/navigation";
 
 // The text goes to /reader through memory, not through the URL.
 function start(source: ReaderSource) {
-	handOff(source);
+	handOff(
+		source.kind === "text"
+			? { text: source.text, source: "own" }
+			: { file: source.file, source: "own" },
+	);
 	void goto(localizeHref("/reader"));
 }
 </script>

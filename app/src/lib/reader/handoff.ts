@@ -1,18 +1,28 @@
-import type { ReaderSource } from "./open.ts";
+import type { DocumentSource } from "#lib/library/store.ts";
 
-// Pasted text and chosen files go from a public page to /reader through this one slot in
-// memory. Nothing is written to the URL, to storage or to the network, and a reload of
-// /reader starts empty. The reader takes the source once, when it opens.
-let pending: ReaderSource | undefined;
+/**
+ * What one route leaves for /reader: pasted or shared text, or a file, and where it came
+ * from. A Share Link sets `source: "share"` (the reader marks it and waits for Play); the
+ * front door's paste or drop sets `source: "own"`.
+ */
+export type Handoff = { source: DocumentSource } & (
+	| { text: string }
+	| { file: File }
+);
 
-/** Leaves a source for the reader to pick up. A later call replaces an earlier one. */
-export function handOff(source: ReaderSource): void {
-	pending = source;
+// Held in memory only, for one client-side navigation into /reader. It is never written to
+// history state or the URL, so the text cannot leave the device; /reader keeps it in the
+// on-device Library like any other text, marked with its source.
+let pending: Handoff | undefined;
+
+/** Leaves text or a file for /reader to open next. Navigate to /reader right after. */
+export function handOff(handoff: Handoff): void {
+	pending = handoff;
 }
 
-/** Returns the waiting source, if any, and clears the slot. */
-export function takeHandOff(): ReaderSource | undefined {
-	const source = pending;
+/** Takes the waiting hand-off, if any. A second call returns nothing. */
+export function takeHandoff(): Handoff | undefined {
+	const handoff = pending;
 	pending = undefined;
-	return source;
+	return handoff;
 }

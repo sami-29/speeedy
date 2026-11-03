@@ -11,7 +11,7 @@ import { progressTracker } from "#lib/library/progress.ts";
 import { type DocumentSource, effectiveLanguage } from "#lib/library/store.ts";
 import { documentTitle } from "#lib/library/title.ts";
 import { m } from "#lib/paraglide/messages.js";
-import { takeHandOff } from "#lib/reader/handoff.ts";
+import { takeHandoff } from "#lib/reader/handoff.ts";
 import { readerModes } from "#lib/reader/modes.ts";
 import { createReaderLoader, type ReaderSource } from "#lib/reader/open.ts";
 import { READER_SETTINGS } from "#lib/reader/settings.ts";
@@ -62,7 +62,7 @@ function show(
 	session = { timeline, title, source, startAt, onposition: saver?.record };
 }
 
-async function open(source: ReaderSource) {
+async function open(source: ReaderSource, from: DocumentSource = "own") {
 	error = "";
 	opening = true;
 	const result = await loader.open(source);
@@ -77,6 +77,7 @@ async function open(source: ReaderSource) {
 			document: result.document,
 			title: documentTitle(result.title, result.document),
 			language: result.language,
+			source: from,
 		});
 		await store.setCurrent(meta.id);
 		const kept = { id: meta.id, document: result.document };
@@ -93,7 +94,7 @@ async function open(source: ReaderSource) {
 		show(timeline ?? result.timeline, meta.title, meta.source, kept, startAt);
 	} catch {
 		// The Library is out of reach (private window, storage blocked): read without keeping.
-		show(result.timeline, result.title, "own");
+		show(result.timeline, result.title, from);
 	}
 	opening = false;
 }
@@ -119,12 +120,20 @@ async function restore() {
 	}
 }
 
-// A public page (the front door) can hand over pasted text or a file. That wins over the
-// Library's current document: open it, which also keeps it in the Library, and do not restore.
+// Text or a file handed over by another route (a paste or drop on `/`, a Share Link opened at
+// `/s`) wins over the Library's current document: open it, which also keeps it in the Library
+// with its source, and do not restore.
 onMount(() => {
-	const handedOver = takeHandOff();
-	if (handedOver) void open(handedOver);
-	else void restore();
+	const handed = takeHandoff();
+	if (!handed) {
+		void restore();
+		return;
+	}
+	const source: ReaderSource =
+		"file" in handed
+			? { kind: "file", file: handed.file }
+			: { kind: "text", text: handed.text };
+	void open(source, handed.source);
 });
 
 /** Back to the start panel. The next refresh shows the panel too. */
@@ -183,11 +192,16 @@ function onPick(event: Event) {
 		<button type="button" class="segment border-2 border-ink" onclick={leave}>
 			{m.reader_new_text()}
 		</button>
+		{#if session.source === "share"}
+			<!-- Anyone can craft a Share Link, so its text is marked as not ours and waits for Play. -->
+			<p class="caption mt-s-2 text-ink-2" data-testid="shared-notice">{m.reader_shared_notice()}</p>
+		{/if}
 	</div>
 	{#await mode.view() then view}
 		<view.default
 			timeline={session.timeline}
 			wpm={READER_SETTINGS.wpm}
+			autoplay={session.source !== "share"}
 			startAt={session.startAt}
 			onposition={session.onposition}
 		/>
