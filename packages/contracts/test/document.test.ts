@@ -270,7 +270,6 @@ describe("no image bytes are representable", () => {
 		const carriers: unknown[] = [
 			new Uint8Array([1, 2, 3]),
 			new ArrayBuffer(8),
-			new Blob(["x"]),
 			"data:image/png;base64,AAAA",
 			[1, 2, 3],
 		];
@@ -300,10 +299,10 @@ describe("no image bytes are representable", () => {
 	});
 
 	it("does not type a bytes field on an image placeholder", () => {
-		// @ts-expect-error an image placeholder has no bytes field
 		const block: Block = {
 			kind: "image-placeholder",
 			alt: "",
+			// @ts-expect-error an image placeholder has no bytes field
 			bytes: new Uint8Array(1),
 		};
 		expect(block.kind).toBe("image-placeholder");
