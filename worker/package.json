@@ -10,7 +10,8 @@
 		"build": "wrangler deploy --dry-run --outdir dist"
 	},
 	"dependencies": {
-		"@speeedy/contracts": "workspace:*"
+		"@speeedy/contracts": "workspace:*",
+		"posthog-node": "5.57.2"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-plugin": "1.4.8",

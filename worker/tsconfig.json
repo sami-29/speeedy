@@ -13,7 +13,8 @@
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true,
-		"noUncheckedSideEffectImports": true
+		"noUncheckedSideEffectImports": true,
+		"rewriteRelativeImportExtensions": true
 	},
 	"include": ["src", "test", "worker-configuration.d.ts"]
 }
