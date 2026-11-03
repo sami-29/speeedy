@@ -3,7 +3,7 @@ import {
 	waitOnExecutionContext,
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { http, HttpResponse } from "msw";
+import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 import worker from "../src";
 import { network } from "./network";
@@ -41,7 +41,8 @@ beforeEach(() => {
 
 async function call(request: Request, bindings = env): Promise<Response> {
 	const ctx = createExecutionContext();
-	const response = await worker.fetch(request, bindings, ctx);
+	const incoming = request as Request<unknown, IncomingRequestCfProperties>;
+	const response = await worker.fetch(incoming, bindings, ctx);
 	await waitOnExecutionContext(ctx);
 	return response;
 }
@@ -163,7 +164,10 @@ describe("POST /api/e rejects what the allowlist does not describe", () => {
 			},
 		],
 		["a missing visit id", { events: [{ event: SURVEY, properties: {} }] }],
-		["a visit id that is not an id", { ...batch(), visit: "reader@example.com" }],
+		[
+			"a visit id that is not an id",
+			{ ...batch(), visit: "reader@example.com" },
+		],
 		["events that are not an array", { visit: VISIT, events: SURVEY }],
 		["an event that is not an object", { visit: VISIT, events: ["x"] }],
 		["a JSON array body", []],
@@ -222,7 +226,13 @@ describe("routing", () => {
 	});
 
 	it("answers 404 for a module that is not built yet", async () => {
-		for (const path of ["/api/auth", "/api/billing", "/api/sync", "/api/voice", "/api/nope"]) {
+		for (const path of [
+			"/api/auth",
+			"/api/billing",
+			"/api/sync",
+			"/api/voice",
+			"/api/nope",
+		]) {
 			const response = await call(
 				new Request(`https://speeedy.app${path}`, { method: "POST" }),
 			);
@@ -258,7 +268,9 @@ describe("cookies", () => {
 			await post(batch({ reads: "my diary" })),
 			await post("{not json"),
 			await call(new Request("https://speeedy.app/api/e")),
-			await call(new Request("https://speeedy.app/api/auth", { method: "POST" })),
+			await call(
+				new Request("https://speeedy.app/api/auth", { method: "POST" }),
+			),
 			await call(new Request("https://speeedy.app/")),
 		];
 

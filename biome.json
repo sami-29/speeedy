@@ -1,5 +1,8 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.6/schema.json",
+  "files": {
+    "includes": ["**", "!**/worker-configuration.d.ts"]
+  },
   "css": {
     "parser": {
       "tailwindDirectives": true
