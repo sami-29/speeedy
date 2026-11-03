@@ -20,4 +20,8 @@ export const PUBLIC_PAGES: PublicPage[] = [
 	{ path: "/adhd-reading-tool", lastmod: "2026-11-03" },
 	{ path: "/text-to-speech-reader", lastmod: "2026-11-03" },
 	{ path: "/spreeder-alternative", lastmod: "2026-11-03" },
+	{ path: "/learn", lastmod: "2026-11-03" },
+	{ path: "/learn/how-to-read-faster", lastmod: "2026-11-03" },
+	{ path: "/learn/what-is-rsvp", lastmod: "2026-11-03" },
+	{ path: "/learn/average-reading-speed", lastmod: "2026-11-03" },
 ];
