@@ -20,12 +20,16 @@
 		"icons": "node scripts/generate-icons.ts",
 		"icons:check": "node scripts/generate-icons.ts --check"
 	},
+	"dependencies": {
+		"@speeedy/contracts": "workspace:*",
+		"@speeedy/engine": "workspace:*",
+		"@speeedy/parsers": "workspace:*"
+	},
 	"devDependencies": {
 		"@axe-core/playwright": "4.14.0",
 		"@inlang/paraglide-js": "2.29.2",
 		"@inlang/plugin-message-format": "4.5.5",
 		"@playwright/test": "1.64.1",
-		"@speeedy/contracts": "workspace:*",
 		"@sveltejs/adapter-static": "4.0.0",
 		"@sveltejs/kit": "3.1.0",
 		"@sveltejs/vite-plugin-svelte": "7.3.1",

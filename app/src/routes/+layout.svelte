@@ -4,11 +4,18 @@ import NewsletterForm from "#lib/NewsletterForm.svelte";
 import { newsletterPageFor, showsFooterForm } from "#lib/newsletter.ts";
 import { m } from "#lib/paraglide/messages.js";
 import { deLocalizeUrl, localizeHref } from "#lib/paraglide/runtime.js";
+import { trackPageview } from "#lib/telemetry.ts";
 import { theme } from "#lib/theme.svelte.ts";
 import { applyTheme, type Theme } from "#lib/theme.ts";
+import { afterNavigate } from "$app/navigation";
 import { page } from "$app/state";
 
 let { children } = $props();
+
+// One route-only $pageview per page, on first load and on every client-side navigation.
+afterNavigate((navigation) =>
+	trackPageview(navigation.to?.url.pathname ?? window.location.pathname),
+);
 
 const inApp = $derived(page.route.id?.startsWith("/(app)") ?? false);
 
