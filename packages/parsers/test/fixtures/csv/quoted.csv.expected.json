@@ -1,0 +1,12 @@
+{
+	"outcome": "document",
+	"format": "csv",
+	"title": "quoted",
+	"encoding": "utf-8",
+	"language": "und",
+	"blocks": 4,
+	"first": "name notes city",
+	"last": "Carla ok",
+	"words": [14, 18],
+	"kinds": ["table-text", "table-text", "table-text", "table-text"]
+}

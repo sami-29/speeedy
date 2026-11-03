@@ -1,0 +1,12 @@
+{
+	"outcome": "document",
+	"format": "csv",
+	"title": "semicolon-de",
+	"encoding": "utf-8",
+	"language": "und",
+	"blocks": 3,
+	"first": "Stadt Einwohner",
+	"last": "Hamburg 1 841 000",
+	"words": [8, 12],
+	"kinds": ["table-text", "table-text", "table-text"]
+}
