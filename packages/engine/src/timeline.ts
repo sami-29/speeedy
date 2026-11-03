@@ -94,7 +94,10 @@ const DOCUMENT_START: Position = { block: 0, offset: 0 };
 /**
  * Build Frames from `startBlock` on, appended to the Frames already in `frames`.
  * `startOffset` is where in that block to begin. `wordsSinceAnchor` is how many words
- * `frames` already holds from the anchor onward.
+ * `frames` already holds from the anchor onward. With `stopAfterWords`, building stops at
+ * the first Frame that ends a sentence or a block once that many words have been built,
+ * and `stopped` is true: both are places where every chunk size breaks, so the Frames
+ * after the stop need not change when only the chunk size does.
  */
 function buildFrom(
 	document: Document,
@@ -104,7 +107,8 @@ function buildFrom(
 	startBlock: number,
 	startOffset: number,
 	wordsSinceAnchor: number,
-): Timeline {
+	stopAfterWords = Number.POSITIVE_INFINITY,
+): Timeline & { stopped: boolean } {
 	const anchor = options.anchor ?? DOCUMENT_START;
 	const baseMs = 60_000 / settings.wpm;
 	const pacing: PacingContext = { settings, wordsSinceAnchor: -1 };
@@ -112,16 +116,23 @@ function buildFrom(
 	const previous = frames[frames.length - 1];
 	let totalMs = previous ? previous.startMs + previous.durationMs : 0;
 	let counted = wordsSinceAnchor;
+	let built = 0;
+	let stopped = false;
 
-	for (
+	blocks: for (
 		let blockIndex = startBlock;
 		blockIndex < document.blocks.length;
 		blockIndex++
 	) {
 		const block = document.blocks[blockIndex];
 		if (!block || block.kind === "image-placeholder") continue;
-		const tokens = tokenize(block.text, options.language);
-		const contexts = contextOf(tokens);
+		let cached = options.tokenCache?.get(blockIndex);
+		if (!cached) {
+			const tokens = tokenize(block.text, options.language);
+			cached = { tokens, contexts: contextOf(tokens) };
+			options.tokenCache?.set(blockIndex, cached);
+		}
+		const { tokens, contexts } = cached;
 		let i = 0;
 		if (blockIndex === startBlock) {
 			i = tokens.findIndex((token) => token.start >= startOffset);
@@ -183,11 +194,19 @@ function buildFrom(
 				context,
 			});
 			totalMs += durationMs;
+			built += words;
 			i = j;
+			if (
+				built >= stopAfterWords &&
+				(endsSentence(last.text) || i >= tokens.length)
+			) {
+				stopped = true;
+				break blocks;
+			}
 		}
 	}
 
-	return { frames, totalMs };
+	return { frames, totalMs, stopped };
 }
 
 /**
@@ -201,7 +220,42 @@ export function buildTimeline(
 	settings: Partial<EngineSettings> = {},
 	options: TimelineOptions = {},
 ): Timeline {
-	return buildFrom(document, resolveSettings(settings), options, [], 0, 0, 0);
+	const { frames, totalMs } = buildFrom(
+		document,
+		resolveSettings(settings),
+		options,
+		[],
+		0,
+		0,
+		0,
+	);
+	return { frames, totalMs };
+}
+
+/** Where a rebuild from `fromIndex` starts: the Frames kept and how far into the anchor they run. */
+function rebuildStart(
+	timeline: Timeline,
+	fromIndex: number,
+	options: TimelineOptions,
+) {
+	const index = Math.max(fromIndex, 0);
+	const at = timeline.frames[index];
+	if (!at) return undefined;
+	const anchor = options.anchor ?? DOCUMENT_START;
+	// Frames are in Position order, so the first one at or after the anchor is a binary search away.
+	let low = 0;
+	let high = index;
+	while (low < high) {
+		const middle = (low + high) >> 1;
+		const frame = timeline.frames[middle] as Frame;
+		if (comparePositions(frame.position, anchor) < 0) low = middle + 1;
+		else high = middle;
+	}
+	let wordsSinceAnchor = 0;
+	for (let k = low; k < index; k++) {
+		wordsSinceAnchor += (timeline.frames[k] as Frame).words;
+	}
+	return { index, at, wordsSinceAnchor };
 }
 
 /**
@@ -216,27 +270,47 @@ export function rebuildTimeline(
 	settings: Partial<EngineSettings> = {},
 	options: TimelineOptions = {},
 ): Timeline {
-	const index = Math.max(fromIndex, 0);
-	const at = timeline.frames[index];
-	if (!at) {
+	const start = rebuildStart(timeline, fromIndex, options);
+	if (!start) {
 		return { frames: timeline.frames.slice(), totalMs: timeline.totalMs };
 	}
-
-	const anchor = options.anchor ?? DOCUMENT_START;
-	let wordsSinceAnchor = 0;
-	for (let k = index - 1; k >= 0; k--) {
-		const frame = timeline.frames[k];
-		if (!frame || comparePositions(frame.position, anchor) < 0) break;
-		wordsSinceAnchor += frame.words;
-	}
-
-	return buildFrom(
+	const { frames, totalMs } = buildFrom(
 		document,
 		resolveSettings(settings),
 		options,
-		timeline.frames.slice(0, index),
-		at.position.block,
-		at.position.offset,
-		wordsSinceAnchor,
+		timeline.frames.slice(0, start.index),
+		start.at.position.block,
+		start.at.position.offset,
+		start.wordsSinceAnchor,
 	);
+	return { frames, totalMs };
+}
+
+/**
+ * The first Frames of a rebuild from `fromIndex`, enough to cover `minWords` words and
+ * then on to the end of a sentence or block: the Frames `rebuildTimeline` would give from
+ * `fromIndex`, and no more. `complete` says the window reached the end of the Document.
+ * Quick on any Document, because it builds only the window.
+ */
+export function rebuildWindow(
+	document: Document,
+	timeline: Timeline,
+	fromIndex: number,
+	settings: Partial<EngineSettings>,
+	options: TimelineOptions,
+	minWords: number,
+): { frames: Frame[]; complete: boolean } {
+	const start = rebuildStart(timeline, fromIndex, options);
+	if (!start) return { frames: [], complete: true };
+	const { frames, stopped } = buildFrom(
+		document,
+		resolveSettings(settings),
+		options,
+		timeline.frames.slice(0, start.index),
+		start.at.position.block,
+		start.at.position.offset,
+		start.wordsSinceAnchor,
+		minWords,
+	);
+	return { frames: frames.slice(start.index), complete: !stopped };
 }

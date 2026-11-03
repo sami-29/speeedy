@@ -1,5 +1,5 @@
 import type { Document, Position } from "@speeedy/contracts";
-import type { BuildRequest, BuildResponse, Timeline } from "@speeedy/engine";
+import type { Timeline } from "@speeedy/engine";
 import TimelineWorker from "@speeedy/engine/worker?worker";
 import {
 	createParserClient,
@@ -8,23 +8,33 @@ import {
 	type ParserClient,
 } from "@speeedy/parsers";
 import ParserWorker from "@speeedy/parsers/worker?worker";
-import { READER_SETTINGS } from "./settings.ts";
+import { engineSettings, type ReaderSettings } from "./settings.ts";
+import {
+	createTimelineClient,
+	type TimelineClient,
+} from "./timeline-client.ts";
 
 /** What the start panel hands over: pasted text or a dropped or chosen file. */
 export type ReaderSource =
 	| { kind: "text"; text: string }
 	| { kind: "file"; file: File };
 
+/** A built Timeline, and the link to the worker that holds the text it was built from. */
+export type Built = {
+	timeline: Timeline;
+	/** Talks to the Timeline worker that holds this text, for settings rebuilds. */
+	client: TimelineClient;
+};
+
 export type OpenResult =
-	| {
+	| ({
 			ok: true;
-			timeline: Timeline;
 			title: string | null;
 			/** What the parser made of the source, so the Library can keep it. */
 			document: Document;
 			/** The detected language: a BCP 47 tag, `und` when unknown. */
 			language: string;
-	  }
+	  } & Built)
 	| { ok: false; message: string };
 
 export type ParseSourceResult =
@@ -33,7 +43,7 @@ export type ParseSourceResult =
 
 export type ReaderLoader = {
 	/** Parse the source, then build its first Timeline. Both run in workers. */
-	open(source: ReaderSource): Promise<OpenResult>;
+	open(source: ReaderSource, settings: ReaderSettings): Promise<OpenResult>;
 	/** Parse the source and stop there. The Library page keeps the Document without reading it. */
 	parse(source: ReaderSource): Promise<ParseSourceResult>;
 	/**
@@ -43,47 +53,25 @@ export type ReaderLoader = {
 	build(
 		document: Document,
 		options: { language: string; anchor?: Position },
-	): Promise<Timeline | null>;
+		settings: ReaderSettings,
+	): Promise<Built | null>;
 	/** Stop both workers. Call when the reader goes away. */
 	dispose(): void;
 };
 
 const BUILD_FAILED = "Speeedy could not prepare that text for reading.";
 
-/** One request at a time to the Timeline worker, matched to its reply by id. */
-function createTimelineClient(worker: Worker) {
-	let nextId = 1;
-	return {
-		build(request: Omit<BuildRequest, "id">): Promise<BuildResponse> {
-			return new Promise((resolve) => {
-				const id = nextId++;
-				const finish = (response: BuildResponse) => {
-					worker.removeEventListener("message", onMessage);
-					worker.removeEventListener("error", onError);
-					resolve(response);
-				};
-				const onMessage = (event: MessageEvent<BuildResponse>) => {
-					if (event.data?.id === id) finish(event.data);
-				};
-				const onError = () => finish({ id, ok: false, error: BUILD_FAILED });
-				worker.addEventListener("message", onMessage);
-				worker.addEventListener("error", onError);
-				worker.postMessage({ ...request, id });
-			});
-		},
-	};
-}
-
 /**
  * Opens text in the reader without touching the main thread: the parser worker turns the
  * source into a Document and the Timeline worker turns that into the Timeline. Workers
- * start on the first `open` and are reused until `dispose`.
+ * start on the first `open` and are reused until `dispose`. The Timeline worker keeps the
+ * text it built, so a later settings change is a rebuild there, not here.
  */
 export function createReaderLoader(): ReaderLoader {
 	let parser: ParserClient | undefined;
 	let parserWorker: Worker | undefined;
 	let timelineWorker: Worker | undefined;
-	let timelines: ReturnType<typeof createTimelineClient> | undefined;
+	let timelines: TimelineClient | undefined;
 
 	const start = () => {
 		if (!parser || !timelines) {
@@ -108,33 +96,37 @@ export function createReaderLoader(): ReaderLoader {
 		clients: ReturnType<typeof start>,
 		document: Document,
 		language: string,
+		settings: ReaderSettings,
 		anchor?: Position,
-	): Promise<Timeline | null> => {
+	): Promise<Built | null> => {
 		const built = await clients.timelines.build({
 			document,
-			settings: { wpm: READER_SETTINGS.wpm },
+			settings: engineSettings(settings),
 			options: {
 				language: language === "und" ? undefined : language,
 				anchor,
 			},
 		});
-		return built.ok ? built.timeline : null;
+		return built.ok
+			? { timeline: built.timeline, client: clients.timelines }
+			: null;
 	};
 
 	return {
-		async open(source) {
+		async open(source, settings) {
 			const clients = start();
 			const outcome = await parse(clients, source);
 			if (!outcome.ok) return { ok: false, message: outcome.message };
-			const timeline = await build(
+			const built = await build(
 				clients,
 				outcome.document,
 				outcome.language.code,
+				settings,
 			);
-			if (!timeline) return { ok: false, message: BUILD_FAILED };
+			if (!built) return { ok: false, message: BUILD_FAILED };
 			return {
 				ok: true,
-				timeline,
+				...built,
 				title: outcome.title,
 				document: outcome.document,
 				language: outcome.language.code,
@@ -150,11 +142,18 @@ export function createReaderLoader(): ReaderLoader {
 				language: outcome.language.code,
 			};
 		},
-		build(document, options) {
-			return build(start(), document, options.language, options.anchor);
+		build(document, options, settings) {
+			return build(
+				start(),
+				document,
+				options.language,
+				settings,
+				options.anchor,
+			);
 		},
 		dispose() {
 			parser?.dispose();
+			timelines?.dispose();
 			parserWorker?.terminate();
 			timelineWorker?.terminate();
 			parser = undefined;

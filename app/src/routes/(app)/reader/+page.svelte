@@ -1,6 +1,5 @@
 <script lang="ts">
 import type { Document, Position } from "@speeedy/contracts";
-import type { Timeline } from "@speeedy/engine";
 import { onDestroy, onMount } from "svelte";
 import { library } from "#lib/library/instance.ts";
 import {
@@ -12,45 +11,60 @@ import { type DocumentSource, effectiveLanguage } from "#lib/library/store.ts";
 import { documentTitle } from "#lib/library/title.ts";
 import { m } from "#lib/paraglide/messages.js";
 import { takeHandoff } from "#lib/reader/handoff.ts";
-import { readerModes } from "#lib/reader/modes.ts";
-import { createReaderLoader, type ReaderSource } from "#lib/reader/open.ts";
-import { READER_SETTINGS } from "#lib/reader/settings.ts";
+import {
+	type Built,
+	createReaderLoader,
+	type ReaderSource,
+} from "#lib/reader/open.ts";
+import ReaderShell from "#lib/reader/ReaderShell.svelte";
+import { type Reading, startReading } from "#lib/reader/reading.ts";
+import {
+	DEFAULT_READER_SETTINGS,
+	type ReaderSettings,
+} from "#lib/reader/settings.ts";
 
 const loader = createReaderLoader();
 let saver: PositionSaver | undefined;
 onDestroy(() => {
+	session?.reading.dispose();
 	saver?.dispose();
 	loader.dispose();
 });
-
-const mode = readerModes.get("rsvp");
 
 let text = $state("");
 let error = $state("");
 let opening = $state(false);
 let dragging = $state(false);
+// The reader's settings last for the visit, across texts.
+let settings = $state<ReaderSettings>({ ...DEFAULT_READER_SETTINGS });
+let failed = $state(false);
 let session = $state.raw<{
-	timeline: Timeline;
+	reading: Reading;
 	title: string | null;
 	source: DocumentSource;
-	startAt: Position | undefined;
-	onposition: ((position: Position, final: boolean) => void) | undefined;
 }>();
 
 /** Reading starts from the Position the Library holds, unless that was the end. */
 const resumeAt = (position: Position, progress: number) =>
 	progress <= 0 || progress >= 1 ? undefined : position;
 
+/** Stop reading the current text and keep its Position. */
+function stopReading() {
+	session?.reading.dispose();
+	session = undefined;
+	saver?.dispose();
+	saver = undefined;
+}
+
 /** Show a Timeline. A document in the Library also gets its Position saved as it is read. */
 function show(
-	timeline: Timeline,
+	built: Built,
 	title: string | null,
 	source: DocumentSource,
 	kept?: { id: string; document: Document },
 	startAt?: Position,
 ) {
-	saver?.dispose();
-	saver = undefined;
+	stopReading();
 	if (kept) {
 		const store = library();
 		const id = kept.id;
@@ -59,13 +73,28 @@ function show(
 			progress: progressTracker(kept.document),
 		});
 	}
-	session = { timeline, title, source, startAt, onposition: saver?.record };
+	failed = false;
+	session = {
+		title,
+		source,
+		reading: startReading({
+			timeline: built.timeline,
+			settings,
+			client: built.client,
+			documentId: kept?.id ?? null,
+			startAt,
+			onposition: saver?.record,
+			onError: () => {
+				failed = true;
+			},
+		}),
+	};
 }
 
 async function open(source: ReaderSource, from: DocumentSource = "own") {
 	error = "";
 	opening = true;
-	const result = await loader.open(source);
+	const result = await loader.open(source, settings);
 	if (!result.ok) {
 		opening = false;
 		error = result.message;
@@ -85,16 +114,17 @@ async function open(source: ReaderSource, from: DocumentSource = "own") {
 			? resumeAt(meta.position, meta.progress)
 			: undefined;
 		// A text that is already in the Library carries on from its Position.
-		const timeline = startAt
-			? await loader.build(result.document, {
-					language: effectiveLanguage(meta),
-					anchor: startAt,
-				})
-			: result.timeline;
-		show(timeline ?? result.timeline, meta.title, meta.source, kept, startAt);
+		const resumed = startAt
+			? await loader.build(
+					result.document,
+					{ language: effectiveLanguage(meta), anchor: startAt },
+					settings,
+				)
+			: null;
+		show(resumed ?? result, meta.title, meta.source, kept, startAt);
 	} catch {
 		// The Library is out of reach (private window, storage blocked): read without keeping.
-		show(result.timeline, result.title, from);
+		show(result, result.title, from);
 	}
 	opening = false;
 }
@@ -109,12 +139,13 @@ async function restore() {
 		if (!loaded || session) return;
 		const { meta, document } = loaded;
 		const startAt = resumeAt(meta.position, meta.progress);
-		const timeline = await loader.build(document, {
-			language: effectiveLanguage(meta),
-			anchor: startAt,
-		});
-		if (!timeline || session) return;
-		show(timeline, meta.title, meta.source, { id, document }, startAt);
+		const built = await loader.build(
+			document,
+			{ language: effectiveLanguage(meta), anchor: startAt },
+			settings,
+		);
+		if (!built || session) return;
+		show(built, meta.title, meta.source, { id, document }, startAt);
 	} catch {
 		// Nothing to resume: the start panel stays.
 	}
@@ -138,9 +169,7 @@ onMount(() => {
 
 /** Back to the start panel. The next refresh shows the panel too. */
 function leave() {
-	saver?.dispose();
-	saver = undefined;
-	session = undefined;
+	stopReading();
 	void library()
 		.setCurrent(null)
 		.catch(() => undefined);
@@ -184,28 +213,17 @@ function onPick(event: Event) {
 	<title>{m.nav_reader()} - {m.site_name()}</title>
 </svelte:head>
 
-{#if session && mode}
-	<h1 class="sr-only" data-testid="reader-source" data-source={session.source}>
-		{session.title ?? m.reader_reading()}
-	</h1>
-	<div class="px-gutter pt-s-2">
-		<button type="button" class="segment border-2 border-ink" onclick={leave}>
-			{m.reader_new_text()}
-		</button>
-		{#if session.source === "share"}
-			<!-- Anyone can craft a Share Link, so its text is marked as not ours and waits for Play. -->
-			<p class="caption mt-s-2 text-ink-2" data-testid="shared-notice">{m.reader_shared_notice()}</p>
-		{/if}
-	</div>
-	{#await mode.view() then view}
-		<view.default
-			timeline={session.timeline}
-			wpm={READER_SETTINGS.wpm}
-			autoplay={session.source !== "share"}
-			startAt={session.startAt}
-			onposition={session.onposition}
+{#if session}
+	{#key session.reading}
+		<ReaderShell
+			reading={session.reading}
+			title={session.title}
+			source={session.source}
+			bind:settings
+			{failed}
+			onNewText={leave}
 		/>
-	{/await}
+	{/key}
 {:else}
 	<section
 		class="poster pt-s-6"

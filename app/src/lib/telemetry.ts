@@ -5,6 +5,7 @@ import {
 	type EventProps,
 	type Flags,
 	injectedFlagConfig,
+	installErrorCapture,
 	loadFlags,
 } from "@speeedy/contracts";
 
@@ -32,6 +33,20 @@ export const appFlags = (): Promise<Flags> => start().then((t) => t.flags);
 /** Queues a `$pageview` for a path. Only the route pattern leaves the page. */
 export function trackPageview(pathname: string): void {
 	void start().then((t) => t.analytics.trackPageview(pathname));
+}
+
+/**
+ * Reports uncaught errors and unhandled promise rejections as `$exception` events: an error
+ * code and stack frames, never the message. Call once from the root layout; the returned
+ * function stops it.
+ */
+export function startErrorCapture(): () => void {
+	return installErrorCapture(window, {
+		trackError: (error, code) => {
+			void start().then((t) => t.analytics.trackError(error, code));
+			return true;
+		},
+	});
 }
 
 /** Queues a registered event. Properties are enums and bounded numbers, checked by the registry. */

@@ -1,4 +1,5 @@
 import type { Position } from "@speeedy/contracts";
+import type { Token, TokenContext } from "./tokenizer";
 
 /** The ORP split of a Frame's text: the pivot letter and what sits either side of it. */
 export type Orp = {
@@ -72,7 +73,20 @@ export type EngineSettings = {
 	sprintSpeedup: number;
 };
 
+/** A block's tokens and their contexts, found once and reused by every rebuild. */
+export type TokenizedBlock = {
+	tokens: readonly Token[];
+	contexts: readonly TokenContext[];
+};
+
 export type TimelineOptions = {
+	/**
+	 * Tokens by block index, filled in as blocks are built and used by the next build. They
+	 * depend on the text and language alone, never on the settings, so a Timeline worker that
+	 * keeps one cache rebuilds a Document without tokenizing it again: with a single
+	 * 100 000-word block, that is most of the work.
+	 */
+	tokenCache?: Map<number, TokenizedBlock>;
 	/** BCP 47 language tag of the Document. Defaults to English. */
 	language?: string;
 	/**
