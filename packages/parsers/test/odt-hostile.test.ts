@@ -438,3 +438,53 @@ describe("odt hostile: fuzz", { timeout: 90_000 }, () => {
 		}
 	});
 });
+
+/**
+ * Wall-clock budgets are flaky when suites share a machine. Each hostile case is timed
+ * against a plain document of the same size, parsed in the same run; a blowup misses the
+ * ratio by orders of magnitude while load slows both sides alike.
+ */
+describe("odt hostile: no superlinear blowup", { timeout: 90_000 }, () => {
+	const SLOWDOWN_LIMIT = 50;
+
+	async function timed(bytes: Uint8Array): Promise<number> {
+		const started = performance.now();
+		await read(bytes);
+		return performance.now() - started;
+	}
+
+	async function expectNoBlowup(body: string): Promise<void> {
+		const unit = "<text:p>lorem ipsum dolor sit amet</text:p>";
+		const plain = odt({
+			body: unit.repeat(Math.ceil(body.length / unit.length)),
+		});
+		const first = await timed(plain);
+		const baseline = Math.max(first, await timed(plain));
+		const elapsed = await timed(odt({ body }));
+		expect(
+			elapsed,
+			`${elapsed.toFixed(0)} ms against a ${baseline.toFixed(0)} ms linear baseline`,
+		).toBeLessThan(Math.max(baseline, 20) * SLOWDOWN_LIMIT);
+	}
+
+	it("text nodes at the deepest allowed span nesting", async () => {
+		const open = '<text:span text:style-name="S">'.repeat(240);
+		await expectNoBlowup(
+			`<text:p>${open}${"a<text:s/>".repeat(400_000)}${"</text:span>".repeat(240)}</text:p>`,
+		);
+	});
+
+	it("many spans with made-up style names", async () => {
+		await expectNoBlowup(
+			`<text:p>${Array.from({ length: 150_000 }, (_, i) => `<text:span text:style-name="N${i}">a</text:span>`).join("")}</text:p>`,
+		);
+	});
+
+	it("stray closers, unclosed openers and huge repeat counts", async () => {
+		await expectNoBlowup("</text:x>".repeat(400_000));
+		await expectNoBlowup("<text:p>".repeat(100_000));
+		await expectNoBlowup(
+			`<text:p>${'a<text:s text:c="999999999"/>'.repeat(100_000)}</text:p>`,
+		);
+	});
+});

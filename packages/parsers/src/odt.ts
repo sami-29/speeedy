@@ -236,7 +236,9 @@ class Styles {
 		if (known) return known;
 		const defined = this.defs.has(key);
 		const info = this.resolve(family, name);
-		if (defined) this.resolved.set(key, info);
+		if (defined || this.resolved.size < MAX_STYLES * 2) {
+			this.resolved.set(key, info);
+		}
 		return info;
 	}
 
@@ -542,16 +544,10 @@ function readBody(xml: string, styles: Styles, sink: BlockSink): void {
 		parts.push(chunk);
 		length += chunk.length;
 		if (current.kind === "code" && tableDepth === 0) return;
-		let strong: boolean | null = null;
-		let emphasis: boolean | null = null;
-		let href: string | null = null;
-		for (let i = inline.length - 1; i >= 0; i--) {
-			const frame = inline[i];
-			if (frame === undefined) continue;
-			if (strong === null) strong = frame.bold;
-			if (emphasis === null) emphasis = frame.italic;
-			if (href === null) href = frame.href;
-		}
+		const top = inline[inline.length - 1];
+		const strong = top?.bold === true;
+		const emphasis = top?.italic === true;
+		const href = top?.href ?? null;
 		if (strong) tailStrong = mark(tailStrong, start, length, "strong", null);
 		if (emphasis) {
 			tailEmphasis = mark(tailEmphasis, start, length, "emphasis", null);
@@ -563,7 +559,7 @@ function readBody(xml: string, styles: Styles, sink: BlockSink): void {
 		if (length > 0 && !lastSpace) append(" ", false);
 	};
 
-	const isHidden = (): boolean => inline.some((frame) => frame.hidden);
+	const isHidden = (): boolean => inline[inline.length - 1]?.hidden === true;
 	const isCode = (): boolean => current.kind === "code" && tableDepth === 0;
 
 	const paragraphContext = (
@@ -657,11 +653,14 @@ function readBody(xml: string, styles: Styles, sink: BlockSink): void {
 						name === "text:a" && attribs["xlink:href"] !== undefined
 							? safeHref(attribs["xlink:href"])
 							: null;
+					// Each frame holds what is in force at that depth, so reading a text node
+					// never walks the stack.
+					const parent = inline[inline.length - 1];
 					inline.push({
-						bold: info.bold,
-						italic: info.italic,
-						hidden: info.hidden,
-						href,
+						bold: info.bold ?? parent?.bold ?? null,
+						italic: info.italic ?? parent?.italic ?? null,
+						hidden: info.hidden || parent?.hidden === true,
+						href: href ?? parent?.href ?? null,
 					});
 					return;
 				}
