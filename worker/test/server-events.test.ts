@@ -19,11 +19,24 @@ beforeEach(() => {
 	network.use(
 		http.post("https://posthog.test/batch/", async ({ request }) => {
 			headers = Object.fromEntries(request.headers);
-			captured.push(await request.json());
+			captured.push(await readJson(request));
 			return HttpResponse.json({ status: 1 });
 		}),
 	);
 });
+
+/** posthog-node gzips its requests, so read the body through a decompressor. */
+async function readJson(request: {
+	headers: Headers;
+	body: ReadableStream<Uint8Array> | null;
+}) {
+	const gzipped = request.headers.get("content-encoding") === "gzip";
+	const body =
+		gzipped && request.body
+			? request.body.pipeThrough(new DecompressionStream("gzip"))
+			: request.body;
+	return new Response(body).json();
+}
 
 const example = validExamples(EVENTS).find((e) => e.origin === "server");
 
