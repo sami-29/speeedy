@@ -34,9 +34,11 @@ type StartOptions = {
 	onError?: () => void;
 	/** The Library document being read, or null for text that is not kept. */
 	documentId?: string | null;
+	/** Where chapters start (see `findChapters`), for back one chapter. */
+	chapters?: readonly Position[];
 	/** Where to start reading. Without it reading starts at the first Frame. */
 	startAt?: Position;
-	/** Told where the reader is: on each Frame, and `final` on a pause or the end. */
+	/** Told where the reader is: on each Frame, and `final` on a pause, the end or a seek while paused. */
 	onposition?: (position: Position, final: boolean) => void;
 };
 
@@ -51,6 +53,7 @@ export function startReading({
 	client,
 	onError,
 	documentId = null,
+	chapters,
 	startAt,
 	onposition,
 }: StartOptions): Reading {
@@ -59,6 +62,7 @@ export function startReading({
 		clock,
 		timeline,
 		settings: engineSettings(settings),
+		chapters,
 	});
 	// Every Reading Mode is read through this Engine, so every one records its Sessions.
 	const recording = recordSessions({
@@ -96,6 +100,10 @@ export function startReading({
 		engine.on("seek", ({ position }) => {
 			if (engine.playing) live.anchor(position);
 		}),
+		// A rewind, a seek or a chapter jump moves a paused reader too: keep that place.
+		engine.on("seek", ({ position }) =>
+			onposition?.(position, !engine.playing),
+		),
 		engine.on("frameShown", ({ frame }) => onposition?.(frame.position, false)),
 		engine.on("pause", ({ position }) => onposition?.(position, true)),
 		engine.on("end", ({ position }) => onposition?.(position, true)),

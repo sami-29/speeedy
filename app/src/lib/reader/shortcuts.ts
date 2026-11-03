@@ -33,7 +33,8 @@ const ARROWS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 /**
  * The reader command for a key press, or undefined when the key is not ours: held with
  * Ctrl, Meta or Alt; typed into a field; Space on a focused button or link, which presses
- * it; the arrows on a focused slider, which moves it.
+ * it; the arrows on a focused slider, which moves it. The left arrow goes back a sentence,
+ * with Shift a paragraph, and C a chapter.
  */
 export function commandForKey(event: KeyInput): ReaderCommand | undefined {
 	if (event.ctrlKey || event.metaKey || event.altKey) return undefined;
@@ -48,6 +49,7 @@ export function commandForKey(event: KeyInput): ReaderCommand | undefined {
 	if (key === "m" || key === "M") {
 		return { kind: "mode", step: shiftKey ? -1 : 1 };
 	}
+	if (key === "c" || key === "C") return { kind: "back", unit: "chapter" };
 	if (key === "?") return { kind: "help" };
 
 	if (ARROWS.has(key) && event.target?.role === "slider") return undefined;
@@ -67,6 +69,7 @@ export type ShortcutId =
 	| "toggle"
 	| "back"
 	| "back_paragraph"
+	| "back_chapter"
 	| "speed"
 	| "speed_big"
 	| "mode"
@@ -77,10 +80,29 @@ export const SHORTCUTS: readonly { id: ShortcutId; keys: string[] }[] = [
 	{ id: "toggle", keys: ["Space", "K"] },
 	{ id: "back", keys: ["←"] },
 	{ id: "back_paragraph", keys: ["Shift", "←"] },
+	{ id: "back_chapter", keys: ["C"] },
 	{ id: "speed", keys: ["↑", "↓"] },
 	{ id: "speed_big", keys: ["Shift", "↑", "↓"] },
 	{ id: "mode", keys: ["M"] },
 	{ id: "help", keys: ["?"] },
+];
+
+/**
+ * The rewinds, shortest first. Each is a button and a key; `keyshortcuts` is the key as
+ * ARIA names it, so assistive technology can announce it.
+ */
+export const REWINDS: readonly {
+	unit: BackUnit;
+	shortcut: ShortcutId;
+	keyshortcuts: string;
+}[] = [
+	{ unit: "sentence", shortcut: "back", keyshortcuts: "ArrowLeft" },
+	{
+		unit: "paragraph",
+		shortcut: "back_paragraph",
+		keyshortcuts: "Shift+ArrowLeft",
+	},
+	{ unit: "chapter", shortcut: "back_chapter", keyshortcuts: "C" },
 ];
 
 /** The id of the mode `step` places after `current`, wrapping around. */

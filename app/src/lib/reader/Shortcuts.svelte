@@ -33,6 +33,7 @@ let { open = $bindable(false) }: { open?: boolean } = $props();
 	.list {
 		grid-column: 1 / -1;
 		flex-basis: 100%;
+		order: 1;
 		margin: 0;
 		padding: 0;
 		list-style: none;
