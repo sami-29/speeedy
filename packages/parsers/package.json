@@ -13,7 +13,8 @@
 		"test:unit": "vitest run"
 	},
 	"dependencies": {
-		"@speeedy/contracts": "workspace:*"
+		"@speeedy/contracts": "workspace:*",
+		"htmlparser2": "12.0.0"
 	},
 	"devDependencies": {
 		"vitest": "4.1.2"

@@ -35,7 +35,7 @@ export type ParseHints = {
 };
 
 /** The formats the shell parses itself. Later tickets add the rest. */
-export type SourceFormat = "txt" | "markdown" | "csv" | "pasted";
+export type SourceFormat = "txt" | "markdown" | "csv" | "html" | "pasted";
 
 export type LanguageSource =
 	| "hint"
