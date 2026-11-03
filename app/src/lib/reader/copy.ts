@@ -33,8 +33,12 @@ export const shortcutName = (id: ShortcutId): string =>
 		help: m.shortcut_help,
 	})[id]();
 
-export const modeName = (id: string): string =>
-	id === "rsvp" ? m.mode_rsvp() : id;
+const MODE_NAMES: Record<string, () => string> = {
+	rsvp: m.mode_rsvp,
+	pacer: m.mode_pacer,
+};
+
+export const modeName = (id: string): string => MODE_NAMES[id]?.() ?? id;
 
 /** The short word on a rewind button; the full "Back one ..." wording is its accessible name. */
 export const rewindName = (unit: BackUnit): string =>
