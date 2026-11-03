@@ -11,6 +11,7 @@ import { progressTracker } from "#lib/library/progress.ts";
 import { type DocumentSource, effectiveLanguage } from "#lib/library/store.ts";
 import { documentTitle } from "#lib/library/title.ts";
 import { m } from "#lib/paraglide/messages.js";
+import { takeHandoff } from "#lib/reader/handoff.ts";
 import { readerModes } from "#lib/reader/modes.ts";
 import { createReaderLoader, type ReaderSource } from "#lib/reader/open.ts";
 import { READER_SETTINGS } from "#lib/reader/settings.ts";
@@ -61,7 +62,7 @@ function show(
 	session = { timeline, title, source, startAt, onposition: saver?.record };
 }
 
-async function open(source: ReaderSource) {
+async function open(source: ReaderSource, from: DocumentSource = "own") {
 	error = "";
 	opening = true;
 	const result = await loader.open(source);
@@ -76,6 +77,7 @@ async function open(source: ReaderSource) {
 			document: result.document,
 			title: documentTitle(result.title, result.document),
 			language: result.language,
+			source: from,
 		});
 		await store.setCurrent(meta.id);
 		const kept = { id: meta.id, document: result.document };
@@ -92,7 +94,7 @@ async function open(source: ReaderSource) {
 		show(timeline ?? result.timeline, meta.title, meta.source, kept, startAt);
 	} catch {
 		// The Library is out of reach (private window, storage blocked): read without keeping.
-		show(result.timeline, result.title, "own");
+		show(result.timeline, result.title, from);
 	}
 	opening = false;
 }
@@ -131,6 +133,10 @@ function leave() {
 		.setCurrent(null)
 		.catch(() => undefined);
 }
+
+// Text handed over by another route, such as a Share Link opened at /s.
+const handed = takeHandoff();
+if (handed) void open({ kind: "text", text: handed.text }, handed.source);
 
 function onSubmit(event: SubmitEvent) {
 	event.preventDefault();
@@ -178,11 +184,16 @@ function onPick(event: Event) {
 		<button type="button" class="segment border-2 border-ink" onclick={leave}>
 			{m.reader_new_text()}
 		</button>
+		{#if session.source === "share"}
+			<!-- Anyone can craft a Share Link, so its text is marked as not ours and waits for Play. -->
+			<p class="caption mt-s-2 text-ink-2" data-testid="shared-notice">{m.reader_shared_notice()}</p>
+		{/if}
 	</div>
 	{#await mode.view() then view}
 		<view.default
 			timeline={session.timeline}
 			wpm={READER_SETTINGS.wpm}
+			autoplay={session.source !== "share"}
 			startAt={session.startAt}
 			onposition={session.onposition}
 		/>
