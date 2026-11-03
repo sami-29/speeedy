@@ -73,6 +73,40 @@ test.describe("creating a Share Link", () => {
 		await expect(page.getByTestId("word")).not.toHaveText("alpha");
 	});
 
+	test("opening the same link twice keeps one Library entry, marked as shared", async ({
+		page,
+	}) => {
+		const link = `/s#${payloadFor(TEXT)}`;
+		for (let i = 0; i < 2; i++) {
+			await page.goto(link);
+			await expect(page).toHaveURL(/\/reader$/);
+			await expect(page.getByTestId("shared-notice")).toBeVisible();
+		}
+		await page.goto("/library");
+		await expect(page.getByRole("button", { name: /^Read alpha/ })).toHaveCount(
+			1,
+		);
+		const stored = await page.evaluate(
+			() =>
+				new Promise<{ source: string; deviceOnly: boolean }[]>(
+					(resolve, reject) => {
+						const request = indexedDB.open("speeedy-library");
+						request.onerror = () => reject(request.error);
+						request.onsuccess = () => {
+							const all = request.result
+								.transaction("documents")
+								.objectStore("documents")
+								.getAll();
+							all.onsuccess = () => resolve(all.result);
+							all.onerror = () => reject(all.error);
+						};
+					},
+				),
+		);
+		expect(stored).toHaveLength(1);
+		expect(stored[0]).toMatchObject({ source: "share", deviceOnly: true });
+	});
+
 	test("pasted text keeps playing at once, with no attribution", async ({
 		page,
 	}) => {
