@@ -1,0 +1,31 @@
+{
+	"outcome": "document",
+	"format": "epub",
+	"title": "The Lamp-Keeper's Almanac",
+	"encoding": null,
+	"language": "en",
+	"blocks": 17,
+	"kinds": [
+		"heading",
+		"paragraph",
+		"paragraph",
+		"heading",
+		"paragraph",
+		"list-item",
+		"list-item",
+		"list-item",
+		"heading",
+		"paragraph",
+		"quote",
+		"paragraph",
+		"heading",
+		"list-item",
+		"list-item",
+		"list-item",
+		"paragraph"
+	],
+	"spans": 3,
+	"first": "First Watch\nThe keeper climbed the one hundred",
+	"last": "the sea had gone flat and silver, and the keeper slept.",
+	"words": [140, 150]
+}

@@ -22,6 +22,11 @@ export type HtmlMeta = { title: string | null; language: string | null };
 export type HtmlOptions = {
 	/** Highest share of a paragraph that may be link text before the filter drops it. */
 	linkDensity?: number;
+	/**
+	 * Read a book chapter (XHTML from an EPUB): self-closing tags such as `<a id="x"/>` and
+	 * `<script src="x"/>` close themselves, as XML says, and the saved-page filter never runs.
+	 */
+	book?: boolean;
 };
 
 /**
@@ -297,6 +302,8 @@ function dimension(value: string | undefined): number | undefined {
 type PassOptions = {
 	/** Drop navigation, headers, footers, sidebars and similar subtrees. */
 	boilerplate: boolean;
+	/** Honour `<tag/>` as an empty element (XHTML), instead of as an unclosed opening tag. */
+	xhtml?: boolean;
 };
 
 /**
@@ -314,8 +321,9 @@ class GuardedParser extends Parser {
 		handlers: Partial<Handler>,
 		source: string,
 		open: ReadonlyMap<string, number>,
+		xhtml: boolean,
 	) {
-		super(handlers, { decodeEntities: true });
+		super(handlers, { decodeEntities: true, recognizeSelfClosing: xhtml });
 		this.source = source;
 		this.open = open;
 	}
@@ -672,6 +680,7 @@ function readPass(html: string, options: PassOptions): PassResult {
 		{ onopentag, onclosetag, ontext },
 		html,
 		open,
+		options.xhtml === true,
 	);
 	parser.end(html);
 	flush();
@@ -847,7 +856,7 @@ export function htmlToBlocks(
 	const density = options.linkDensity ?? LINK_DENSITY_MAX;
 	let result: PassResult;
 	let kept: Candidate[];
-	if (looksLikeWebPage(html)) {
+	if (options.book !== true && looksLikeWebPage(html)) {
 		result = readPass(html, { boilerplate: true });
 		kept = filterPage(result.candidates, density);
 		const strict = keptText(kept);
@@ -864,7 +873,10 @@ export function htmlToBlocks(
 			}
 		}
 	} else {
-		result = readPass(html, { boilerplate: false });
+		result = readPass(html, {
+			boilerplate: false,
+			xhtml: options.book === true,
+		});
 		kept = result.candidates;
 	}
 	const blocks: Block[] = [];

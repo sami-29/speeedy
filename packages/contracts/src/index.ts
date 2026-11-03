@@ -1,4 +1,5 @@
 export * from "./analytics.ts";
+export * from "./daily-goal.ts";
 export * from "./document";
 export * from "./error-privacy.ts";
 export * from "./errors.ts";

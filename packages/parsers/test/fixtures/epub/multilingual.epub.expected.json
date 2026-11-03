@@ -1,0 +1,20 @@
+{
+	"outcome": "document",
+	"format": "epub",
+	"title": "Örnek Kitap",
+	"encoding": null,
+	"language": "tr",
+	"blocks": 6,
+	"kinds": [
+		"heading",
+		"paragraph",
+		"paragraph",
+		"heading",
+		"paragraph",
+		"paragraph"
+	],
+	"spans": 0,
+	"first": "Bölüm 1: Giriş\nÇok güzel bir gün.",
+	"last": "שלום עולם. זהו טקסט עברי.",
+	"words": [30, 34]
+}

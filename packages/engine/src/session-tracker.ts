@@ -1,5 +1,6 @@
 import type { Clock } from "./clock";
 import type { Engine } from "./engine";
+import { localDate } from "./local-date";
 
 /** What one stretch of reading leaves behind. */
 export type SessionRecord = {
@@ -43,18 +44,6 @@ export type SessionTracker = {
 	/** Stop listening to the Engine and the page. Does not save. */
 	dispose(): void;
 };
-
-function localDate(epochMs: number, timeZone: string | undefined): string {
-	const parts = new Intl.DateTimeFormat("en-CA", {
-		...(timeZone ? { timeZone } : {}),
-		year: "numeric",
-		month: "2-digit",
-		day: "2-digit",
-	}).formatToParts(epochMs);
-	const part = (type: string) =>
-		parts.find((candidate) => candidate.type === type)?.value ?? "";
-	return `${part("year")}-${part("month")}-${part("day")}`;
-}
 
 function browserPage(): PageTargets | undefined {
 	const globals = globalThis as { window?: EventTarget; document?: unknown };

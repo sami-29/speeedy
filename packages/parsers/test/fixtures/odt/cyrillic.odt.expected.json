@@ -1,0 +1,13 @@
+{
+	"outcome": "document",
+	"format": "odt",
+	"title": "Маяк",
+	"encoding": null,
+	"language": "ru",
+	"blocks": 3,
+	"kinds": ["heading", "paragraph", "paragraph"],
+	"spans": 1,
+	"first": "Маяк\nСмотритель каждый",
+	"last": "серебряным и тихим.",
+	"words": [21, 25]
+}
