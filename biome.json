@@ -1,19 +1,16 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
 	"files": {
 		"includes": [
 			"**",
-			"!**/worker-configuration.d.ts",
-			"!**/dist",
 			"!**/*.md",
-			"!**/.svelte-kit",
-			"!app/build",
-			"!app/src/lib/paraglide",
-			"!app/playwright-report",
-			"!**/test-results",
-			"!app/static",
-			"!app/project.inlang/cache",
 			"!pnpm-lock.yaml",
+			"!app/static",
 			"!app/brand"
 		]
 	},
