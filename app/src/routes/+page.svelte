@@ -22,6 +22,9 @@ import Seo from "#lib/Seo.svelte";
 		<p class="label mt-s-4">
 			<a href={localizeHref("/spreeder-alternative")}>{m.home_alternative()}</a>
 		</p>
+		<p class="label mt-s-1">
+			<a href={localizeHref("/learn")}>{m.home_learn()}</a>
+		</p>
 	</div>
 </section>
 <div class="rule-heavy mx-gutter"></div>
