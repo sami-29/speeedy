@@ -3,12 +3,18 @@ import adapter from "@sveltejs/adapter-static";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
+import { sourcemapPlan } from "./scripts/sourcemaps-plan.ts";
 
 export default defineConfig({
 	// The parser worker loads pdf.js on demand. Only an ES module worker can split that into
 	// chunks of its own; the default format would fold all of pdf.js into the worker file, which
 	// every visit downloads.
 	worker: { format: "es" },
+	build: {
+		// Source maps are built only when `scripts/upload-sourcemaps.ts` will upload and then
+		// delete them, so a local or pull-request build never publishes one.
+		sourcemap: sourcemapPlan(process.env).buildSourcemap,
+	},
 	plugins: [
 		tailwindcss(),
 		// The locale lives in the URL (English has no prefix, a future locale gets `/<lang>/`)

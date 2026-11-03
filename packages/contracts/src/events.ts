@@ -13,6 +13,7 @@ import {
 	type FlagName,
 	type FlagRegistry,
 } from "./flags.ts";
+import { NEWSLETTER_PAGES, NEWSLETTER_TOPICS } from "./newsletter.ts";
 
 export type PropSpec = { optional?: boolean } & (
 	| { kind: "enum"; values: readonly string[] }
@@ -115,6 +116,17 @@ const DECLARED_EVENTS = {
 		description:
 			"The Worker opened a hosted checkout for the Plus plan. Carries the billing interval only.",
 		props: { interval: { kind: "enum", values: ["monthly", "annual"] } },
+	},
+	newsletter_signup: {
+		origin: "server",
+		kind: "product",
+		schemaVersion: 1,
+		description:
+			"A reader asked to join the newsletter and the signup was passed on for confirmation. Carries the topic and the page of the form only, never the address.",
+		props: {
+			topic: { kind: "enum", values: NEWSLETTER_TOPICS },
+			page: { kind: "enum", values: NEWSLETTER_PAGES },
+		},
 	},
 } as const satisfies EventRegistry;
 
