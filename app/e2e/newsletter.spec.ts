@@ -4,14 +4,14 @@ const EMAIL = "canary.reader@example.com";
 const ENDPOINT = "**/api/newsletter";
 
 /** Replaces the Worker, which does not run under `vite preview`. */
-async function fakeWorker(page: Page, status = 202) {
+async function fakeWorker(page: Page, status = 200) {
 	const bodies: unknown[] = [];
 	await page.route(ENDPOINT, async (route) => {
 		bodies.push(route.request().postDataJSON());
 		await route.fulfill({
 			status,
 			contentType: "application/json",
-			body: JSON.stringify(status === 202 ? { ok: true } : { error: "x" }),
+			body: JSON.stringify(status === 200 ? { ok: true } : { error: "x" }),
 		});
 	});
 	return bodies;

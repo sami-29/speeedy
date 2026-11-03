@@ -55,7 +55,7 @@ describe("sending a signup", () => {
 	const reply = (status: number) => async () => new Response("{}", { status });
 
 	it("maps the Worker's answers", async () => {
-		assert.equal(await sendSignup(signup, reply(202)), "sent");
+		assert.equal(await sendSignup(signup, reply(200)), "sent");
 		assert.equal(await sendSignup(signup, reply(429)), "rate_limited");
 		assert.equal(await sendSignup(signup, reply(502)), "failed");
 		assert.equal(await sendSignup(signup, reply(400)), "failed");
@@ -72,7 +72,7 @@ describe("sending a signup", () => {
 		let seen: { url: unknown; init: RequestInit | undefined } | undefined;
 		await sendSignup(signup, async (url, init) => {
 			seen = { url, init };
-			return new Response("{}", { status: 202 });
+			return new Response("{}", { status: 200 });
 		});
 		assert.equal(seen?.url, "/api/newsletter");
 		assert.equal(seen?.init?.method, "POST");

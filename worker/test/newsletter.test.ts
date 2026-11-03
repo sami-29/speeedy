@@ -5,7 +5,7 @@ import {
 import { env } from "cloudflare:workers";
 import { NEWSLETTER_PAGES, NEWSLETTER_TOPICS } from "@speeedy/contracts";
 import { HttpResponse, http } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../src";
 import { network } from "./network";
 
@@ -85,10 +85,10 @@ function sentEvents() {
 }
 
 describe("POST /api/newsletter: the Buttondown call", () => {
-	it("subscribes the address once, with the secret token, and answers 202", async () => {
+	it("subscribes the address once, with the secret token, and answers 200", async () => {
 		const response = await signup();
 
-		expect(response.status).toBe(202);
+		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({ ok: true });
 		expect(buttondown).toHaveLength(1);
 		expect(buttondown[0].headers.authorization).toBe("Token bd_test_token");
@@ -157,7 +157,7 @@ describe("POST /api/newsletter: the Buttondown call", () => {
 
 		const response = await signup();
 
-		expect(response.status).toBe(202);
+		expect(response.status).toBe(200);
 		expect(response.headers.get("set-cookie")).toBeNull();
 		expect(response.headers.get("cache-control")).toBe("no-store");
 	});
@@ -203,7 +203,7 @@ describe("POST /api/newsletter: input", () => {
 	it("accepts every page in the contracts enum", async () => {
 		for (const page of NEWSLETTER_PAGES) {
 			const response = await signup({ email: EMAIL, building: false, page });
-			expect(response.status, page).toBe(202);
+			expect(response.status, page).toBe(200);
 		}
 	});
 
@@ -258,7 +258,7 @@ describe("POST /api/newsletter: honeypot", () => {
 			page: "home",
 			website: "",
 		});
-		expect(response.status).toBe(202);
+		expect(response.status).toBe(200);
 		expect(buttondown).toHaveLength(1);
 	});
 });
@@ -271,7 +271,7 @@ describe("POST /api/newsletter: rate limit", () => {
 			statuses.push((await signup(undefined, ip)).status);
 		}
 
-		expect(statuses.slice(0, 5)).toEqual([202, 202, 202, 202, 202]);
+		expect(statuses.slice(0, 5)).toEqual([200, 200, 200, 200, 200]);
 		expect(statuses.slice(5)).toEqual([429, 429, 429]);
 		expect(buttondown).toHaveLength(5);
 	});
@@ -282,7 +282,7 @@ describe("POST /api/newsletter: rate limit", () => {
 		}
 		const other = await signup(undefined, { "cf-connecting-ip": "192.0.2.61" });
 
-		expect(other.status).toBe(202);
+		expect(other.status).toBe(200);
 	});
 
 	it("does not keep or pass on the IP", async () => {
@@ -292,6 +292,80 @@ describe("POST /api/newsletter: rate limit", () => {
 		expect(await response.text()).not.toContain(ip);
 		expect(JSON.stringify(posthog)).not.toContain(ip);
 		expect(buttondown[0].text).not.toContain(ip);
+	});
+});
+
+describe("POST /api/newsletter: every accepted submission looks the same", () => {
+	const replies: [string, () => Response][] = [
+		["created", () => HttpResponse.json({ id: "s" }, { status: 201 })],
+		["accepted", () => HttpResponse.json({ id: "s" }, { status: 200 })],
+		[
+			"already exists (400 with a code)",
+			() =>
+				HttpResponse.json(
+					{
+						code: "email_already_exists",
+						detail: "A subscriber with this email address already exists.",
+					},
+					{ status: 400 },
+				),
+		],
+		[
+			"already exists (400 with only a message)",
+			() =>
+				HttpResponse.json(
+					{ detail: "This email address is already subscribed." },
+					{ status: 400 },
+				),
+		],
+		["collision (409)", () => HttpResponse.json({}, { status: 409 })],
+	];
+
+	it("answers one neutral 200 whatever Buttondown says about the address", async () => {
+		const answers: { status: number; text: string; cookie: string | null }[] =
+			[];
+		for (const [, reply] of replies) {
+			buttondownReply = reply;
+			const response = await signup();
+			answers.push({
+				status: response.status,
+				text: await response.text(),
+				cookie: response.headers.get("set-cookie"),
+			});
+		}
+
+		expect(answers.map((a) => a.status)).toEqual(replies.map(() => 200));
+		expect(new Set(answers.map((a) => a.text)).size).toBe(1);
+		expect(JSON.parse(answers[0].text)).toEqual({ ok: true });
+		expect(answers.every((a) => a.cookie === null)).toBe(true);
+		expect(buttondown).toHaveLength(replies.length);
+	});
+
+	it("sends the event for a created or accepted signup, and none for an address that exists", async () => {
+		for (const [label, reply] of replies) {
+			posthog = [];
+			buttondownReply = reply;
+			await signup({ email: EMAIL, building: true, page: "home" });
+			const sent = sentEvents();
+			if (label === "created" || label === "accepted") {
+				expect(sent, label).toHaveLength(1);
+				const allowed = new Set([
+					"$process_person_profile",
+					"$geoip_disable",
+					"$lib",
+					"$lib_version",
+					"page",
+					"schema_version",
+					"topic",
+				]);
+				for (const key of Object.keys(sent[0].properties)) {
+					expect(allowed.has(key), key).toBe(true);
+				}
+				expect(JSON.stringify(sent)).not.toContain("example.com");
+			} else {
+				expect(sent, label).toHaveLength(0);
+			}
+		}
 	});
 });
 
@@ -307,12 +381,34 @@ describe("POST /api/newsletter: Buttondown failures", () => {
 		expect(sentEvents()).toHaveLength(0);
 	});
 
-	it("answers 502 for a Buttondown 4xx (a bad token, a blocked address) and for a network error", async () => {
-		buttondownReply = () => HttpResponse.json({}, { status: 401 });
-		expect((await signup()).status).toBe(502);
+	it("answers 502 for a network error and sends no event", async () => {
 		buttondownReply = () => HttpResponse.error();
 		expect((await signup()).status).toBe(502);
 		expect(sentEvents()).toHaveLength(0);
+	});
+
+	it("answers 502 for a Buttondown 4xx with another reason, and logs the status only", async () => {
+		const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+		try {
+			buttondownReply = () =>
+				HttpResponse.json({ detail: "Invalid token." }, { status: 401 });
+			expect((await signup()).status).toBe(502);
+			buttondownReply = () =>
+				HttpResponse.json(
+					{ code: "email_blocked", detail: `${EMAIL} is blocked` },
+					{ status: 400 },
+				);
+			expect((await signup()).status).toBe(502);
+
+			expect(sentEvents()).toHaveLength(0);
+			const text = logged.mock.calls.flat().join(" ");
+			expect(text).toContain("401");
+			expect(text).toContain("400");
+			expect(text).not.toContain("example.com");
+			expect(text).not.toContain("reader");
+		} finally {
+			logged.mockRestore();
+		}
 	});
 
 	it("answers 503 and calls nobody when the token is not configured", async () => {
