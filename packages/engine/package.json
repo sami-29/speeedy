@@ -8,8 +8,8 @@
 		"./worker": "./src/worker.ts"
 	},
 	"scripts": {
-		"build": "tsc -p tsconfig.json",
-		"typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+		"build": "tsc -p tsconfig.build.json",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
 		"test:unit": "vitest run"
 	},
 	"dependencies": {
