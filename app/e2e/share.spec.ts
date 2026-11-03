@@ -56,6 +56,45 @@ test.describe("creating a Share Link", () => {
 		);
 	});
 
+	test("shared text is attributed and waits for the reader to press Play", async ({
+		page,
+	}) => {
+		await page.goto(`/s#${payloadFor(TEXT)}`);
+		await expect(page).toHaveURL(/\/reader$/);
+		await expect(
+			page.getByText("Shared text from a link. Speeedy didn't write it."),
+		).toBeVisible();
+		const toggle = page.getByRole("button", { name: "Play" });
+		await expect(toggle).toBeVisible();
+		await page.waitForTimeout(800);
+		await expect(page.getByTestId("word")).toHaveText("alpha");
+		await toggle.click();
+		await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+		await expect(page.getByTestId("word")).not.toHaveText("alpha");
+	});
+
+	test("pasted text keeps playing at once, with no attribution", async ({
+		page,
+	}) => {
+		await page.goto("/reader");
+		await page.locator("#reader-text").fill(TEXT);
+		await page.getByRole("button", { name: "Start", exact: true }).click();
+		await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+		await expect(page.getByText(/Shared text from a link/)).toHaveCount(0);
+	});
+
+	test("the skip link on /s leaves the creator intact", async ({ page }) => {
+		await page.goto("/s");
+		const box = page.getByRole("textbox", { name: "Text to share" });
+		await box.fill("kept text");
+		await page.getByRole("link", { name: "Skip to content" }).focus();
+		await page.keyboard.press("Enter");
+		await expect(page).toHaveURL(/\/s#main$/);
+		await page.waitForTimeout(300);
+		await expect(page.getByRole("alert")).toHaveCount(0);
+		await expect(box).toHaveValue("kept text");
+	});
+
 	test("states the size cap and refuses text over it", async ({ page }) => {
 		await page.goto("/s");
 		const box = page.getByRole("textbox", { name: "Text to share" });
@@ -164,8 +203,23 @@ test.describe("opening a Share Link", () => {
 		await expect(page.locator('main img[src="x"], main script')).toHaveCount(0);
 	});
 
-	test("markup in a broken link never runs either", async ({ page }) => {
+	test("a fragment that is no Share Link shows the creator", async ({
+		page,
+	}) => {
 		await page.goto('/s#<img src=x onerror="window.__pwned=1">');
+		await expect(
+			page.getByRole("textbox", { name: "Text to share" }),
+		).toBeVisible();
+		await expect(page.getByRole("alert")).toHaveCount(0);
+		expect(
+			await page.evaluate(
+				() => (window as unknown as { __pwned?: number }).__pwned,
+			),
+		).toBeUndefined();
+	});
+
+	test("markup in a broken link never runs either", async ({ page }) => {
+		await page.goto('/s#1.<img src=x onerror="window.__pwned=1">');
 		await expect(page.getByRole("alert")).toContainText("broken or incomplete");
 		expect(
 			await page.evaluate(

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	createSharePayload,
 	decodeShareHash,
+	isShareHash,
 	MAX_PAYLOAD_CHARS,
 	MAX_TEXT_BYTES,
 } from "../src/lib/share/codec.ts";
@@ -138,6 +139,23 @@ describe("opening a hostile or broken fragment", () => {
 		expect(await decodeShareHash("#")).toEqual({ kind: "none" });
 	});
 
+	// Only #1. and #/read/ are Share Links. Any other fragment, such as the layout's
+	// #main skip link, is left alone rather than reported as a broken link.
+	it.each([
+		["the skip link's anchor", "#main"],
+		["an unknown version", "#9.AAAA"],
+		["no version", "#AAAA"],
+		["markup", "#<img src=x onerror=alert(1)>"],
+		["a near-miss legacy prefix", "#/reader/AAAA"],
+	])("treats %s as no Share Link", async (_name, hash) => {
+		expect(isShareHash(hash)).toBe(false);
+		expect(await decodeShareHash(hash)).toEqual({ kind: "none" });
+	});
+
+	it.each(["#1.", "#/read/"])("recognises %s as a Share Link", (hash) => {
+		expect(isShareHash(hash)).toBe(true);
+	});
+
 	it("rejects an oversized payload before decoding it", async () => {
 		expect(
 			await decodeShareHash(`#1.${"A".repeat(MAX_PAYLOAD_CHARS)}`),
@@ -163,9 +181,7 @@ describe("opening a hostile or broken fragment", () => {
 		["characters outside base64url", "#1.abc+def/=="],
 		["percent-encoded junk", "#1.%3Cscript%3E"],
 		["an impossible base64 length", "#1.A"],
-		["an unknown version", "#9.AAAA"],
-		["no version", "#AAAA"],
-		["markup", "#<img src=x onerror=alert(1)>"],
+		["markup after the version", "#1.<img src=x onerror=alert(1)>"],
 		[
 			"bytes that are not deflate",
 			`#1.${toBase64Url(new Uint8Array([255, 255, 255, 255, 255, 255]))}`,
