@@ -183,12 +183,17 @@ test.describe("the word", () => {
 			() =>
 				new Promise<{ outside: number; inside: number }>((resolve) => {
 					const word = document.querySelector('[data-testid="word"]') as Node;
+					// The progress chart is the one other thing that moves while reading: its red
+					// mark and bars are written straight from the same frame events, too.
+					const chart = document.querySelector(
+						'[data-testid="progress-chart"]',
+					) as Node;
 					let outside = 0;
 					let inside = 0;
 					const observer = new MutationObserver((records) => {
 						for (const record of records) {
 							if (word.contains(record.target)) inside++;
-							else outside++;
+							else if (!chart.contains(record.target)) outside++;
 						}
 					});
 					observer.observe(document.querySelector("main") as Node, {

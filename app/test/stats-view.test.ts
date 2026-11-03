@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { ZONE_BANDS } from "../src/lib/reader/zones.ts";
 import {
 	buildStatsView,
 	CHART_POINTS,
-	SPEED_BANDS,
 	speedBandFor,
 } from "../src/lib/stats/view.ts";
 
@@ -24,7 +24,7 @@ const stored = (
 
 describe("Speed Zone bands", () => {
 	it("splits speed into study, read and skim at 200 and 350", () => {
-		expect(SPEED_BANDS.map((band) => band.id)).toEqual([
+		expect(ZONE_BANDS.map((band) => band.id)).toEqual([
 			"study",
 			"read",
 			"skim",

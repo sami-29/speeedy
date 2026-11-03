@@ -412,7 +412,7 @@ test.describe("dimming", () => {
 		await expect(controls).toHaveCSS("opacity", "0.35");
 		await expect(page.locator("header")).toHaveCSS("opacity", "0.35");
 
-		await controls.getByRole("slider").hover();
+		await controls.getByRole("slider", { name: "Reading speed" }).hover();
 		await expect(controls).toHaveCSS("opacity", "1");
 
 		await page.getByTestId("stage").hover();
