@@ -47,3 +47,14 @@ Sent by: the server. Schema version 1.
 | Property | Value | Required |
 | --- | --- | --- |
 | `interval` | one of `monthly`, `annual` | yes |
+
+## `$exception`
+
+An error report. It carries an error code and stack frames and nothing else: no error message, no variables, no source lines. A frame is a script path, a line, a column and a function name. It does not go through the registry above; it has its own fixed shape, and the server turns it into PostHog's `$exception` with an empty message, the code as the fingerprint and a fixed description per code.
+
+Sent by: the app. Schema version 1. At most 5 per Visit.
+
+| Property | Value | Required |
+| --- | --- | --- |
+| `code` | one of `unhandled_error`, `unhandled_rejection`, `render_error`, `parser_error`, `storage_error`, `audio_error` | yes |
+| `frames` | up to 20 stack frames, each a script path (no origin, query or hash, up to 200 characters), a line, a column and a function name (up to 100 characters) | yes |

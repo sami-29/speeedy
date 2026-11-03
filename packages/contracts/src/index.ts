@@ -1,5 +1,7 @@
 export * from "./analytics.ts";
 export * from "./document";
+export * from "./error-privacy.ts";
+export * from "./errors.ts";
 export * from "./events.ts";
 export * from "./flags.ts";
 export * from "./plans";

@@ -239,7 +239,7 @@ describe("checkException", () => {
 			"a file over its bound",
 			withFrame({ file: `/${"a".repeat(EXCEPTION_LIMITS.file)}.js` }),
 		],
-		["a canary in the file", withFrame({ file: `/${CANARY}.js` })],
+		["a file with a space", withFrame({ file: "/a b.js" })],
 		["a canary in the function", withFrame({ function: CANARY })],
 		[
 			"a function over its bound",
