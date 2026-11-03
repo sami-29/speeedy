@@ -7,6 +7,13 @@
  * cases are all derived from `EVENTS`, so a new event cannot leak data by accident.
  */
 
+import {
+	experimentProps,
+	FLAGS,
+	type FlagName,
+	type FlagRegistry,
+} from "./flags.ts";
+
 export type PropSpec = { optional?: boolean } & (
 	| { kind: "enum"; values: readonly string[] }
 	| { kind: "int"; min: number; max: number }
@@ -56,7 +63,7 @@ export type Route = (typeof ROUTES)[number];
 
 const answer = { kind: "bool", optional: true } as const;
 
-export const EVENTS = {
+const DECLARED_EVENTS = {
 	$pageview: {
 		origin: "client",
 		kind: "product",
@@ -111,10 +118,52 @@ export const EVENTS = {
 	},
 } as const satisfies EventRegistry;
 
-export type EventName = keyof typeof EVENTS;
+/** The `exp_<flag>` enums, one per declared flag, typed from `FLAGS`. */
+type ExperimentProps = {
+	readonly [N in FlagName as `exp_${N}`]: {
+		readonly kind: "enum";
+		readonly optional: true;
+		readonly values: (typeof FLAGS)[N]["variants"];
+	};
+};
+
+type WithExperiments<E> = {
+	readonly [N in keyof E]: E[N] extends { origin: "client"; props: infer P }
+		? Omit<E[N], "props"> & { readonly props: P & ExperimentProps }
+		: E[N];
+};
+
+/**
+ * Adds the `exp_<flag>` enums to every client event, so an event can report which variants
+ * were active. Server events do not know a device's flags and get none.
+ */
+export function withExperiments(
+	events: EventRegistry,
+	flags: FlagRegistry,
+): EventRegistry {
+	const extra = experimentProps(flags);
+	return Object.fromEntries(
+		Object.entries(events).map(([name, def]) => [
+			name,
+			def.origin === "client"
+				? { ...def, props: { ...def.props, ...extra } }
+				: def,
+		]),
+	);
+}
+
+/** The registry the app, the Worker and the tests all use: declared events plus `exp_` enums. */
+export const EVENTS = withExperiments(
+	DECLARED_EVENTS,
+	FLAGS,
+) as WithExperiments<typeof DECLARED_EVENTS>;
+
+export type EventName = keyof typeof DECLARED_EVENTS;
 
 export type ClientEventName = {
-	[N in EventName]: (typeof EVENTS)[N]["origin"] extends "client" ? N : never;
+	[N in EventName]: (typeof DECLARED_EVENTS)[N]["origin"] extends "client"
+		? N
+		: never;
 }[EventName];
 
 export type ServerEventName = Exclude<EventName, ClientEventName>;
