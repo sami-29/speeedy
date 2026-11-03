@@ -1,0 +1,21 @@
+{
+	"outcome": "document",
+	"format": "docx",
+	"title": "Смотритель маяка",
+	"encoding": null,
+	"language": "ru",
+	"blocks": 4,
+	"kinds": [
+		"heading",
+		"paragraph",
+		"heading",
+		"paragraph"
+	],
+	"spans": 2,
+	"first": "Смотритель маяка\nКаждый вечер",
+	"last": "исьма из Москвы он читал до самого утра.",
+	"words": [
+		52,
+		56
+	]
+}

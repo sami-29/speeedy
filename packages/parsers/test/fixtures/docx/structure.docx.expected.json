@@ -1,0 +1,31 @@
+{
+	"outcome": "document",
+	"format": "docx",
+	"title": "Structure Sample",
+	"encoding": null,
+	"language": "en",
+	"blocks": 14,
+	"kinds": [
+		"heading",
+		"paragraph",
+		"heading",
+		"list-item",
+		"list-item",
+		"list-item",
+		"list-item",
+		"list-item",
+		"list-item",
+		"quote",
+		"table-text",
+		"table-text",
+		"image-placeholder",
+		"paragraph"
+	],
+	"spans": 4,
+	"first": "The Lighthouse Keeper\nEvery evening the keeper",
+	"last": "Last line of the chapter.",
+	"words": [
+		65,
+		69
+	]
+}

@@ -6,6 +6,7 @@ import {
 import { clip, normalizeText, scanControls, tidyLine } from "./clean";
 import { csvToBlocks } from "./csv";
 import { decodeBytes } from "./decode";
+import { docxToBlocks } from "./docx";
 import { epubToBlocks } from "./epub";
 import { htmlToBlocks } from "./html";
 import { detectLanguage, normalizeLanguageTag } from "./language";
@@ -63,7 +64,6 @@ const BINARY_EXTENSIONS = new Set([
  */
 const NOT_YET_EXTENSIONS = new Set([
 	"pdf",
-	"docx",
 	"doc",
 	"rtf",
 	"xhtml",
@@ -267,6 +267,22 @@ function parseTextFormat(
 	});
 }
 
+async function parseDocx(
+	bytes: Uint8Array,
+	hints: Hints,
+	fileTitle: string | null,
+): Promise<ParseOutcome> {
+	const sink = new BlockSink(hints.maxBlocks);
+	const meta = await docxToBlocks(bytes, sink);
+	return finish(sink, {
+		title: meta.title ?? fileTitle,
+		format: "docx",
+		encoding: null,
+		hinted: hints.language,
+		metadataLanguage: null,
+	});
+}
+
 async function parseBook(
 	bytes: Uint8Array,
 	extension: string,
@@ -332,6 +348,9 @@ export async function parse(
 		}
 		const segment = lastSegment(fileName);
 		const extension = extensionOf(segment);
+		if (extension === "docx") {
+			return await parseDocx(view, options, titleFromFileName(segment));
+		}
 		if (extension === "epub" || extension === "zip" || extension === "odt") {
 			return await parseBook(
 				view,

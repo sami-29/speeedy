@@ -15,6 +15,10 @@ Some files under `fixtures/html/` are saved copies of public web pages, kept byt
 
 Every other file under `fixtures/` was written for this repository.
 
+## DOCX fixtures
+
+Every file under `fixtures/docx/` was made for this repository with LibreOffice 24.2.7.2 (MPL-2.0 tool; its output carries no licence of the tool). The text is original. `structure.docx`, `turkish.docx`, `cyrillic.docx`, `arabic-rtl.docx` and `hebrew-rtl.docx` were converted from small hand-written HTML pages with `soffice --headless --convert-to docx`; in `structure.docx` the picture link target was shortened to `pic.png` and no image file is included. `password-protected.docx` was written by LibreOffice through its API with a document password, so it is a real ECMA-376 encrypted package (an OLE compound file holding `EncryptedPackage`); its text is "Sealed" and a one-line sentence, and the password is not needed or kept. Hostile ZIP and XML cases are built in test code (`zip.ts`, `docx-builder.ts`), not stored as files.
+
 ## EPUB and ODT fixtures
 
 Every file under `fixtures/epub/` and `fixtures/odt/` was made for this repository; the text is original and no third-party book is included.
