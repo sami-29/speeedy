@@ -239,6 +239,10 @@ importers:
   voice-server: {}
 
   worker:
+    dependencies:
+      "@speeedy/contracts":
+        specifier: workspace:*
+        version: link:../packages/contracts
     devDependencies:
       "@cloudflare/vitest-plugin":
         specifier: 1.4.8

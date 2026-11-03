@@ -3,7 +3,9 @@
 	"compilerOptions": {
 		"noEmit": true,
 		"declaration": false,
-		"rootDir": "."
+		"rootDir": ".",
+		"allowImportingTsExtensions": true,
+		"types": ["node"]
 	},
 	"include": ["src", "test"]
 }
