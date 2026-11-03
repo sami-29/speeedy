@@ -244,21 +244,6 @@ Speeedy is configured as an installable PWA with cached static assets and auto-u
 
 ---
 
-## Analytics
-
-Speeedy uses [Umami](https://umami.is) (cookieless, privacy-first) for anonymous usage analytics. The tracking script in `index.html` points to the official Speeedy Umami instance.
-
-**If you self-host or fork this project**, remove or replace the analytics script tag in `index.html`:
-
-```html
-<!-- Remove or replace this with your own Umami instance -->
-<script defer src="https://cloud.umami.is/script.js" data-website-id="YOUR-ID-HERE"></script>
-```
-
-To remove analytics entirely, delete that `<script>` tag. Speeedy functions identically without it — no features depend on Umami being present.
-
----
-
 ## Versioning
 
 This project follows [Semantic Versioning](https://semver.org):
