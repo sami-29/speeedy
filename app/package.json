@@ -23,7 +23,8 @@
 	"dependencies": {
 		"@speeedy/contracts": "workspace:*",
 		"@speeedy/engine": "workspace:*",
-		"@speeedy/parsers": "workspace:*"
+		"@speeedy/parsers": "workspace:*",
+		"idb": "8.0.4"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "4.14.0",
