@@ -21,7 +21,8 @@ import { isZip, openZip, type ZipArchive } from "./zip";
  * - An item named twice in the spine is read once.
  * - A chapter that is a ZIP or looks like binary data is skipped, not read as text.
  * - A name in the manifest is only ever looked up inside the archive. It is never opened as a
- *   file or a URL: anything with a scheme is skipped, and `..` cannot climb above the root.
+ *   file or a URL: anything with a scheme is skipped, and a `..` that would climb above the
+ *   archive root is refused (the name is treated as missing), not clamped to the root.
  * - DRM: `META-INF/encryption.xml` lists encrypted resources. The two font-obfuscation methods
  *   (IDPF and Adobe) are not encryption of the text and are ignored. Any other method on the
  *   package document or a chapter we would read, or one that names no resource at all, is DRM.
@@ -65,13 +66,15 @@ const local = (name: string): string => name.slice(name.indexOf(":") + 1);
 // Paths inside the archive
 // ---------------------------------------------------------------------------------------
 
-/** `a/./b/../c` to `a/c`. A `..` at the root is dropped, so nothing climbs out of the book. */
-function normalizePath(path: string): string {
+/** `a/./b/../c` to `a/c`, or null when a `..` would climb above the archive root. */
+function normalizePath(path: string): string | null {
 	const out: string[] = [];
 	for (const part of path.replace(/\\/g, "/").split("/")) {
 		if (part === "" || part === ".") continue;
-		if (part === "..") out.pop();
-		else out.push(part);
+		if (part === "..") {
+			if (out.length === 0) return null;
+			out.pop();
+		} else out.push(part);
 	}
 	return out.join("/");
 }
@@ -91,7 +94,8 @@ const HAS_SCHEME = /^[a-z][a-z0-9+.-]*:/i;
  * The names an href could mean inside the archive, best first: the percent-decoded path, then
  * the path as written. A relative href is taken from `folder`; one that starts with a slash is
  * taken from the root. A name with a scheme (`http:`, `file:`, `C:`) is not in the archive.
- * Fragments and queries are cut off, and `..` stops at the root.
+ * Fragments and queries are cut off. A path that climbs above the archive root with `..` names
+ * nothing and is refused, not clamped to the root: it can only be a mistake or an attack.
  */
 function candidates(href: string, folder = ""): string[] {
 	if (HAS_SCHEME.test(href.slice(0, 40).trim())) return [];
@@ -105,7 +109,9 @@ function candidates(href: string, folder = ""): string[] {
 		const name = normalizePath(
 			root || folder === "" ? option : `${folder}/${option}`,
 		);
-		if (name !== "" && !names.includes(name)) names.push(name);
+		if (name !== null && name !== "" && !names.includes(name)) {
+			names.push(name);
+		}
 	}
 	return names;
 }

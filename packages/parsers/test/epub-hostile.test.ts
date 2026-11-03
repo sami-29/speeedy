@@ -316,19 +316,48 @@ describe("epub hostile: paths cannot leave the book or reach out", () => {
 		fetchSpy.mockRestore();
 	});
 
-	it("keeps a ../ path inside the archive: it can only find what the book holds", async () => {
-		const bytes = zip([
-			{ name: "META-INF/container.xml", data: container() },
-			{
-				name: "OEBPS/content.opf",
-				data: opf({
-					manifest: [{ id: "c1", href: "../../../../c1.xhtml" }],
-					spine: [{ idref: "c1" }],
-				}),
-			},
-			{ name: "c1.xhtml", data: xhtml("<p>Clamped to the book root</p>") },
+	it("refuses a path that climbs above the archive root instead of clamping it", async () => {
+		const withHref = (href: string) =>
+			zip([
+				{ name: "META-INF/container.xml", data: container() },
+				{
+					name: "OEBPS/content.opf",
+					data: opf({
+						manifest: [{ id: "c1", href }],
+						spine: [{ idref: "c1" }],
+					}),
+				},
+				{ name: "c1.xhtml", data: xhtml("<p>Sits at the archive root</p>") },
+			]);
+		// One level up from OEBPS is the root: inside the book, so it is read.
+		expect(textsOf(await read(withHref("../c1.xhtml")))).toEqual([
+			"Sits at the archive root",
 		]);
-		expect(textsOf(await read(bytes))).toEqual(["Clamped to the book root"]);
+		// Two levels up is outside the book: refused, not clamped to c1.xhtml.
+		for (const href of [
+			"../../c1.xhtml",
+			"../../../../c1.xhtml",
+			"/../c1.xhtml",
+			"a/../../../c1.xhtml",
+			"%2e%2e/%2e%2e/c1.xhtml",
+		]) {
+			expectError(await read(withHref(href)), "unsupported");
+		}
+	});
+
+	it("refuses a rootfile or an encrypted-resource path that climbs above the root", async () => {
+		const book = (rootfile: string) =>
+			epub({ rootfile, extra: [{ name: "content.opf", data: "x" }] });
+		expectError(await read(book("../content.opf")), "unsupported");
+		expectError(await read(book("OEBPS/../../content.opf")), "unsupported");
+		// An encryption entry that names a resource outside the book cannot be matched, so the
+		// book cannot be shown to be free of DRM.
+		const bytes = epub({
+			encryption: encryptionXml([
+				{ uri: "../../OEBPS/c1.xhtml", algorithm: AES_128 },
+			]),
+		});
+		expectError(await read(bytes), "drm");
 	});
 
 	it("does not take entry names that try to climb out as anything but names", async () => {
