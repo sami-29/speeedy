@@ -355,13 +355,23 @@ test.describe("keyboard", () => {
 		await expect(slider(page)).toHaveAttribute("aria-valuenow", "300");
 	});
 
-	test("M keeps the only Reading Mode and the mode switch shows it", async ({
+	test("M switches to the next Reading Mode and the mode switch shows it", async ({
 		page,
 	}) => {
 		await start(page);
 		await focusPage(page);
-		await page.keyboard.press("m");
 		const modes = page.getByRole("group", { name: "Reading Mode" });
+		await expect(modes.getByRole("button", { name: "RSVP" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		await page.keyboard.press("m");
+		await expect(modes.getByRole("button", { name: "Pacer" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		await expect(page.getByTestId("pacer")).toBeVisible();
+		await page.keyboard.press("m");
 		await expect(modes.getByRole("button", { name: "RSVP" })).toHaveAttribute(
 			"aria-pressed",
 			"true",
