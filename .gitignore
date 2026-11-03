@@ -52,3 +52,4 @@ app/build
 app/.svelte-kit
 app/src/lib/paraglide
 app/playwright-report
+app/project.inlang/cache

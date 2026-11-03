@@ -12,6 +12,8 @@
 			"!app/playwright-report",
 			"!**/test-results",
 			"!app/static",
+			"!app/project.inlang/cache",
+			"!pnpm-lock.yaml",
 			"!app/brand",
 			"!app/messages"
 		]

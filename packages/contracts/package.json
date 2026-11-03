@@ -7,7 +7,12 @@
 		".": "./src/index.ts"
 	},
 	"scripts": {
-		"build": "tsc -p tsconfig.json",
-		"typecheck": "tsc -p tsconfig.json --noEmit"
+		"build": "tsc -p tsconfig.build.json",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"generate": "node scripts/generate-event-list.ts",
+		"test:unit": "vitest run"
+	},
+	"devDependencies": {
+		"vitest": "4.1.2"
 	}
 }
