@@ -17,7 +17,21 @@ export {
 	type EngineEvents,
 	type EngineOptions,
 } from "./engine";
+export { type BackUnit, findChapters } from "./navigation";
 export { computeOrp, type OrpFocus } from "./orp";
+export {
+	createSessionTracker,
+	type PageTargets,
+	type SessionRecord,
+	type SessionTracker,
+	type SessionTrackerOptions,
+} from "./session-tracker";
+export {
+	averageWpm,
+	formatDuration,
+	formatNumber,
+	recentWpms,
+} from "./stats";
 export { buildTimeline, DEFAULT_SETTINGS } from "./timeline";
 export type {
 	EngineSettings,
