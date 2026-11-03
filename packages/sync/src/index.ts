@@ -3,6 +3,7 @@
  * touches IndexedDB, the network or a clock, so the app and the Worker run the same rules.
  */
 
+export { SyncError, type SyncErrorCode } from "./errors.ts";
 export {
 	canonicalJson,
 	mergeDocument,

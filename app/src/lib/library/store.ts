@@ -86,6 +86,8 @@ export type DailyGoalChange = {
 export type StoredSession = SessionRecord & {
 	id: string;
 	documentId: string | null;
+	/** Recorded while its document was kept on this device only: Sync never sends it. */
+	localOnly?: true;
 };
 
 export type TrainingResult = {
@@ -333,7 +335,8 @@ function isSession(value: unknown): value is StoredSession {
 		Number.isInteger(value.wordsRead) &&
 		isCount(value.wordsRead) &&
 		isCount(value.wpm) &&
-		(value.documentId === null || typeof value.documentId === "string")
+		(value.documentId === null || typeof value.documentId === "string") &&
+		(value.localOnly === undefined || value.localOnly === true)
 	);
 }
 
@@ -522,44 +525,55 @@ export function createLibraryStore(
 				throw new LibraryError("invalid-title", "A document needs a title.");
 			}
 			const at = now();
-			return update(id, (meta) => ({
-				...meta,
-				title: trimmed,
-				titleChangedAt: at,
-			}));
+			return update(id, (meta) =>
+				// The same value at a later time would beat a real change made elsewhere.
+				meta.title === trimmed
+					? meta
+					: { ...meta, title: trimmed, titleChangedAt: at },
+			);
 		},
 
 		async setLanguageOverride(id, language) {
 			if (language !== null) checkLanguage(language);
 			const at = now();
-			return update(id, (meta) => ({
-				...meta,
-				languageOverride: language,
-				languageOverrideChangedAt: at,
-			}));
+			return update(id, (meta) =>
+				meta.languageOverride === language
+					? meta
+					: {
+							...meta,
+							languageOverride: language,
+							languageOverrideChangedAt: at,
+						},
+			);
 		},
 
 		async savePosition(id, position, progress) {
 			if (!isPosition(position) || !isNumber(progress)) {
 				throw new LibraryError("invalid-argument", "Not a Position.");
 			}
-			const at = now();
-			await update(id, (meta) => ({
-				...meta,
-				position,
-				progress: Math.min(1, Math.max(0, progress)),
-				positionChangedAt: at,
-				lastReadAt: at,
-			}));
+			const clock = now();
+			await update(id, (meta) => {
+				// A read is always later than the last one, so a clock behind the time a Position
+				// came with from another device cannot lose this read on the next sync.
+				const at = Math.max(clock, meta.positionChangedAt + 1);
+				return {
+					...meta,
+					position,
+					progress: Math.min(1, Math.max(0, progress)),
+					positionChangedAt: at,
+					lastReadAt: at,
+				};
+			});
 		},
 
 		async setDeviceOnly(id, deviceOnly) {
 			const at = now();
-			return update(id, (meta) => ({
-				...meta,
-				deviceOnly,
-				deviceOnlyChangedAt: at,
-			}));
+			return update(id, (meta) =>
+				// A later time on an unchanged setting would revive a document deleted elsewhere.
+				meta.deviceOnly === deviceOnly
+					? meta
+					: { ...meta, deviceOnly, deviceOnlyChangedAt: at },
+			);
 		},
 
 		async applyRemotePosition(id, remote) {
@@ -590,7 +604,11 @@ export function createLibraryStore(
 					position,
 					progress,
 					positionChangedAt,
-					lastReadAt: Math.max(meta.lastReadAt ?? 0, positionChangedAt),
+					// A copy never read anywhere (time 0) does not make this one look read.
+					lastReadAt:
+						positionChangedAt > 0
+							? Math.max(meta.lastReadAt ?? 0, positionChangedAt)
+							: meta.lastReadAt,
 				};
 			});
 			return taken;
@@ -717,7 +735,16 @@ export function createLibraryStore(
 				throw new LibraryError("invalid-argument", "Not a Session.");
 			}
 			const db = await database();
-			await db.put("sessions", stored);
+			const tx = db.transaction(["documents", "sessions"], "readwrite");
+			const documentId = stored.documentId;
+			const meta =
+				documentId === null
+					? undefined
+					: await tx.objectStore("documents").get(documentId);
+			// Read while kept on this device only: the Session stays here for good.
+			if (isMeta(meta) && meta.deviceOnly) stored.localOnly = true;
+			await tx.objectStore("sessions").put(stored);
+			await tx.done;
 			return stored;
 		},
 

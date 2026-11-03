@@ -52,6 +52,11 @@ export type SyncSession = {
 	activeMs: number;
 	wordsRead: number;
 	wpm: number;
+	/**
+	 * Set by the Library on a Session recorded while its document was kept on this device
+	 * only. Such a Session never leaves the device, whatever later happens to the document.
+	 */
+	localOnly?: true;
 };
 
 export type SettingEntry = { value: unknown; changedAt: number };
@@ -163,5 +168,9 @@ export type SyncResult =
 			downloads: string[];
 	  };
 
-/** The server's answer to a new document whose text it already holds under another ID. */
+/**
+ * The server's answer to a pushed document it will not take: a new document whose text it
+ * already holds under `existingId`, or a document whose ID it holds with another text
+ * (`existingId` is then the same ID).
+ */
 export type Refusal = { id: string; existingId: string };

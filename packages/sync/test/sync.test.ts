@@ -735,3 +735,116 @@ describe("what leaves the device", () => {
 		});
 	});
 });
+
+describe("document IDs stay unique on the device", () => {
+	const ids = (state: { documents: readonly SyncDocument[] }) =>
+		state.documents.map((doc) => doc.id).sort();
+
+	it("keeps a second local copy of the account's text where it is, untouched and unsent", () => {
+		// The copy with the account's ID merges; the other has nowhere to go without two
+		// records sharing one ID, so it stays as it is, and so do its Sessions.
+		const result = synced({
+			device: device({
+				documents: [
+					deviceDoc("a", { contentHash: "h", ...read(5, 9_000) }),
+					deviceDoc("s", { contentHash: "h" }),
+				],
+				sessions: [session("sa", { documentId: "a" })],
+			}),
+			server: server({ documents: [serverDoc("s", { contentHash: "h" })] }),
+		});
+		expect(ids(result.device)).toEqual(["a", "s"]);
+		expect(docIn(result.device, "a")).toEqual(
+			deviceDoc("a", { contentHash: "h", ...read(5, 9_000) }),
+		);
+		expect(result.push.documents).toEqual([]);
+		expect(result.push.uploads).toEqual([]);
+		expect(result.push.sessions).toEqual([]);
+		const again = synced({ device: result.device, server: result.server });
+		expect(again.writes).toEqual([]);
+		expect(again.push.documents).toEqual([]);
+	});
+
+	it("uploads one of two local copies of a new text, the one with the lower ID", () => {
+		const result = synced({
+			device: device({
+				documents: [
+					deviceDoc("z", { contentHash: "h" }),
+					deviceDoc("m", { contentHash: "h" }),
+				],
+			}),
+			server: server(),
+		});
+		expect(result.push.uploads).toEqual(["m"]);
+		expect(ids(result.device)).toEqual(["m", "z"]);
+		expect(ids(result.server)).toEqual(["m"]);
+	});
+
+	it("moves a local document off an ID the account holds with another text, and downloads that one", () => {
+		const result = synced({
+			device: device({
+				documents: [deviceDoc("a", { contentHash: "mine", title: "Mine" })],
+			}),
+			server: server({
+				documents: [serverDoc("a", { contentHash: "theirs", title: "Theirs" })],
+			}),
+		});
+		expect(writesOf(result, "rekey-document")).toEqual([
+			{ kind: "rekey-document", from: "a", to: "new-1" },
+		]);
+		expect(result.push.uploads).toEqual(["new-1"]);
+		expect(result.downloads).toEqual(["a"]);
+		expect(
+			result.device.documents.map((doc) => [doc.id, doc.title]).sort(),
+		).toEqual([
+			["a", "Theirs"],
+			["new-1", "Mine"],
+		]);
+		expect(docIn(result.server, "a")?.title).toBe("Theirs");
+	});
+});
+
+describe("a Session recorded while its document was device-only", () => {
+	const marked = session("p", { documentId: "x", localOnly: true });
+
+	it("stays on the device after the document is shared again", () => {
+		const result = synced({
+			device: device({
+				documents: [deviceDoc("x", { deviceOnlyChangedAt: 20 })],
+				sessions: [marked],
+			}),
+			server: server(),
+		});
+		expect(result.push.uploads).toEqual(["x"]);
+		expect(result.push.sessions).toEqual([]);
+		expect(result.device.sessions).toEqual([marked]);
+	});
+
+	it("stays on the device after the document is deleted", () => {
+		const result = synced({
+			device: device({
+				tombstones: [{ id: "x", contentHash: "hash-x", deletedAt: 30 }],
+				sessions: [marked],
+			}),
+			server: server({ documents: [serverDoc("x")] }),
+		});
+		expect(result.push.tombstones.map((each) => each.id)).toEqual(["x"]);
+		expect(result.push.sessions).toEqual([]);
+	});
+
+	it("follows its document to a new ID here, keeping its mark, and still stays here", () => {
+		const result = synced({
+			device: device({
+				documents: [deviceDoc("x", { contentHash: "h" })],
+				sessions: [marked],
+			}),
+			server: server({
+				documents: [serverDoc("t", { contentHash: "h" })],
+				// Even an account that somehow holds a copy does not overwrite the mark.
+				sessions: [session("p", { documentId: "t", activeMs: 999_999 })],
+			}),
+		});
+		expect(result.device.sessions).toEqual([{ ...marked, documentId: "t" }]);
+		expect(result.push.sessions).toEqual([]);
+	});
+});

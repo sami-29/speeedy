@@ -396,6 +396,65 @@ describe("what Sync needs from the Library", () => {
 		expect((await store.get(meta.id))?.titleChangedAt).toBe(0);
 	});
 
+	it("doesn't stamp a setter that leaves the value as it was", async () => {
+		// A later time with the same value would beat a real change made elsewhere.
+		const { meta } = await add("some words", "Same");
+		clock = 5_000;
+		await store.rename(meta.id, " Same ");
+		await store.setLanguageOverride(meta.id, null);
+		await store.setDeviceOnly(meta.id, false);
+		expect(await store.get(meta.id)).toEqual(meta);
+		await store.setDeviceOnly(meta.id, true);
+		clock = 6_000;
+		expect((await store.setDeviceOnly(meta.id, true)).deviceOnlyChangedAt).toBe(
+			5_000,
+		);
+	});
+
+	it("stamps each read later than the last, even two in one millisecond", async () => {
+		const { meta } = await add("some words here");
+		clock = 5_000;
+		await store.savePosition(meta.id, { block: 0, offset: 1 }, 0.1);
+		await store.savePosition(meta.id, { block: 0, offset: 2 }, 0.2);
+		expect(await store.get(meta.id)).toMatchObject({
+			positionChangedAt: 5_001,
+			lastReadAt: 5_001,
+		});
+	});
+
+	it("marks a Session recorded on a device-only document as never leaving the device", async () => {
+		const { meta: secret } = await add("kept here");
+		const { meta: shared } = await add("shared");
+		await store.setDeviceOnly(secret.id, true);
+		const record = {
+			date: "2026-11-03",
+			startedAt: 1,
+			activeMs: 60_000,
+			wordsRead: 250,
+			wpm: 250,
+		};
+		const onSecret = await store.addSession({
+			...record,
+			documentId: secret.id,
+		});
+		const onShared = await store.addSession({
+			...record,
+			documentId: shared.id,
+		});
+		const loose = await store.addSession({ ...record, documentId: null });
+		expect(onSecret.localOnly).toBe(true);
+		expect(onShared).not.toHaveProperty("localOnly");
+		expect(loose).not.toHaveProperty("localOnly");
+		// The mark outlives the setting and the document.
+		await store.setDeviceOnly(secret.id, false);
+		await store.deleteDocument(secret.id);
+		const stored = await store.sessions();
+		expect(stored.find((each) => each.id === onSecret.id)?.localOnly).toBe(
+			true,
+		);
+		expect(stored).toHaveLength(3);
+	});
+
 	it("takes a Position read later on another device, keeping that device's time", async () => {
 		const { meta } = await store.addDocument({
 			document: doc("first block", "second block"),

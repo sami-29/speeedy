@@ -268,7 +268,9 @@ describe("content hash: against an independent oracle", () => {
 					? `h|${block.level}|${block.text.length}|${block.text}`
 					: block.kind === "list-item"
 						? `l|${block.depth}|${block.ordered}|${block.text.length}|${block.text}`
-						: `${block.kind}|${block.text.length}|${block.text}`,
+						: block.kind === "image-placeholder"
+							? `i|${block.alt}` // makeBlock never makes one
+							: `${block.kind}|${block.text.length}|${block.text}`,
 			)
 			.join("\n");
 

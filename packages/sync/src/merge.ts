@@ -1,3 +1,4 @@
+import { SyncError } from "./errors.ts";
 import type {
 	SettingEntry,
 	Stamped,
@@ -8,14 +9,15 @@ import type {
 
 /**
  * JSON with object keys sorted at every depth, so two equal values always give the same
- * string. Undefined fields are left out, as `JSON.stringify` does.
+ * string. Undefined fields are left out, as `JSON.stringify` does. The sorted copy has no
+ * prototype, so a "__proto__" key is kept as a key like any other.
  */
 export function canonicalJson(value: unknown): string {
 	return JSON.stringify(value, (_key, inner: unknown) => {
 		if (typeof inner !== "object" || inner === null || Array.isArray(inner)) {
 			return inner;
 		}
-		const sorted: Record<string, unknown> = {};
+		const sorted: Record<string, unknown> = Object.create(null);
 		for (const key of Object.keys(inner).sort()) {
 			sorted[key] = (inner as Record<string, unknown>)[key];
 		}
@@ -27,17 +29,37 @@ export function canonicalJson(value: unknown): string {
 const larger = <T>(a: T, b: T): T =>
 	canonicalJson(b) > canonicalJson(a) ? b : a;
 
+/**
+ * A time or amount as the merge orders it. NaN compares false with everything, which would
+ * make the winner depend on argument order, so it counts as the earliest of all.
+ */
+const ordered = (time: number) => (Number.isNaN(time) ? -Infinity : time);
+
+/** The record with the larger `key`; equal keys keep the larger record. Order-independent. */
+function laterBy<T>(a: T, b: T, key: (record: T) => number): T {
+	const x = ordered(key(a));
+	const y = ordered(key(b));
+	if (x !== y) return x > y ? a : b;
+	return larger(a, b);
+}
+
 /** Last write wins. Equal times keep the larger value, so the order of merging never matters. */
 export function pickLatest<T>(a: Stamped<T>, b: Stamped<T>): Stamped<T> {
-	if (a.at !== b.at) return a.at > b.at ? a : b;
-	return larger(a, b);
+	return laterBy(a, b, (each) => each.at);
 }
 
 /**
  * Two copies of one document. Each field group keeps whichever side changed it last: the
- * title, the language override, and the Position with its progress.
+ * title, the language override, and the Position with its progress. Two different
+ * documents (another ID or another text) are refused, never blended.
  */
 export function mergeDocument(a: SyncDocument, b: SyncDocument): SyncDocument {
+	if (a.id !== b.id || a.contentHash !== b.contentHash) {
+		throw new SyncError(
+			"invalid-argument",
+			"Only two copies of one document merge.",
+		);
+	}
 	const title = pickLatest(
 		{ value: a.title, at: a.titleChangedAt },
 		{ value: b.title, at: b.titleChangedAt },
@@ -73,8 +95,7 @@ export function mergeDocument(a: SyncDocument, b: SyncDocument): SyncDocument {
 
 /** A Session only grows: the copy with more active time wins. */
 export function mergeSession(a: SyncSession, b: SyncSession): SyncSession {
-	if (a.activeMs !== b.activeMs) return a.activeMs > b.activeMs ? a : b;
-	return larger(a, b);
+	return laterBy(a, b, (each) => each.activeMs);
 }
 
 const byId = <T extends { id: string }>(records: Iterable<T>): T[] =>
@@ -106,8 +127,7 @@ export function mergeTombstone(
 	a: SyncTombstone,
 	b: SyncTombstone,
 ): SyncTombstone {
-	if (a.deletedAt !== b.deletedAt) return a.deletedAt > b.deletedAt ? a : b;
-	return larger(a, b);
+	return laterBy(a, b, (each) => each.deletedAt);
 }
 
 export function mergeTombstones(

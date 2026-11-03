@@ -22,6 +22,7 @@ import type {
 	SyncSession,
 	SyncTombstone,
 } from "./types.ts";
+import { checkPush } from "./validate.ts";
 
 /** The settings that sync. Every other key stays on the device. */
 export const SYNCED_SETTINGS: readonly string[] = ["libraryLineHidden"];
@@ -43,7 +44,7 @@ function syncFields(doc: SyncDocument): SyncDocument {
 		titleChangedAt: doc.titleChangedAt,
 		languageOverride: doc.languageOverride,
 		languageOverrideChangedAt: doc.languageOverrideChangedAt,
-		position: doc.position,
+		position: { block: doc.position.block, offset: doc.position.offset },
 		progress: doc.progress,
 		positionChangedAt: doc.positionChangedAt,
 	};
@@ -55,7 +56,10 @@ type Plan =
 	| { kind: "removed" }
 	| { kind: "merge"; with: SyncDocument }
 	| { kind: "rekey"; to: SyncDocument }
-	| { kind: "unmatched"; again: boolean };
+	/** New to the account. `again` when the account holds its ID for a delete or another text. */
+	| { kind: "unmatched"; again: boolean }
+	/** The account holds its text under an ID another document here has: left as it is. */
+	| { kind: "duplicate" };
 
 /**
  * One sync of one device with the server: the device's records and the server's in, the
@@ -79,9 +83,14 @@ export function syncDevice(input: SyncInput): SyncResult {
 			deletes.set(local.id, local);
 		}
 	}
-	// Keep on this device only acts as a delete everywhere else.
+	// Keep on this device only acts as a delete everywhere else, of that text only.
 	for (const doc of byId(device.documents)) {
-		if (doc.deviceOnly && serverLive.has(doc.id) && !deletes.has(doc.id)) {
+		const held = serverLive.get(doc.id);
+		if (
+			doc.deviceOnly &&
+			held?.contentHash === doc.contentHash &&
+			!deletes.has(doc.id)
+		) {
 			deletes.set(doc.id, {
 				id: doc.id,
 				contentHash: doc.contentHash,
@@ -96,13 +105,17 @@ export function syncDevice(input: SyncInput): SyncResult {
 	}
 
 	const localDocs = byId(device.documents);
+	const localIds = new Set(localDocs.map((doc) => doc.id));
 	const claimed = new Set<string>();
 	const plans = new Map<string, Plan>();
-	const claimTwin = (doc: DeviceDocument): SyncDocument | undefined => {
+	/** Re-key onto the account's copy of this text, unless another document here has its ID. */
+	const matchByHash = (doc: DeviceDocument, again: boolean): Plan => {
 		const twin = twinOf.get(doc.contentHash);
-		if (twin === undefined || claimed.has(twin.id)) return undefined;
+		if (twin === undefined) return { kind: "unmatched", again };
+		if (claimed.has(twin.id) || localIds.has(twin.id))
+			return { kind: "duplicate" };
 		claimed.add(twin.id);
-		return twin;
+		return { kind: "rekey", to: twin };
 	};
 	for (const doc of localDocs) {
 		if (doc.deviceOnly) {
@@ -116,24 +129,17 @@ export function syncDevice(input: SyncInput): SyncResult {
 				plans.set(doc.id, { kind: "removed" });
 				continue;
 			}
-			const twin = claimTwin(doc);
-			plans.set(
-				doc.id,
-				twin ? { kind: "rekey", to: twin } : { kind: "unmatched", again: true },
-			);
+			plans.set(doc.id, matchByHash(doc, true));
 			continue;
 		}
 		const held = deletes.has(doc.id) ? undefined : serverLive.get(doc.id);
-		if (held !== undefined) {
+		if (held !== undefined && held.contentHash === doc.contentHash) {
 			claimed.add(held.id);
 			plans.set(doc.id, { kind: "merge", with: held });
 			continue;
 		}
-		const twin = claimTwin(doc);
-		plans.set(
-			doc.id,
-			twin ? { kind: "rekey", to: twin } : { kind: "unmatched", again: false },
-		);
+		// An ID the account holds with another text is that text's: this one moves off it.
+		plans.set(doc.id, matchByHash(doc, held !== undefined));
 	}
 
 	const unmatched = localDocs.filter(
@@ -151,6 +157,7 @@ export function syncDevice(input: SyncInput): SyncResult {
 	const rekeyed = new Map<string, string>();
 	const deviceOnlyAfter = new Set<string>();
 	const textsHere = new Set<string>();
+	const uploadedTexts = new Set<string>();
 
 	const settle = (local: SyncDocument, account: SyncDocument | undefined) => {
 		const merged = account ? mergeDocument(local, account) : local;
@@ -181,6 +188,9 @@ export function syncDevice(input: SyncInput): SyncResult {
 				rekeyed.set(doc.id, plan.to.id);
 				settle({ ...fields, id: plan.to.id }, plan.to);
 				break;
+			case "duplicate":
+				textsHere.add(doc.contentHash);
+				break;
 			case "unmatched":
 				textsHere.add(doc.contentHash);
 				if (keep) {
@@ -188,6 +198,9 @@ export function syncDevice(input: SyncInput): SyncResult {
 					deviceOnlyAfter.add(doc.id);
 					break;
 				}
+				// A second copy here of a text uploaded just now stays as it is.
+				if (uploadedTexts.has(doc.contentHash)) break;
+				uploadedTexts.add(doc.contentHash);
 				if (plan.again) {
 					const fresh = input.newId();
 					writes.push({ kind: "rekey-document", from: doc.id, to: fresh });
@@ -203,7 +216,9 @@ export function syncDevice(input: SyncInput): SyncResult {
 	}
 
 	// Documents from the account, unless this device holds the same text (device-only, say).
-	const local = new Set(localDocs.map((doc) => doc.id));
+	const local = new Set(
+		localDocs.filter((doc) => !rekeyed.has(doc.id)).map((doc) => doc.id),
+	);
 	const downloads = live
 		.filter(
 			(doc) =>
@@ -238,6 +253,15 @@ export function syncDevice(input: SyncInput): SyncResult {
 		const held = serverSessions.get(mine.id);
 		const movedTo =
 			mine.documentId === null ? undefined : rekeyed.get(mine.documentId);
+		if (mine.localOnly) {
+			// Recorded while its document was device-only: it follows the document here, only.
+			if (movedTo !== undefined)
+				writes.push({
+					kind: "put-session",
+					session: { ...mine, documentId: movedTo },
+				});
+			continue;
+		}
 		const moved =
 			held === undefined && movedTo !== undefined
 				? { ...mine, documentId: movedTo }
@@ -411,12 +435,15 @@ function applyWrites(
 /**
  * The server's side of a sync: merge one device's push into the Account. A tombstone beats
  * the live document, and a new document whose text the Account already holds under another
- * ID is refused, so the Account keeps one copy of each text.
+ * ID is refused, so the Account keeps one copy of each text; so is a document whose ID the
+ * Account holds with another text. A push holding a record the merge cannot interpret
+ * throws a `SyncError` (`invalid-argument`) and changes nothing.
  */
 export function applyPush(
 	server: ServerState,
 	push: Push,
 ): { server: ServerState; refused: Refusal[] } {
+	checkPush(push);
 	const tombstones = mergeTombstones(server.tombstones, push.tombstones);
 	const dead = new Set(tombstones.map((each) => each.id));
 	const live = new Map(
@@ -429,6 +456,10 @@ export function applyPush(
 		if (dead.has(doc.id)) continue;
 		const held = live.get(doc.id);
 		if (held !== undefined) {
+			if (held.contentHash !== doc.contentHash) {
+				refused.push({ id: doc.id, existingId: held.id });
+				continue;
+			}
 			live.set(doc.id, mergeDocument(held, syncFields(doc)));
 			continue;
 		}
@@ -446,7 +477,10 @@ export function applyPush(
 			generation: server.generation,
 			documents: byId(live.values()),
 			tombstones,
-			sessions: mergeSessions(server.sessions, push.sessions),
+			sessions: mergeSessions(
+				server.sessions,
+				push.sessions.filter((each) => each.localOnly !== true),
+			),
 			settings: mergeSettings(server.settings, push.settings),
 			dailyGoalChanges: mergeInsertOnce(
 				server.dailyGoalChanges,

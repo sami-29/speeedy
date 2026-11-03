@@ -1048,8 +1048,9 @@ describe("a device-only document's Sessions stay on the device", () => {
 					deviceOnlyChangedAt: 100,
 				},
 			],
-			// 2. The reader reads it, privately.
-			sessions: [session("private-1", { documentId: "x" })],
+			// 2. The reader reads it, privately. The Library marks a Session recorded while its
+			// document is device-only (orchestrator decision for D6).
+			sessions: [session("private-1", { documentId: "x", localOnly: true })],
 		};
 		let r = synced({ device: dev, server: acct });
 		dev = r.device;
@@ -1189,7 +1190,12 @@ function stepWorld(
 			const id = `s${++world.next}`;
 			dev.sessions = [
 				...dev.sessions,
-				session(id, { documentId: target.id, startedAt: t }),
+				// The Library marks a Session recorded on a device-only document (decision D6).
+				session(id, {
+					documentId: target.id,
+					startedAt: t,
+					...(target.deviceOnly ? { localOnly: true } : {}),
+				}),
 			];
 			if (target.deviceOnly) world.secret.add(id);
 			return;
