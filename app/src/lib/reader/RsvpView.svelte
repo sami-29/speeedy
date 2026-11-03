@@ -3,7 +3,7 @@ import { createEngine, createTimerClock, type Engine } from "@speeedy/engine";
 import { m } from "#lib/paraglide/messages.js";
 import type { ModeProps } from "./modes.ts";
 
-let { timeline, wpm }: ModeProps = $props();
+let { timeline, wpm, startAt, onposition }: ModeProps = $props();
 
 // The word is written straight into these three nodes from the engine's frame events.
 // Nothing about the word is reactive state, so playing never re-renders the component.
@@ -23,18 +23,22 @@ $effect(() => {
 			if (before) before.textContent = frame.orp.before;
 			if (pivot) pivot.textContent = frame.orp.pivot;
 			if (after) after.textContent = frame.orp.after;
+			onposition?.(frame.position, false);
 		}),
 		current.on("play", () => {
 			playing = true;
 		}),
-		current.on("pause", () => {
+		current.on("pause", ({ position }) => {
 			playing = false;
+			onposition?.(position, true);
 		}),
-		current.on("end", () => {
+		current.on("end", ({ position }) => {
 			playing = false;
+			onposition?.(position, true);
 		}),
 	];
 	engine = current;
+	if (startAt) current.seek(startAt);
 	current.play();
 	toggle?.focus();
 	return () => {
