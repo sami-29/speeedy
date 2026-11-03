@@ -65,8 +65,14 @@ describe("licenceProblems", () => {
 			dependencies: { deep: "1.0.0" },
 		});
 		write("app/node_modules/deep", { name: "deep", license: "AGPL-3.0" });
-		write("app/node_modules/bad", { name: "phonemizer", license: "Apache-2.0" });
-		write("app/node_modules/dev-only", { name: "dev-only", license: "GPL-3.0" });
+		write("app/node_modules/bad", {
+			name: "phonemizer",
+			license: "Apache-2.0",
+		});
+		write("app/node_modules/dev-only", {
+			name: "dev-only",
+			license: "GPL-3.0",
+		});
 		assert.deepEqual(licenceProblems([join(dir, "app")]).sort(), [
 			"deep: AGPL-3.0",
 			"phonemizer: banned (GPL phonemizer)",

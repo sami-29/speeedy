@@ -19,10 +19,14 @@ const modelCached = Object.values(cached).every((key) =>
 async function serveAssetsFromCache(page: Page) {
 	await page.route(MODEL_HOSTS, async (route) => {
 		const url = route.request().url();
-		const entry = Object.entries(cached).find(([suffix]) => url.endsWith(suffix));
+		const entry = Object.entries(cached).find(([suffix]) =>
+			url.endsWith(suffix),
+		);
 		if (!entry) return route.abort();
 		const bytes = readFileSync(join(cacheDir, entry[1]));
-		const range = /^bytes=(\d+)-(\d+)$/.exec(route.request().headers().range ?? "");
+		const range = /^bytes=(\d+)-(\d+)$/.exec(
+			route.request().headers().range ?? "",
+		);
 		if (!range) return route.fulfill({ status: 200, body: bytes });
 		const from = Number(range[1]);
 		const to = Math.min(Number(range[2]), bytes.length - 1);
@@ -42,7 +46,9 @@ test.describe("cross-origin isolation", () => {
 		for (const path of ["/reader", "/reader/voice-lab"]) {
 			const headers = (await request.get(path)).headers();
 			expect(headers["cross-origin-opener-policy"], path).toBe("same-origin");
-			expect(headers["cross-origin-embedder-policy"], path).toBe("credentialless");
+			expect(headers["cross-origin-embedder-policy"], path).toBe(
+				"credentialless",
+			);
 		}
 		for (const path of ["/", "/library", "/s", "/account"]) {
 			const headers = (await request.get(path)).headers();
@@ -58,7 +64,9 @@ test.describe("cross-origin isolation", () => {
 		expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);
 		await expect(page.getByTestId("voice-isolated")).toHaveText("yes");
 		const cores = await page.evaluate(() => navigator.hardwareConcurrency);
-		const threads = Number(await page.getByTestId("voice-threads").textContent());
+		const threads = Number(
+			await page.getByTestId("voice-threads").textContent(),
+		);
 		expect(threads).toBe(Math.min(4, Math.ceil(cores / 2)));
 		if (cores >= 3) expect(threads).toBeGreaterThan(1);
 	});
@@ -96,7 +104,10 @@ test.describe("voice download", () => {
 });
 
 test.describe("real model", () => {
-	test.skip(!modelCached, "needs the model in packages/kokoro/.cache (pnpm --filter @speeedy/kokoro fetch:assets)");
+	test.skip(
+		!modelCached,
+		"needs the model in packages/kokoro/.cache (pnpm --filter @speeedy/kokoro fetch:assets)",
+	);
 	test("speaks a sentence with the real model and records its real-time factor", async ({
 		page,
 	}) => {

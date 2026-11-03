@@ -18,3 +18,17 @@ https://*.speeedy.pages.dev/*
   X-Robots-Tag: noindex
 /account/*
   X-Robots-Tag: noindex
+
+# Cross-origin isolation, only where the on-device voice runs threaded WASM. Never on other
+# pages: handoff, checkout return and share flows need their window opener.
+/reader
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: credentialless
+/reader/*
+  X-Robots-Tag: noindex
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: credentialless
+# A dedicated worker takes its embedder policy from its own script, so the voice worker (and
+# the WASM threads it starts from the same file) needs COEP to keep the isolation.
+/_app/immutable/workers/*
+  Cross-Origin-Embedder-Policy: credentialless

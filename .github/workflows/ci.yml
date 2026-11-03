@@ -44,6 +44,13 @@ jobs:
           node-version: 22.22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The Kokoro model, voice and lexicon are never committed. They are fetched once per
+      # pinned set (keyed on assets.ts) so the golden and real-model tests run in CI.
+      - uses: actions/cache@v4
+        with:
+          path: packages/kokoro/.cache
+          key: kokoro-assets-${{ hashFiles('packages/kokoro/src/assets.ts') }}
+      - run: pnpm --filter @speeedy/kokoro fetch:assets
       - run: pnpm test:unit
 
   worker:
@@ -71,6 +78,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @speeedy/app exec playwright install --with-deps chromium
+      - uses: actions/cache@v4
+        with:
+          path: packages/kokoro/.cache
+          key: kokoro-assets-${{ hashFiles('packages/kokoro/src/assets.ts') }}
+      - run: pnpm --filter @speeedy/kokoro fetch:assets
       - run: pnpm e2e
       - uses: actions/upload-artifact@v4
         if: failure()

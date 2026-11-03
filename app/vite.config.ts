@@ -3,6 +3,7 @@ import adapter from "@sveltejs/adapter-static";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
+import { staticHeaders } from "./scripts/static-headers.ts";
 
 export default defineConfig({
 	plugins: [
@@ -25,5 +26,11 @@ export default defineConfig({
 			dynamicCompileOptions: ({ filename }) =>
 				filename.includes("/node_modules/") ? undefined : { runes: true },
 		}),
+		// `static/_headers` on the dev and preview servers too, so e2e sees production headers.
+		staticHeaders("./static/_headers"),
 	],
+	// The voice worker bundles onnxruntime-web, which starts its WASM threads from its own
+	// `import.meta.url`: that needs module workers.
+	worker: { format: "es" },
+	optimizeDeps: { exclude: ["onnxruntime-web"] },
 });

@@ -37,7 +37,7 @@ export const KOKORO_ASSETS = {
 
 export type KokoroAssets = { [K in keyof typeof KOKORO_ASSETS]: Asset };
 
-/** The one voice the 7M distill ships with. */
+/** The voice this build downloads (the model repo also has `af_heart`). */
 export const DEFAULT_VOICE = "af_msa";
 
 export const TOTAL_DOWNLOAD_BYTES = Object.values(KOKORO_ASSETS).reduce(

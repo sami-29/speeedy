@@ -229,12 +229,18 @@ importers:
       '@speeedy/engine':
         specifier: workspace:*
         version: link:../packages/engine
+      '@speeedy/kokoro':
+        specifier: workspace:*
+        version: link:../packages/kokoro
       '@speeedy/parsers':
         specifier: workspace:*
         version: link:../packages/parsers
       idb:
         specifier: 8.0.4
         version: 8.0.4
+      onnxruntime-web:
+        specifier: 1.31.1
+        version: 1.31.1
     devDependencies:
       '@axe-core/playwright':
         specifier: 4.14.0

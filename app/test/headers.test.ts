@@ -8,14 +8,19 @@ const rules = parseHeaders(
 );
 const at = (path: string) =>
 	Object.fromEntries(
-		Object.entries(headersFor(rules, path)).map(([k, v]) => [k.toLowerCase(), v]),
+		Object.entries(headersFor(rules, path)).map(([k, v]) => [
+			k.toLowerCase(),
+			v,
+		]),
 	);
 
 describe("cross-origin isolation headers", () => {
 	it("isolates /reader and the pages under it, for threaded WASM", () => {
 		for (const path of ["/reader", "/reader/voice-lab"]) {
 			expect(at(path)["cross-origin-opener-policy"], path).toBe("same-origin");
-			expect(at(path)["cross-origin-embedder-policy"], path).toBe("credentialless");
+			expect(at(path)["cross-origin-embedder-policy"], path).toBe(
+				"credentialless",
+			);
 		}
 	});
 
@@ -51,7 +56,10 @@ describe("parseHeaders", () => {
 		);
 		expect(headersFor(parsed, "/a")).toEqual({ "X-One": "1" });
 		expect(headersFor(parsed, "/a/b")).toEqual({});
-		expect(headersFor(parsed, "/b/c/d")).toEqual({ "X-Two": "2", "X-Three": "3" });
+		expect(headersFor(parsed, "/b/c/d")).toEqual({
+			"X-Two": "2",
+			"X-Three": "3",
+		});
 		// Host rules never match a bare path.
 		expect(headersFor(parsed, "/")).toEqual({});
 	});
