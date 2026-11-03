@@ -283,6 +283,17 @@ export function hostileErrors(): unknown[] {
 					"nodes/2.elephants.js",
 					"workers/the_cat-AbCd1234.js",
 					"assets/the_cat.AbCd1234.js",
+					"workers/chunks/the_cat.AbCd1234.js",
+					"workers/chunks/AbCd1234/the_cat.js",
+					"workers/assets/pdf.worker.min-the_cat.mjs",
+					"workers/assets/the_cat.pdf.worker.min-AbCd1234.mjs",
+					"workers/assets/pdf.worker.the_cat.min-AbCd1234.mjs",
+					"workers/assets/pdf.worker.min-AbCd1234.the_cat.mjs",
+					"workers/assets/pdf.worker.min-AbCd1234.js",
+					"assets/pdf.worker.min.the_cat.mjs",
+					"assets/the_cat.pdf.worker.min.AbCd1234.mjs",
+					"assets/pdf.worker.min.AbCd1234.the_cat.mjs",
+					"assets/pdf.worker.min-AbCd1234.mjs",
 				].map(
 					(file, i) =>
 						`    at f (https://speeedy.app/_app/immutable/${file}:${i + 1}:1)`,

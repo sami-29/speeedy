@@ -277,6 +277,10 @@ describe("checkException", () => {
 			"/_app/immutable/nodes/12.AbCd1234.js",
 			"/_app/immutable/nodes/123.AbCd1234.js",
 			"/_app/immutable/workers/worker-Clb-aXNV.js",
+			"/_app/immutable/workers/chunks/C2a4ZsyS.js",
+			"/_app/immutable/workers/chunks/C7x-RYpg.js",
+			"/_app/immutable/workers/assets/pdf.worker.min-Dkey6ZUl.mjs",
+			"/_app/immutable/assets/pdf.worker.min.Dkey6ZUl.mjs",
 		]) {
 			assert.equal(
 				checkException({ ...good, frames: [{ ...frame, file }] }).ok,
@@ -394,6 +398,28 @@ describe("checkException", () => {
 		[
 			"an asset bundle with a free name",
 			withFrame({ file: "/_app/immutable/assets/the_cat.AbCd1234.js" }),
+		],
+		[
+			"a PDF worker file with a free word in its name",
+			withFrame({
+				file: "/_app/immutable/workers/assets/pdf.worker.min-the_cat.mjs",
+			}),
+		],
+		[
+			"a PDF worker file with a word before the name",
+			withFrame({
+				file: "/_app/immutable/assets/the_cat.pdf.worker.min.AbCd1234.mjs",
+			}),
+		],
+		[
+			"a PDF worker file with a word after the hash",
+			withFrame({
+				file: "/_app/immutable/assets/pdf.worker.min.AbCd1234.the_cat.mjs",
+			}),
+		],
+		[
+			"a PDF worker chunk with a free word",
+			withFrame({ file: "/_app/immutable/workers/chunks/the_cat.AbCd1234.js" }),
 		],
 		[
 			"a hash of the wrong length",
