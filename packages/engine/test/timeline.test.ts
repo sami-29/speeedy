@@ -53,7 +53,7 @@ describe("Frame positions", () => {
 			"Title",
 			"here",
 			"item",
-			"x",
+			"x=",
 			"1",
 		]);
 		expect(frames[2]?.position).toEqual({ block: 2, offset: 0 });
