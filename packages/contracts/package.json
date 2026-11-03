@@ -8,6 +8,10 @@
 	},
 	"scripts": {
 		"build": "tsc -p tsconfig.json",
-		"typecheck": "tsc -p tsconfig.json --noEmit"
+		"typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+		"test:unit": "vitest run"
+	},
+	"devDependencies": {
+		"vitest": "4.1.2"
 	}
 }
