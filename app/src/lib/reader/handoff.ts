@@ -1,10 +1,10 @@
-/** Where a document came from. Session analytics carry it as an enum (own, demo, share). */
-export type ReadingSource = "own" | "demo" | "share";
+import type { DocumentSource } from "#lib/library/store.ts";
 
-export type Handoff = { text: string; source: ReadingSource };
+export type Handoff = { text: string; source: DocumentSource };
 
 // Held in memory only, for one client-side navigation into /reader. It is never written to
-// storage, history state or the URL, so the text cannot outlive the page or leave the device.
+// history state or the URL, so the text cannot leave the device; /reader keeps it in the
+// on-device Library like any other text, marked with its source.
 let pending: Handoff | undefined;
 
 /** Leaves text for /reader to open next. Navigate to /reader right after. */
