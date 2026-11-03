@@ -1,0 +1,28 @@
+{
+	"outcome": "document",
+	"format": "markdown",
+	"title": "A Field Guide",
+	"encoding": "utf-8",
+	"language": "en",
+	"blocks": 14,
+	"first": "A Field Guide",
+	"last": "Heron 3",
+	"words": [38, 42],
+	"kinds": [
+		"heading",
+		"paragraph",
+		"heading",
+		"list-item",
+		"list-item",
+		"list-item",
+		"list-item",
+		"list-item",
+		"list-item",
+		"quote",
+		"code",
+		"image-placeholder",
+		"table-text",
+		"table-text"
+	],
+	"spans": 3
+}

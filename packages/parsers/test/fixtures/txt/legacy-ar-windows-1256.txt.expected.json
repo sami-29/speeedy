@@ -1,0 +1,14 @@
+{
+	"hints": {
+		"encoding": "windows-1256"
+	},
+	"outcome": "document",
+	"format": "txt",
+	"title": "legacy-ar-windows-1256",
+	"encoding": "windows-1256",
+	"language": "ar",
+	"blocks": 2,
+	"first": "كان الرجل العجوز يمشي ببطء على الطريق وك",
+	"last": "مرحبا بالعالم.",
+	"words": [21, 25]
+}

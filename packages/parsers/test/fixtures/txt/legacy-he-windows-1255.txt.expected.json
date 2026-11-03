@@ -1,0 +1,14 @@
+{
+	"hints": {
+		"encoding": "windows-1255"
+	},
+	"outcome": "document",
+	"format": "txt",
+	"title": "legacy-he-windows-1255",
+	"encoding": "windows-1255",
+	"language": "he",
+	"blocks": 2,
+	"first": "הזקן הלך לאט לאורך הדרך וחשב שמזג האוויר",
+	"last": "שלום עולם.",
+	"words": [20, 24]
+}

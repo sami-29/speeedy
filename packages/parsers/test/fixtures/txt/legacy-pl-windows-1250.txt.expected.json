@@ -1,0 +1,14 @@
+{
+	"hints": {
+		"encoding": "windows-1250"
+	},
+	"outcome": "document",
+	"format": "txt",
+	"title": "legacy-pl-windows-1250",
+	"encoding": "windows-1250",
+	"language": "pl",
+	"blocks": 2,
+	"first": "Stary człowiek szedł powoli drogą i myśl",
+	"last": "Zażółć gęślą jaźń.",
+	"words": [21, 25]
+}
