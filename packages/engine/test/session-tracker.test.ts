@@ -17,7 +17,11 @@ function setup({
 	text = SIX,
 	startEpoch = Date.UTC(2026, 2, 10, 12, 0, 0),
 	timeZone,
-}: { text?: string; startEpoch?: number; timeZone?: string } = {}) {
+}: {
+	text?: string;
+	startEpoch?: number;
+	timeZone?: string;
+} = {}) {
 	const clock = createManualClock();
 	const engine = createEngine({
 		clock,
@@ -48,14 +52,18 @@ function setup({
 		document.visibilityState = "visible";
 		document.dispatchEvent(new Event("visibilitychange"));
 	};
-	return { clock, engine, tracker, saved, window, document, hide, show };
+	/** Advance in 10 ms steps, as a real Clock ticks, so no Frame is jumped over. */
+	const advance = (ms: number) => {
+		for (let left = ms; left > 0; left -= 10) clock.advance(Math.min(10, left));
+	};
+	return { advance, engine, tracker, saved, window, document, hide, show };
 }
 
 describe("Session tracker counts", () => {
 	it("active time and the words shown", () => {
-		const { engine, clock, tracker, saved } = setup();
+		const { engine, advance, tracker, saved } = setup();
 		engine.play();
-		clock.advance(450);
+		advance(450);
 		engine.pause();
 		tracker.flush();
 		expect(saved).toHaveLength(1);
@@ -63,36 +71,36 @@ describe("Session tracker counts", () => {
 	});
 
 	it("never counts paused time", () => {
-		const { engine, clock, tracker, saved } = setup();
+		const { engine, advance, tracker, saved } = setup();
 		engine.play();
-		clock.advance(300);
+		advance(300);
 		engine.pause();
-		clock.advance(10_000);
+		advance(10_000);
 		engine.play();
-		clock.advance(100);
+		advance(100);
 		engine.pause();
 		tracker.flush();
 		expect(saved[0]?.activeMs).toBe(400);
 	});
 
 	it("does not count a Frame twice when playback resumes on it", () => {
-		const { engine, clock, tracker, saved } = setup();
+		const { engine, advance, tracker, saved } = setup();
 		engine.play();
-		clock.advance(300);
+		advance(300);
 		engine.pause();
 		engine.play();
-		clock.advance(50);
+		advance(50);
 		engine.pause();
 		tracker.flush();
 		expect(saved[0]?.wordsRead).toBe(2);
 	});
 
 	it("never counts words that were sought over", () => {
-		const { engine, clock, tracker, saved } = setup();
+		const { engine, advance, tracker, saved } = setup();
 		engine.play();
-		clock.advance(100);
+		advance(100);
 		engine.seek({ block: 0, offset: 19 });
-		clock.advance(50);
+		advance(50);
 		engine.pause();
 		tracker.flush();
 		// "one" before the jump and "five" after it; two, three and four were skipped.
@@ -101,9 +109,9 @@ describe("Session tracker counts", () => {
 	});
 
 	it("counts nothing for a seek while paused", () => {
-		const { engine, clock, tracker, saved } = setup();
+		const { engine, advance, tracker, saved } = setup();
 		engine.play();
-		clock.advance(100);
+		advance(100);
 		engine.pause();
 		engine.seek({ block: 0, offset: 23 });
 		tracker.flush();
@@ -111,20 +119,22 @@ describe("Session tracker counts", () => {
 	});
 
 	it("counts words read again after going back", () => {
-		const { engine, clock, tracker, saved } = setup();
+		const { engine, advance, tracker, saved } = setup();
 		engine.play();
-		clock.advance(450);
+		advance(450);
 		engine.back("paragraph");
-		clock.advance(50);
+		advance(50);
 		engine.pause();
 		tracker.flush();
 		expect(saved[0]?.wordsRead).toBe(4);
 	});
 
 	it("keeps counting up to the end of the Timeline", () => {
-		const { engine, clock, tracker, saved } = setup({ text: "one two three" });
+		const { engine, advance, tracker, saved } = setup({
+			text: "one two three",
+		});
 		engine.play();
-		for (let i = 0; i < 6; i++) clock.advance(100);
+		for (let i = 0; i < 6; i++) advance(100);
 		tracker.flush();
 		expect(engine.playing).toBe(false);
 		expect(saved[0]).toMatchObject({ activeMs: 600, wordsRead: 3 });
@@ -139,9 +149,9 @@ describe("Session tracker counts", () => {
 	});
 
 	it("reports the effective words per minute", () => {
-		const { engine, clock, tracker, saved } = setup();
+		const { engine, advance, tracker, saved } = setup();
 		engine.play();
-		clock.advance(450);
+		advance(450);
 		engine.pause();
 		tracker.flush();
 		expect(saved[0]?.wpm).toBe(400);
@@ -157,12 +167,12 @@ describe("Session dates", () => {
 			["Pacific/Auckland", "2026-03-02"],
 			["America/Los_Angeles", "2026-03-01"],
 		] as const) {
-			const { engine, clock, tracker, saved } = setup({
+			const { engine, advance, tracker, saved } = setup({
 				startEpoch: lateInUtc,
 				timeZone,
 			});
 			engine.play();
-			clock.advance(100);
+			advance(100);
 			engine.pause();
 			tracker.flush();
 			expect(saved[0]?.date).toBe(date);
@@ -171,16 +181,17 @@ describe("Session dates", () => {
 
 	it("count a Session that spans midnight toward its start date", () => {
 		// 23:50 on 1 March in Los Angeles (PST).
-		const { engine, clock, tracker, saved } = setup({
+		const { engine, advance, tracker, saved } = setup({
+			text: SIX.repeat(3),
 			startEpoch: Date.UTC(2026, 2, 2, 7, 50, 0),
 			timeZone: "America/Los_Angeles",
 		});
 		engine.play();
-		clock.advance(1000);
+		advance(1000);
 		engine.pause();
-		clock.advance(20 * 60_000);
+		advance(20 * 60_000);
 		engine.play();
-		clock.advance(500);
+		advance(500);
 		engine.pause();
 		tracker.flush();
 		expect(saved).toHaveLength(1);
@@ -192,17 +203,17 @@ describe("Session dates", () => {
 	});
 
 	it("start a new Session on the next date after a flush", () => {
-		const { engine, clock, tracker, saved } = setup({
+		const { engine, advance, tracker, saved } = setup({
 			startEpoch: Date.UTC(2026, 2, 2, 7, 50, 0),
 			timeZone: "America/Los_Angeles",
 		});
 		engine.play();
-		clock.advance(200);
+		advance(200);
 		engine.pause();
 		tracker.flush();
-		clock.advance(20 * 60_000);
+		advance(20 * 60_000);
 		engine.play();
-		clock.advance(200);
+		advance(200);
 		engine.pause();
 		tracker.flush();
 		expect(saved.map((s) => s.date)).toEqual(["2026-03-01", "2026-03-02"]);
@@ -211,13 +222,13 @@ describe("Session dates", () => {
 
 describe("Session tracker flushing", () => {
 	it("saves on pagehide and keeps counting afterwards", () => {
-		const { engine, clock, window, tracker, saved } = setup();
+		const { engine, advance, window, tracker, saved } = setup();
 		engine.play();
-		clock.advance(300);
+		advance(300);
 		window.dispatchEvent(new Event("pagehide"));
 		expect(saved).toHaveLength(1);
 		expect(saved[0]).toMatchObject({ activeMs: 300, wordsRead: 2 });
-		clock.advance(200);
+		advance(200);
 		engine.pause();
 		tracker.flush();
 		expect(saved).toHaveLength(2);
@@ -225,9 +236,9 @@ describe("Session tracker flushing", () => {
 	});
 
 	it("saves when the page becomes hidden, not when it becomes visible", () => {
-		const { engine, clock, hide, show, saved } = setup();
+		const { engine, advance, hide, show, saved } = setup();
 		engine.play();
-		clock.advance(300);
+		advance(300);
 		hide();
 		expect(saved).toHaveLength(1);
 		expect(saved[0]).toMatchObject({ activeMs: 300, wordsRead: 2 });
@@ -236,15 +247,15 @@ describe("Session tracker flushing", () => {
 	});
 
 	it("does not count time or words while the page is hidden", () => {
-		const { engine, clock, hide, show, tracker, saved } = setup({
+		const { engine, advance, hide, show, tracker, saved } = setup({
 			text: Array.from({ length: 100 }, () => "word").join(" "),
 		});
 		engine.play();
-		clock.advance(300);
+		advance(300);
 		hide();
-		clock.advance(5000);
+		advance(5000);
 		show();
-		clock.advance(100);
+		advance(100);
 		engine.pause();
 		tracker.flush();
 		expect(saved).toHaveLength(2);
@@ -252,9 +263,9 @@ describe("Session tracker flushing", () => {
 	});
 
 	it("stops listening after dispose", () => {
-		const { engine, clock, window, tracker, saved } = setup();
+		const { engine, advance, window, tracker, saved } = setup();
 		engine.play();
-		clock.advance(300);
+		advance(300);
 		tracker.dispose();
 		window.dispatchEvent(new Event("pagehide"));
 		expect(saved).toEqual([]);

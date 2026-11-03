@@ -36,7 +36,7 @@ describe("back one sentence", () => {
 
 	it("goes to the start of the current sentence from the middle of it", () => {
 		const { engine, goTo } = setup(doc());
-		goTo("five");
+		goTo("five.");
 		engine.back();
 		expect(engine.frame?.text).toBe("Three");
 	});
@@ -52,7 +52,7 @@ describe("back one sentence", () => {
 
 	it("stays at the document start and still emits seek", () => {
 		const { engine, seeks, goTo } = setup(doc());
-		goTo("two");
+		goTo("two.");
 		engine.back();
 		expect(engine.frame?.text).toBe("One");
 		seeks.length = 0;
@@ -132,7 +132,9 @@ describe("back one sentence", () => {
 
 describe("back one paragraph", () => {
 	it("goes to the start of the current paragraph, then the previous ones", () => {
-		const { engine, goTo } = setup(paragraphs("one two three", "four five six"));
+		const { engine, goTo } = setup(
+			paragraphs("one two three", "four five six"),
+		);
 		goTo("five");
 		engine.back("paragraph");
 		expect(engine.frame?.text).toBe("four");
