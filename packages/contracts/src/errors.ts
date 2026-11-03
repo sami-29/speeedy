@@ -42,25 +42,30 @@ export const EXCEPTION_LIMITS = {
 	/** Frames kept, from the top of the stack. */
 	frames: 20,
 	/** Characters of a script path. */
-	file: 200,
+	file: 80,
 	/** Characters of a function name. */
-	function: 100,
+	function: 60,
 	maxLine: 10_000_000,
 	maxCol: 10_000_000,
 	/** Reports one Visit may send. A crash loop must not flood. */
 	perVisit: 5,
 } as const;
 
+/** The file of a frame that is not one of our own bundles (eval, data:, blob:, extensions, other sites). */
+export const EXTERNAL_FILE = "external";
+/** The function of a frame whose name is not a plain identifier path. */
+export const UNKNOWN_FUNCTION = "?";
+
 /** Where in a stack the parser looks. A longer stack is cut off, not read. */
 const MAX_STACK_CHARS = 50_000;
 const MAX_STACK_LINES = 400;
 
 export interface ErrorFrame {
-	/** The script's path: no origin, no query, no hash. Empty when it is not a script path. */
+	/** One of our own bundle paths (no origin, query or hash), or `external` with line and col 0. */
 	file: string;
 	line: number;
 	col: number;
-	/** The function's name, or empty for an anonymous one. */
+	/** Identifiers joined by dots, or `?`. */
 	function: string;
 }
 
@@ -69,10 +74,15 @@ export interface ExceptionProperties {
 	frames: ErrorFrame[];
 }
 
-/** A script path under the site: a leading slash, safe characters and a script extension. */
-const FILE_PATH = /^\/[A-Za-z0-9_.~@+/-]*\.(?:m?js|ts|svelte)$/;
-/** Characters a function name may have, including `Object.<anonymous>`, `load/<` and `global code`. */
-const FUNCTION_NAME = /^[A-Za-z0-9_$.<>[\]#/ ]*$/;
+/**
+ * The paths of the app's own build output: `/_app/immutable/<folder>/<name>.<hash>.js`, where
+ * the hash is eight characters of base64url. Nothing a reader wrote can take this shape.
+ */
+const BUNDLE_PATH =
+	/^\/_app\/immutable\/(?:chunks|entry|nodes|workers|assets)\/(?:[A-Za-z0-9_.]{1,24}[.-])?[A-Za-z0-9_-]{8}\.m?js$/;
+/** One or more JavaScript identifiers joined by dots. */
+const FUNCTION_PATH =
+	/^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$/;
 const ORIGIN = /^[a-z][a-z0-9+.-]*:\/\/[^/?#]*/i;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -81,17 +91,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isFile(value: unknown): value is string {
 	return (
-		typeof value === "string" &&
-		(value === "" ||
-			(value.length <= EXCEPTION_LIMITS.file && FILE_PATH.test(value)))
+		value === EXTERNAL_FILE ||
+		(typeof value === "string" &&
+			value.length <= EXCEPTION_LIMITS.file &&
+			BUNDLE_PATH.test(value))
 	);
 }
 
 function isFunction(value: unknown): value is string {
 	return (
-		typeof value === "string" &&
-		value.length <= EXCEPTION_LIMITS.function &&
-		FUNCTION_NAME.test(value)
+		value === UNKNOWN_FUNCTION ||
+		(typeof value === "string" &&
+			value.length <= EXCEPTION_LIMITS.function &&
+			FUNCTION_PATH.test(value))
 	);
 }
 
@@ -104,15 +116,26 @@ function isBounded(value: unknown, max: number): value is number {
 	);
 }
 
-/** Cuts a script location down to a path, or to empty if it is not a script path. */
+/** The page's own origin, when running in a page. Absent in a Worker or a test. */
+function ownOrigin(): string | undefined {
+	const origin = (globalThis as { location?: { origin?: unknown } }).location
+		?.origin;
+	return typeof origin === "string" && origin !== "null" ? origin : undefined;
+}
+
+/** Cuts a script location down to our own bundle path, or to `external`. */
 function filePath(location: string): string {
+	const origin = ORIGIN.exec(location)?.[0];
+	const mine = ownOrigin();
+	if (origin !== undefined && mine !== undefined && origin !== mine)
+		return EXTERNAL_FILE;
 	const path = location.replace(ORIGIN, "").split(/[?#]/, 1)[0];
-	return isFile(path) ? path : "";
+	return isFile(path) ? path : EXTERNAL_FILE;
 }
 
 function functionName(raw: string): string {
 	const name = raw.replace(/^(?:async|new)\s+/, "").trim();
-	return isFunction(name) ? name : "";
+	return isFunction(name) ? name : UNKNOWN_FUNCTION;
 }
 
 const CHROME_FRAME = /^at (?:(.+?) \()?(.+?):(\d+):(\d+)\)?$/;
@@ -132,8 +155,12 @@ function parseFrame(line: string): ErrorFrame | null {
 		!isBounded(col, EXCEPTION_LIMITS.maxCol)
 	)
 		return null;
+	const file = filePath(location);
+	// A frame outside our bundles says nothing about our code: it keeps no line, column or name.
+	if (file === EXTERNAL_FILE)
+		return { file, line: 0, col: 0, function: UNKNOWN_FUNCTION };
 	return {
-		file: filePath(location),
+		file,
 		line: lineNumber,
 		col,
 		function: functionName(name ?? ""),
@@ -226,6 +253,12 @@ function frameProblem(
 		!isFunction(frame.function)
 	)
 		return "bad_property_value";
+	// An external frame is a fixed marker: no position and no name.
+	if (
+		frame.file === EXTERNAL_FILE &&
+		(frame.line !== 0 || frame.col !== 0 || frame.function !== UNKNOWN_FUNCTION)
+	)
+		return "bad_property_value";
 	return null;
 }
 
@@ -279,7 +312,7 @@ export function toPostHogException(
 						function: frame.function,
 						lineno: frame.line,
 						colno: frame.col,
-						in_app: true,
+						in_app: frame.file !== EXTERNAL_FILE,
 					})),
 				},
 			},
@@ -337,14 +370,14 @@ export function renderExceptionMarkdown(): string {
 	return [
 		"## `$exception`",
 		"",
-		"An error report. It carries an error code and stack frames and nothing else: no error message, no variables, no source lines. A frame is a script path, a line, a column and a function name. It does not go through the registry above; it has its own fixed shape, and the server turns it into PostHog's `$exception` with an empty message, the code as the fingerprint and a fixed description per code.",
+		"An error report. It carries an error code and stack frames and nothing else: no error message, no variables, no source lines. A frame is one of the app's own bundle paths, a line, a column and a function name; code from anywhere else is a fixed `external` frame. It does not go through the registry above; it has its own fixed shape, and the server turns it into PostHog's `$exception` with an empty message, the code as the fingerprint and a fixed description per code.",
 		"",
 		`Sent by: the app. Schema version ${EXCEPTION_SCHEMA_VERSION}. At most ${EXCEPTION_LIMITS.perVisit} per Visit.`,
 		"",
 		"| Property | Value | Required |",
 		"| --- | --- | --- |",
 		`| \`code\` | one of ${codes} | yes |`,
-		`| \`frames\` | up to ${EXCEPTION_LIMITS.frames} stack frames, each a script path (no origin, query or hash, up to ${EXCEPTION_LIMITS.file} characters), a line, a column and a function name (up to ${EXCEPTION_LIMITS.function} characters) | yes |`,
+		`| \`frames\` | up to ${EXCEPTION_LIMITS.frames} stack frames, each one of the app's own bundle paths (no origin, query or hash) or the fixed marker \`external\`, a line, a column and a function name that is plain identifiers joined by dots (or \`?\`) | yes |`,
 		"",
 	].join("\n");
 }

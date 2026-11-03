@@ -6,6 +6,7 @@ import { describe, it } from "vitest";
 import {
 	buildException,
 	CANARY,
+	CANARY_PHRASE,
 	checkEvent,
 	checkException,
 	createAnalytics,
@@ -18,6 +19,7 @@ import {
 	hostileErrors,
 	ISSUE_DESCRIPTIONS,
 	installErrorCapture,
+	leaksCanary,
 	registryProblems,
 	renderEventListMarkdown,
 	toPostHogException,
@@ -30,38 +32,40 @@ function errorWith(stack: string, message = "boom"): Error {
 }
 
 const CHROME = `Error: boom
-    at parseThing (https://speeedy.app/_app/immutable/chunks/abc123.js:1:4521)
-    at async Object.load (https://speeedy.app/_app/immutable/nodes/2.js?v=1#frag:3:17)
-    at https://speeedy.app/_app/immutable/entry/app.js:1:900`;
+    at parseThing (https://speeedy.app/_app/immutable/chunks/abc12345.js:1:4521)
+    at async Object.load (https://speeedy.app/_app/immutable/nodes/2.Ab12Cd34.js?v=1#frag:3:17)
+    at https://speeedy.app/_app/immutable/entry/app.Ab12Cd34.js:1:900`;
 
-const GECKO = `parseThing@https://speeedy.app/_app/immutable/chunks/abc123.js:1:4521
-load/<@https://speeedy.app/_app/immutable/nodes/2.js:3:17
-@https://speeedy.app/_app/immutable/entry/app.js:1:900`;
+const PHRASE = CANARY_PHRASE;
 
-const SAFARI = `parseThing@https://speeedy.app/_app/immutable/chunks/abc123.js:1:4521
-global code@https://speeedy.app/_app/immutable/entry/app.js:1:900
+const GECKO = `parseThing@https://speeedy.app/_app/immutable/chunks/abc12345.js:1:4521
+load/<@https://speeedy.app/_app/immutable/nodes/2.Ab12Cd34.js:3:17
+@https://speeedy.app/_app/immutable/entry/app.Ab12Cd34.js:1:900`;
+
+const SAFARI = `parseThing@https://speeedy.app/_app/immutable/chunks/abc12345.js:1:4521
+global code@https://speeedy.app/_app/immutable/entry/app.Ab12Cd34.js:1:900
 [native code]`;
 
 describe("framesFromError", () => {
 	it("reads a Chrome stack and keeps file path, line, column and function only", () => {
 		assert.deepEqual(framesFromError(errorWith(CHROME)), [
 			{
-				file: "/_app/immutable/chunks/abc123.js",
+				file: "/_app/immutable/chunks/abc12345.js",
 				line: 1,
 				col: 4521,
 				function: "parseThing",
 			},
 			{
-				file: "/_app/immutable/nodes/2.js",
+				file: "/_app/immutable/nodes/2.Ab12Cd34.js",
 				line: 3,
 				col: 17,
 				function: "Object.load",
 			},
 			{
-				file: "/_app/immutable/entry/app.js",
+				file: "/_app/immutable/entry/app.Ab12Cd34.js",
 				line: 1,
 				col: 900,
-				function: "",
+				function: "?",
 			},
 		]);
 	});
@@ -70,51 +74,104 @@ describe("framesFromError", () => {
 		const frames = framesFromError(errorWith(GECKO));
 		assert.equal(frames.length, 3);
 		assert.deepEqual(frames[1], {
-			file: "/_app/immutable/nodes/2.js",
+			file: "/_app/immutable/nodes/2.Ab12Cd34.js",
 			line: 3,
 			col: 17,
-			function: "load/<",
+			function: "?",
 		});
-		assert.equal(frames[2].function, "");
+		assert.equal(frames[2].function, "?");
 	});
 
 	it("reads a Safari stack and skips native frames", () => {
 		const frames = framesFromError(errorWith(SAFARI));
 		assert.equal(frames.length, 2);
-		assert.equal(frames[1].function, "global code");
+		assert.equal(frames[1].function, "?");
 	});
 
 	it("keeps at most the frame limit, from the top", () => {
 		const lines = Array.from(
 			{ length: 60 },
-			(_, i) => `    at f${i} (https://speeedy.app/_app/a.js:${i + 1}:1)`,
+			(_, i) =>
+				`    at f${i} (https://speeedy.app/_app/immutable/chunks/AbCd1234.js:${i + 1}:1)`,
 		);
 		const frames = framesFromError(errorWith(`Error: x\n${lines.join("\n")}`));
 		assert.equal(frames.length, EXCEPTION_LIMITS.frames);
 		assert.equal(frames[0].function, "f0");
 	});
 
-	it("drops a file that is not a script path, and a function that is not a name", () => {
+	const BUNDLE = "https://speeedy.app/_app/immutable/chunks/AbCd1234.js";
+	const EXTERNAL = {
+		file: "external",
+		line: 0,
+		col: 0,
+		function: "?",
+	};
+
+	it("sends a function name that is not a plain identifier path as ?", () => {
 		const frames = framesFromError(
 			errorWith(
 				[
 					"Error: x",
-					`    at ok (https://speeedy.app/s?d=${CANARY}#${CANARY}:5:6)`,
-					`    at ${CANARY} (https://speeedy.app/_app/a.js:5:6)`,
-					`    at data (data:text/javascript,${CANARY}:1:1)`,
+					`    at ${PHRASE} (${BUNDLE}:1:1)`,
+					`    at Object.${PHRASE} (${BUNDLE}:2:1)`,
+					`    at ${CANARY} (${BUNDLE}:3:1)`,
+					`    at Object.<anonymous> (${BUNDLE}:4:1)`,
+					`    at Class.method (${BUNDLE}:5:1)`,
+					`${PHRASE}@${BUNDLE}:6:1`,
+					`${PHRASE}/<@${BUNDLE}:7:1`,
 				].join("\n"),
 			),
 		);
-		assert.ok(!JSON.stringify(frames).includes(CANARY));
-		for (const frame of frames) {
-			assert.ok(frame.file === "" || /\.(m?js|ts|svelte)$/.test(frame.file));
-		}
+		assert.deepEqual(
+			frames.map((f) => f.function),
+			["?", "?", "?", "?", "Class.method", "?", "?"],
+		);
+		assert.ok(!leaksCanary(JSON.stringify(frames)));
+	});
+
+	it("sends a real computed-key method name as ?", () => {
+		const o = {
+			[PHRASE]() {
+				return new Error("x");
+			},
+		};
+		const frames = framesFromError(o[PHRASE]());
+		assert.ok(frames.length > 0);
+		assert.ok(!leaksCanary(JSON.stringify(frames)));
+	});
+
+	it("keeps only our own bundle paths and maps the rest to the external frame", () => {
+		const frames = framesFromError(
+			errorWith(
+				[
+					"Error: x",
+					`    at ok (${BUNDLE}?v=${PHRASE}#${PHRASE}:5:6)`,
+					`    at eval (eval at ${PHRASE} (${BUNDLE}:1:1), <anonymous>:1:1)`,
+					`${PHRASE}@${BUNDLE} line 5 > eval:1:1`,
+					`    at data (data:text/javascript,${PHRASE}:1:1)`,
+					`    at blob (blob:https://speeedy.app/${PHRASE}:1:1)`,
+					`    at ext (chrome-extension://abcdef/${PHRASE}.js:1:1)`,
+					`ext@moz-extension://abcdef/${PHRASE}.js:1:1`,
+					`    at hyphen (https://speeedy.app/_app/immutable/chunks/the-cat-sat-on-the-mat.js:1:1)`,
+					`    at page (https://speeedy.app/s?d=${PHRASE}#${PHRASE}:5:6)`,
+				].join("\n"),
+			),
+		);
+		assert.deepEqual(frames[0], {
+			file: "/_app/immutable/chunks/AbCd1234.js",
+			line: 5,
+			col: 6,
+			function: "ok",
+		});
+		assert.equal(frames.length, 10 - 1);
+		for (const frame of frames.slice(1)) assert.deepEqual(frame, EXTERNAL);
+		assert.ok(!leaksCanary(JSON.stringify(frames)));
 	});
 
 	it("never reads the message, even when it looks like a frame", () => {
 		const message = `${CANARY}\n    at forged (https://speeedy.app/_app/${CANARY}.js:1:1)`;
 		const error = new Error(message);
-		error.stack = `Error: ${message}\n    at real (https://speeedy.app/_app/real.js:2:3)`;
+		error.stack = `Error: ${message}\n    at real (https://speeedy.app/_app/immutable/chunks/AbCd1234.js:2:3)`;
 		const frames = framesFromError(error);
 		assert.deepEqual(
 			frames.map((f) => f.function),
@@ -130,12 +187,12 @@ describe("framesFromError", () => {
 
 	it("reads a real error from this runtime without throwing", () => {
 		const frames = framesFromError(new Error(CANARY));
-		assert.ok(!JSON.stringify(frames).includes(CANARY));
+		assert.ok(!leaksCanary(JSON.stringify(frames)));
 		assert.ok(frames.length <= EXCEPTION_LIMITS.frames);
 	});
 
 	it("stays fast on a huge stack", () => {
-		const huge = `Error: x\n${"    at f (https://speeedy.app/_app/a.js:1:1)\n".repeat(200_000)}`;
+		const huge = `Error: x\n${"    at f (https://speeedy.app/_app/immutable/chunks/AbCd1234.js:1:1)\n".repeat(200_000)}`;
 		const started = Date.now();
 		const frames = framesFromError(errorWith(huge));
 		assert.equal(frames.length, EXCEPTION_LIMITS.frames);
@@ -158,15 +215,15 @@ describe("buildException", () => {
 			for (const code of ERROR_CODES) {
 				const event = buildException(hostile, code);
 				assert.ok(
-					!JSON.stringify(event).includes(CANARY),
+					!leaksCanary(JSON.stringify(event)),
 					`hostile error ${i} leaked in the app payload`,
 				);
 				const checked = checkException(event.properties);
 				assert.equal(checked.ok, true, `hostile error ${i} built a bad shape`);
 				if (checked.ok) {
 					assert.ok(
-						!JSON.stringify(toPostHogException(checked.properties)).includes(
-							CANARY,
+						!leaksCanary(
+							JSON.stringify(toPostHogException(checked.properties)),
 						),
 						`hostile error ${i} leaked in the PostHog payload`,
 					);
@@ -177,7 +234,12 @@ describe("buildException", () => {
 });
 
 describe("checkException", () => {
-	const frame = { file: "/_app/a.js", line: 1, col: 2, function: "f" };
+	const frame = {
+		file: "/_app/immutable/chunks/AbCd1234.js",
+		line: 1,
+		col: 2,
+		function: "f",
+	};
 	const good = { code: "unhandled_error", frames: [frame] };
 	const withFrame = (extra: object) => ({
 		...good,
@@ -188,6 +250,18 @@ describe("checkException", () => {
 		assert.equal(checkException(good).ok, true);
 		assert.equal(
 			checkException({ code: "unhandled_error", frames: [] }).ok,
+			true,
+		);
+	});
+
+	it("accepts the external frame and a dotted function name", () => {
+		const external = { file: "external", line: 0, col: 0, function: "?" };
+		assert.equal(checkException({ ...good, frames: [external] }).ok, true);
+		assert.equal(
+			checkException({
+				...good,
+				frames: [{ ...frame, function: "Class.method" }],
+			}).ok,
 			true,
 		);
 	});
@@ -240,6 +314,40 @@ describe("checkException", () => {
 			withFrame({ file: `/${"a".repeat(EXCEPTION_LIMITS.file)}.js` }),
 		],
 		["a file with a space", withFrame({ file: "/a b.js" })],
+		[
+			"a file of hyphenated words",
+			withFrame({ file: "/_app/immutable/chunks/the-cat-sat-on-the-mat.js" }),
+		],
+		[
+			"a bundle path with words in its name",
+			withFrame({ file: "/_app/immutable/chunks/Chapter-one-the-cat.js" }),
+		],
+		[
+			"a path outside the bundle folders",
+			withFrame({ file: "/s/AbCd1234.js" }),
+		],
+		["an extension url", withFrame({ file: "chrome-extension://abc/x.js" })],
+		["a data url", withFrame({ file: `data:text/javascript,${CANARY}` })],
+		["a blob url", withFrame({ file: `blob:https://speeedy.app/${CANARY}` })],
+		["an empty file", withFrame({ file: "" })],
+		[
+			"an external frame with a position",
+			withFrame({ file: "external", line: 3, col: 1, function: "?" }),
+		],
+		[
+			"an external frame with a name",
+			withFrame({ file: "external", line: 0, col: 0, function: "f" }),
+		],
+		["a function of spaced words", withFrame({ function: CANARY_PHRASE })],
+		[
+			"a computed-key method name",
+			withFrame({ function: `Object.${CANARY_PHRASE}` }),
+		],
+		[
+			"a function with an angle bracket",
+			withFrame({ function: "Object.<anonymous>" }),
+		],
+		["an empty function", withFrame({ function: "" })],
 		["a canary in the function", withFrame({ function: CANARY })],
 		[
 			"a function over its bound",
@@ -271,7 +379,14 @@ describe("the PostHog event", () => {
 	it("has an empty message, frames only, the code as fingerprint and an enum description", () => {
 		const checked = checkException({
 			code: "unhandled_rejection",
-			frames: [{ file: "/_app/a.js", line: 4, col: 9, function: "f" }],
+			frames: [
+				{
+					file: "/_app/immutable/chunks/AbCd1234.js",
+					line: 4,
+					col: 9,
+					function: "f",
+				},
+			],
 		});
 		assert.ok(checked.ok);
 		const properties = toPostHogException(checked.properties);
@@ -293,7 +408,7 @@ describe("the PostHog event", () => {
 		assert.deepEqual(list[0].stacktrace.frames, [
 			{
 				platform: "web:javascript",
-				filename: "/_app/a.js",
+				filename: "/_app/immutable/chunks/AbCd1234.js",
 				function: "f",
 				lineno: 4,
 				colno: 9,
@@ -382,7 +497,7 @@ describe("the app's send function", () => {
 
 	function distinct(n: number): Error {
 		return errorWith(
-			`Error: x\n    at f${n} (https://speeedy.app/_app/a.js:${n}:1)`,
+			`Error: x\n    at f${n} (https://speeedy.app/_app/immutable/chunks/AbCd1234.js:${n}:1)`,
 		);
 	}
 
@@ -407,7 +522,7 @@ describe("the app's send function", () => {
 			analytics.trackError(hostile, "render_error");
 		await analytics.flush();
 		assert.ok(sent.length > 0);
-		assert.ok(!JSON.stringify(sent).includes(CANARY));
+		assert.ok(!leaksCanary(JSON.stringify(sent)));
 	});
 
 	it("sends the same error once, so a loop cannot flood", async () => {

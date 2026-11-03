@@ -6,7 +6,26 @@ export interface ErrorPrivacyCase {
 	properties: unknown;
 }
 
-const GOOD_FRAME = { file: "/_app/a.js", line: 1, col: 1, function: "f" };
+const GOOD_FRAME = {
+	file: "/_app/immutable/chunks/AbCd1234.js",
+	line: 1,
+	col: 1,
+	function: "f",
+};
+
+/** Plain words, as document text would be: spaces, no hyphens, no digits. */
+export const CANARY_PHRASE = "Chapter one the cat sat";
+
+const CANARY_WORDS = ["Chapter", "the cat", "cat sat", "sat", CANARY_PHRASE];
+
+/** True if a payload carries the canary or any of the canary phrase's words. */
+export function leaksCanary(payload: string): boolean {
+	return (
+		payload.includes(CANARY) ||
+		payload.includes("the-cat") ||
+		CANARY_WORDS.some((word) => payload.includes(word))
+	);
+}
 
 /** Names a careless change might add to carry page content or a URL. */
 const LEAKY_NAMES = ["document_text", "title", "url", "hash"];
@@ -94,6 +113,47 @@ export function errorPrivacyCases(): ErrorPrivacyCase[] {
 			properties: withFrame({ function: CANARY }),
 		},
 		{
+			label: "spaced words in function",
+			properties: withFrame({ function: CANARY_PHRASE }),
+		},
+		{
+			label: "computed-key method name in function",
+			properties: withFrame({ function: `Object.${CANARY_PHRASE}` }),
+		},
+		{
+			label: "hyphenated words in file",
+			properties: withFrame({
+				file: "/_app/immutable/chunks/the-cat-sat-on-the-mat.js",
+			}),
+		},
+		{
+			label: "extension url in file",
+			properties: withFrame({
+				file: `chrome-extension://abcdef/${CANARY_PHRASE}.js`,
+			}),
+		},
+		{
+			label: "data url in file",
+			properties: withFrame({
+				file: `data:text/javascript,${CANARY_PHRASE}`,
+			}),
+		},
+		{
+			label: "blob url in file",
+			properties: withFrame({
+				file: `blob:https://speeedy.app/${CANARY_PHRASE}`,
+			}),
+		},
+		{
+			label: "words in an external frame",
+			properties: withFrame({
+				file: "external",
+				line: 0,
+				col: 0,
+				function: CANARY_PHRASE,
+			}),
+		},
+		{
 			label: "canary in function with a quote",
 			properties: withFrame({ function: `"${CANARY}"` }),
 		},
@@ -130,6 +190,17 @@ export function errorPrivacyCases(): ErrorPrivacyCase[] {
 	return cases;
 }
 
+const BUNDLE = "https://speeedy.app/_app/immutable/chunks/AbCd1234.js";
+
+function computedKeyError(): Error {
+	const holder = {
+		[CANARY_PHRASE]() {
+			return new Error("x");
+		},
+	};
+	return holder[CANARY_PHRASE]();
+}
+
 function withStack(stack: string, extra: Record<string, unknown> = {}): Error {
 	return Object.assign(new Error("x"), extra, { stack });
 }
@@ -139,7 +210,8 @@ function withStack(stack: string, extra: Record<string, unknown> = {}): Error {
  * stack header, properties, cause, and frame locations. Nothing but frames may leave.
  */
 export function hostileErrors(): unknown[] {
-	const frame = "    at real (https://speeedy.app/_app/real.js:2:3)";
+	const frame =
+		"    at real (https://speeedy.app/_app/immutable/chunks/AbCd1234.js:2:3)";
 	const message = `${CANARY}\n    at forged (https://speeedy.app/_app/${CANARY}.js:1:1)\n    at ${CANARY} (https://speeedy.app/_app/x.js:1:1)`;
 	const named = new Error(CANARY);
 	named.name = CANARY;
@@ -163,13 +235,52 @@ export function hostileErrors(): unknown[] {
 		withStack(
 			[
 				"Error: x",
-				`    at ${CANARY} (https://speeedy.app/_app/a.js:1:1)`,
+				`    at ${CANARY} (https://speeedy.app/_app/immutable/chunks/AbCd1234.js:1:1)`,
 				`    at fine (https://speeedy.app/read?q=${CANARY}#${CANARY}:1:1)`,
 				`    at data (data:text/javascript,${CANARY}:1:1)`,
 				`    at blob (blob:https://speeedy.app/${CANARY}:1:1)`,
-				`    at "${CANARY}" (https://speeedy.app/_app/b.js:1:1)`,
-				`${CANARY}@https://speeedy.app/_app/c.js?${CANARY}:4:5`,
+				`    at "${CANARY}" (https://speeedy.app/_app/immutable/chunks/BcDe2345.js:1:1)`,
+				`${CANARY}@https://speeedy.app/_app/immutable/chunks/CdEf3456.js?${CANARY}:4:5`,
 				`${CANARY}`,
+			].join("\n"),
+		),
+		// Plain spaced words as function names, with a valid bundle file.
+		withStack(
+			[
+				"Error: x",
+				`    at ${CANARY_PHRASE} (${BUNDLE}:1:1)`,
+				`    at Object.${CANARY_PHRASE} (${BUNDLE}:2:1)`,
+				`    at async ${CANARY_PHRASE} (${BUNDLE}:3:1)`,
+				`    at new ${CANARY_PHRASE} (${BUNDLE}:4:1)`,
+				`${CANARY_PHRASE}@${BUNDLE}:5:1`,
+				`${CANARY_PHRASE}/<@${BUNDLE}:6:1`,
+				`Object.${CANARY_PHRASE}@${BUNDLE}:7:1`,
+			].join("\n"),
+		),
+		// A real computed-key method: the engine puts its key in the function name.
+		computedKeyError(),
+		// V8 and Gecko eval frames, which name the evaluating location.
+		withStack(
+			[
+				"Error: x",
+				`    at eval (eval at ${CANARY_PHRASE} (${BUNDLE}:1:1), <anonymous>:1:1)`,
+				`    at eval (eval at <anonymous> (${BUNDLE}:2:2), ${CANARY_PHRASE}:1:1)`,
+				`${CANARY_PHRASE}@${BUNDLE} line 5 > eval:1:1`,
+				`${CANARY_PHRASE}@${BUNDLE} line 5 > Function:1:1`,
+			].join("\n"),
+		),
+		// data:, blob:, extension and foreign URLs, and file paths made of words.
+		withStack(
+			[
+				"Error: x",
+				`    at a (data:text/javascript,${CANARY_PHRASE}:1:1)`,
+				`    at b (blob:https://speeedy.app/${CANARY_PHRASE}:1:1)`,
+				`    at c (chrome-extension://abcdef/${CANARY_PHRASE}.js:1:1)`,
+				`d@moz-extension://abcdef/${CANARY_PHRASE}.js:1:1`,
+				`    at e (https://speeedy.app/_app/immutable/chunks/the-cat-sat-on-the-mat.js:1:1)`,
+				`    at f (https://speeedy.app/_app/the-cat-sat.js?${CANARY_PHRASE}#${CANARY_PHRASE}:1:1)`,
+				`    at g (https://example.test/${CANARY_PHRASE}.js:1:1)`,
+				`    at h (https://speeedy.app/learn/chapter-one-the-cat-sat:1:1)`,
 			].join("\n"),
 		),
 		{ message: CANARY, name: CANARY, stack: `${CANARY}\n${frame}` },

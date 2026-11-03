@@ -11,6 +11,7 @@ import {
 	errorPrivacyCases,
 	hostileErrors,
 	ISSUE_DESCRIPTIONS,
+	leaksCanary,
 } from "@speeedy/contracts";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -19,7 +20,12 @@ import { ALLOWLIST } from "../src/e/allowlist";
 import { network } from "./network";
 
 const VISIT = "7b1f0c9e-4c1d-4a53-9a43-0d6c7f1d2e11";
-const FRAME = { file: "/_app/immutable/a.js", line: 3, col: 14, function: "f" };
+const FRAME = {
+	file: "/_app/immutable/chunks/AbCd1234.js",
+	line: 3,
+	col: 14,
+	function: "f",
+};
 
 // biome-ignore lint/suspicious/noExplicitAny: the fake endpoint stores whatever arrives
 let captured: any[];
@@ -106,7 +112,7 @@ describe("POST /api/e with an $exception", () => {
 					frames: [
 						{
 							platform: "web:javascript",
-							filename: "/_app/immutable/a.js",
+							filename: "/_app/immutable/chunks/AbCd1234.js",
 							function: "f",
 							lineno: 3,
 							colno: 14,
@@ -198,7 +204,7 @@ describe("hostile errors sent through the app's send function", () => {
 		await analytics.flush();
 
 		expect(captured.length).toBeGreaterThan(0);
-		expect(texts.join("")).not.toContain(CANARY);
+		expect(leaksCanary(texts.join(""))).toBe(false);
 		for (const body of captured) {
 			for (const event of body.batch) {
 				expect(event.event).toBe(EXCEPTION_EVENT);
