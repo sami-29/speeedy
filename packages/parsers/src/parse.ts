@@ -6,6 +6,7 @@ import {
 import { clip, normalizeText, scanControls, tidyLine } from "./clean";
 import { csvToBlocks } from "./csv";
 import { decodeBytes } from "./decode";
+import { docxToBlocks } from "./docx";
 import { htmlToBlocks } from "./html";
 import { detectLanguage, normalizeLanguageTag } from "./language";
 import { type MarkdownMeta, markdownToBlocks } from "./markdown";
@@ -62,7 +63,6 @@ const BINARY_EXTENSIONS = new Set([
 const NOT_YET_EXTENSIONS = new Set([
 	"pdf",
 	"epub",
-	"docx",
 	"doc",
 	"odt",
 	"rtf",
@@ -268,6 +268,22 @@ function parseTextFormat(
 	});
 }
 
+async function parseDocx(
+	bytes: Uint8Array,
+	hints: Hints,
+	fileTitle: string | null,
+): Promise<ParseOutcome> {
+	const sink = new BlockSink(hints.maxBlocks);
+	const meta = await docxToBlocks(bytes, sink);
+	return finish(sink, {
+		title: meta.title ?? fileTitle,
+		format: "docx",
+		encoding: null,
+		hinted: hints.language,
+		metadataLanguage: null,
+	});
+}
+
 function toOutcome(error: unknown): ParseOutcome {
 	if (error instanceof ParseFailure)
 		return failure(error.reason, error.message);
@@ -304,6 +320,9 @@ export async function parse(
 		}
 		const segment = lastSegment(fileName);
 		const extension = extensionOf(segment);
+		if (extension === "docx") {
+			return await parseDocx(view, options, titleFromFileName(segment));
+		}
 		if (NOT_YET_EXTENSIONS.has(extension)) {
 			return failure(
 				"unsupported",

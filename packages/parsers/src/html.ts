@@ -271,7 +271,7 @@ const ALLOWED_SCHEMES = new Set(["http", "https", "mailto", "tel"]);
  * and scheme-less (relative or fragment) targets survive, however the scheme is spelled:
  * browsers ignore tabs, newlines and other control characters inside a URL, so do we.
  */
-function safeHref(raw: string): string | null {
+export function safeHref(raw: string): string | null {
 	const source = raw.length > MAX_HREF * 2 ? raw.slice(0, MAX_HREF * 2) : raw;
 	let cleaned = "";
 	for (const char of source) {
@@ -704,7 +704,7 @@ function textBlock(ctx: Ctx, text: string, spans: Span[]): Block {
 }
 
 /** Trim spaces off the edges of each span, clamp to the text, drop empties, sort. */
-function tidySpans(spans: Span[], text: string): Span[] {
+export function tidySpans(spans: Span[], text: string): Span[] {
 	const out: Span[] = [];
 	for (const span of spans) {
 		let { start, end } = span;
