@@ -3,6 +3,7 @@ import {
 	commandForKey,
 	type KeyInput,
 	nextMode,
+	REWINDS,
 	SHORTCUTS,
 } from "../src/lib/reader/shortcuts.ts";
 
@@ -31,6 +32,18 @@ describe("reader keys", () => {
 			kind: "back",
 			unit: "paragraph",
 		});
+	});
+
+	it("C goes back a chapter, whatever the case", () => {
+		expect(commandForKey(press("c"))).toEqual({
+			kind: "back",
+			unit: "chapter",
+		});
+		expect(commandForKey(press("C", { shiftKey: true }))).toEqual({
+			kind: "back",
+			unit: "chapter",
+		});
+		expect(commandForKey(press("c", { ctrlKey: true }))).toBeUndefined();
 	});
 
 	it("ArrowUp and ArrowDown change the speed by 10, by 50 with Shift", () => {
@@ -122,6 +135,34 @@ describe("shortcut list", () => {
 		for (const key of ["Space", "←", "↑", "↓", "M", "?"]) {
 			expect(keys).toContain(key);
 		}
+	});
+});
+
+describe("rewinds", () => {
+	it("are one entry per unit, each with a key in the shortcut list", () => {
+		expect(REWINDS.map((rewind) => rewind.unit)).toEqual([
+			"sentence",
+			"paragraph",
+			"chapter",
+		]);
+		const ids = SHORTCUTS.map((shortcut) => shortcut.id);
+		for (const rewind of REWINDS) expect(ids).toContain(rewind.shortcut);
+	});
+
+	it("name the key that does the same, for assistive technology", () => {
+		expect(REWINDS.map((rewind) => rewind.keyshortcuts)).toEqual([
+			"ArrowLeft",
+			"Shift+ArrowLeft",
+			"C",
+		]);
+	});
+
+	it("list the keys the reader answers to", () => {
+		const entry = (id: string) =>
+			SHORTCUTS.find((shortcut) => shortcut.id === id);
+		expect(entry("back")?.keys).toEqual(["←"]);
+		expect(entry("back_paragraph")?.keys).toEqual(["Shift", "←"]);
+		expect(entry("back_chapter")?.keys).toEqual(["C"]);
 	});
 });
 
