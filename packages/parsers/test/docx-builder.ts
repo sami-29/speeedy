@@ -64,9 +64,7 @@ export function stylesXml(styles: StyleDef[]): string {
 	const body = styles
 		.map((s) => {
 			const ppr = [
-				s.outline === undefined
-					? ""
-					: `<w:outlineLvl w:val="${s.outline}"/>`,
+				s.outline === undefined ? "" : `<w:outlineLvl w:val="${s.outline}"/>`,
 				s.numId === undefined
 					? ""
 					: `<w:numPr><w:ilvl w:val="${s.level ?? 0}"/><w:numId w:val="${s.numId}"/></w:numPr>`,

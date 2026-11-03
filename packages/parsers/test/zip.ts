@@ -110,3 +110,24 @@ export function zip(
 	}
 	return out;
 }
+
+/**
+ * A valid raw deflate stream made only of stored blocks: the size of the data plus a few bytes,
+ * built without compressing, so a test can have a huge part that compresses at a ratio near 1.
+ */
+export function storedDeflate(data: Uint8Array): Uint8Array<ArrayBuffer> {
+	const blocks = Math.max(1, Math.ceil(data.length / 65535));
+	const out = new Uint8Array(data.length + blocks * 5);
+	let at = 0;
+	for (let i = 0; i < blocks; i++) {
+		const chunk = data.subarray(i * 65535, (i + 1) * 65535);
+		out[at++] = i === blocks - 1 ? 1 : 0;
+		out[at++] = chunk.length & 0xff;
+		out[at++] = chunk.length >> 8;
+		out[at++] = ~chunk.length & 0xff;
+		out[at++] = (~chunk.length >> 8) & 0xff;
+		out.set(chunk, at);
+		at += chunk.length;
+	}
+	return out;
+}

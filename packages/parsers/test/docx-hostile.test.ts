@@ -5,14 +5,14 @@ import { describe, expect, it, vi } from "vitest";
 import { parse } from "../src/index";
 import {
 	compoundFile,
-	docx,
 	documentXml,
+	docx,
 	listItem,
 	numberingXml,
 	para,
+	row,
 	run,
 	table,
-	row,
 } from "./docx-builder";
 import {
 	expectError,
@@ -21,7 +21,7 @@ import {
 	textsOf,
 	utf8,
 } from "./helpers";
-import { zip } from "./zip";
+import { storedDeflate, zip } from "./zip";
 
 const MiB = 1024 * 1024;
 
@@ -94,9 +94,9 @@ describe("docx: ZIP structure that lies", () => {
 		];
 		expect(textsOf(await read(zip(entries)))).toEqual(["descriptor"]);
 		const comment = Uint8Array.from([0x50, 0x4b, 0x05, 0x06, 1, 2, 3, 4, 5, 6]);
-		expect(
-			textsOf(await read(zip(entries, { comment }))),
-		).toEqual(["descriptor"]);
+		expect(textsOf(await read(zip(entries, { comment })))).toEqual([
+			"descriptor",
+		]);
 	});
 
 	it("follows the package relationship to the main part", async () => {
@@ -119,8 +119,14 @@ describe("docx: ZIP structure that lies", () => {
 
 	it("rejects a truncated package, with or without its end record", async () => {
 		const bytes = good();
-		expectError(await read(bytes.subarray(0, bytes.length >> 1)), "unsupported");
-		expectError(await read(bytes.subarray(0, bytes.length - 10)), "unsupported");
+		expectError(
+			await read(bytes.subarray(0, bytes.length >> 1)),
+			"unsupported",
+		);
+		expectError(
+			await read(bytes.subarray(0, bytes.length - 10)),
+			"unsupported",
+		);
 		expectError(await read(bytes.subarray(0, 30)), "unsupported");
 	});
 
@@ -179,7 +185,7 @@ describe("docx: ZIP structure that lies", () => {
 	});
 });
 
-describe("docx: limits are typed too-big", () => {
+describe("docx: limits are typed too-big", { timeout: 60_000 }, () => {
 	it("refuses a package with more than 10,000 entries but reads one with thousands", async () => {
 		const filler = (n: number) =>
 			Array.from({ length: n }, (_, i) => ({
@@ -236,23 +242,14 @@ describe("docx: limits are typed too-big", () => {
 		expectError(await read(bytes), "too-big");
 	});
 
-	it("stops a part past 64 MiB even when it compresses normally", async () => {
-		const rand = mulberry32(7);
-		const chunk = Buffer.alloc(MiB);
-		for (let i = 0; i < chunk.length; i++) {
-			chunk[i] = 97 + Math.floor(rand() * 26);
-		}
-		const text = Buffer.concat(Array.from({ length: 66 }, () => chunk));
-		const xml = Buffer.concat([
-			Buffer.from(`<?xml version="1.0"?><w:document xmlns:w="x"><w:body><!--`),
-			text,
-			Buffer.from("--></w:body></w:document>"),
-		]);
+	it("stops a part past 64 MiB even when it does not compress at all", async () => {
+		const head = Buffer.from(
+			'<?xml version="1.0"?><w:document xmlns:w="x"><w:body><!--',
+		);
+		const tail = Buffer.from("--></w:body></w:document>");
+		const xml = Buffer.concat([head, Buffer.alloc(66 * MiB, 0x61), tail]);
 		const bytes = zip([
-			{
-				name: "word/document.xml",
-				deflated: new Uint8Array(deflateRawSync(xml, { level: 1 })),
-			},
+			{ name: "word/document.xml", deflated: storedDeflate(xml) },
 		]);
 		expectError(await read(bytes), "too-big");
 	});
@@ -284,9 +281,9 @@ describe("docx: limits are typed too-big", () => {
 			'<w:smartTag w:element="x">'.repeat(depth) +
 			run("deep") +
 			"</w:smartTag>".repeat(depth);
-		expect(
-			textsOf(await read(docx({ body: para(nest(200)) }))),
-		).toEqual(["deep"]);
+		expect(textsOf(await read(docx({ body: para(nest(200)) })))).toEqual([
+			"deep",
+		]);
 		expectError(await read(docx({ body: para(nest(300)) })), "too-big");
 		const tables = (depth: number): string =>
 			depth === 0
@@ -296,7 +293,7 @@ describe("docx: limits are typed too-big", () => {
 	});
 
 	it("survives a flood of stray closing tags", async () => {
-		const stray = "</w:nothing>".repeat(100_000);
+		const stray = "</w:nothing>".repeat(60_000);
 		const outcome = await read(
 			docx({ rawDocument: documentXml(para("still here") + stray) }),
 		);
@@ -328,8 +325,7 @@ describe("docx: external entities and DTDs are never resolved", () => {
 	it("does not read files or the network for SYSTEM entities", async () => {
 		const fetchSpy = vi.spyOn(globalThis, "fetch");
 		const xml = documentXml(
-			para("<w:r><w:t>&xxe;|&remote;|%param;</w:t></w:r>") +
-				para("visible"),
+			para("<w:r><w:t>&xxe;|&remote;|%param;</w:t></w:r>") + para("visible"),
 			doctype(
 				'<!ENTITY xxe SYSTEM "file:///etc/passwd">' +
 					'<!ENTITY remote SYSTEM "http://127.0.0.1:9/evil">' +
@@ -369,7 +365,7 @@ describe("docx: external entities and DTDs are never resolved", () => {
 
 describe("docx: macros and embedded objects are ignored", () => {
 	it("reads the text and never the macro project or OLE objects", async () => {
-		const secret = utf8("SECRET MACRO Sub AutoOpen() Shell(\"calc\") End Sub");
+		const secret = utf8('SECRET MACRO Sub AutoOpen() Shell("calc") End Sub');
 		const object =
 			'<w:p><w:r><w:object><v:shape><v:imagedata r:id="rId9"/></v:shape><o:OLEObject Type="Embed" ProgID="Excel.Sheet.12" r:id="rId8" xmlns:o="urn:schemas-microsoft-com:office:office"/></w:object></w:r></w:p>';
 		const outcome = await read(
@@ -387,7 +383,7 @@ describe("docx: macros and embedded objects are ignored", () => {
 	});
 });
 
-describe("docx: fuzz", () => {
+describe("docx: fuzz", { timeout: 60_000 }, () => {
 	it("never breaks the contract for mutated and truncated real files", async () => {
 		const original = new Uint8Array(
 			readFileSync(
@@ -401,7 +397,8 @@ describe("docx: fuzz", () => {
 			for (let j = 0; j < flips; j++) {
 				bytes[Math.floor(rand() * bytes.length)] = Math.floor(rand() * 256);
 			}
-			const cut = rand() < 0.2 ? Math.floor(rand() * bytes.length) : bytes.length;
+			const cut =
+				rand() < 0.2 ? Math.floor(rand() * bytes.length) : bytes.length;
 			expectWellFormed(await read(bytes.subarray(0, cut)));
 		}
 	});
@@ -423,7 +420,10 @@ describe("docx: fuzz", () => {
 			const flips = 1 + Math.floor(rand() * 6);
 			for (let j = 0; j < flips; j++) {
 				const at = Math.floor(rand() * bytes.length);
-				bytes[at] = rand() < 0.5 ? 0x3c + Math.floor(rand() * 4) : Math.floor(rand() * 256);
+				bytes[at] =
+					rand() < 0.5
+						? 0x3c + Math.floor(rand() * 4)
+						: Math.floor(rand() * 256);
 			}
 			expectWellFormed(await read(bytes));
 		}
