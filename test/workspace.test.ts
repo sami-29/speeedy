@@ -204,18 +204,24 @@ describe("licence and README", () => {
 });
 
 describe("noindex on non-main builds", () => {
-	it("adds X-Robots-Tag: noindex only for branch preview hosts", () => {
-		const blocks = read("app/public/_headers").split(/\n(?=\S)/);
-		const noindex = blocks.filter((block) =>
-			/X-Robots-Tag: noindex/.test(block),
+	const blocks = () => read("app/static/_headers").split(/\n(?=\S)/);
+
+	it("adds X-Robots-Tag: noindex for branch preview hosts", () => {
+		const preview = blocks().filter((block) =>
+			/^https:\/\/\*\.[\w.-]+\/\*/.test(block),
 		);
-		assert.ok(noindex.length > 0, "a noindex rule");
-		for (const block of noindex) {
-			assert.match(
-				block,
-				/^https:\/\/\*\.[\w.-]+\/\*/,
-				"scoped to preview hosts",
-			);
+		assert.ok(preview.length > 0, "a preview-host rule");
+		for (const block of preview) {
+			assert.match(block, /X-Robots-Tag: noindex/);
+		}
+	});
+
+	it("never marks the whole production site noindex", () => {
+		for (const block of blocks()) {
+			const path = block.split("\n")[0] ?? "";
+			if (/X-Robots-Tag: noindex/.test(block)) {
+				assert.ok(path !== "/" && path !== "/*", `${path} must stay indexable`);
+			}
 		}
 	});
 });

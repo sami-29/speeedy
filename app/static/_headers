@@ -1,0 +1,20 @@
+# Cloudflare Pages preview builds (one host per branch or deploy) must not be indexed.
+# The production host (the bare project domain) is not matched here, so main stays indexable.
+# Unverified until a preview is deployed: that the wildcard matches branch preview hosts.
+https://*.speeedy.pages.dev/*
+  X-Robots-Tag: noindex
+
+# App routes are client-only and noindex. Robots.txt must not block them: crawlers have to
+# fetch the page to see this header and the matching <meta name="robots">.
+/reader
+  X-Robots-Tag: noindex
+/library
+  X-Robots-Tag: noindex
+/stats
+  X-Robots-Tag: noindex
+/training
+  X-Robots-Tag: noindex
+/s
+  X-Robots-Tag: noindex
+/account/*
+  X-Robots-Tag: noindex
