@@ -37,15 +37,22 @@ export {
 	type SessionTracker,
 	type SessionTrackerOptions,
 } from "./session-tracker";
-
+export { spliceTimeline, type TimelineChange } from "./splice";
 export {
 	averageWpm,
 	formatDuration,
 	formatNumber,
 	recentWpms,
 } from "./stats";
-export { buildTimeline, DEFAULT_SETTINGS, rebuildTimeline } from "./timeline";
 export {
+	buildTimeline,
+	DEFAULT_SETTINGS,
+	rebuildTimeline,
+	rebuildWindow,
+	resolveSettings,
+} from "./timeline";
+export {
+	createChangeAssembler,
 	createTimelineSession,
 	type TimelineReply,
 	type TimelineRequest,
@@ -59,4 +66,5 @@ export type {
 	Orp,
 	Timeline,
 	TimelineOptions,
+	TokenizedBlock,
 } from "./types";

@@ -46,9 +46,27 @@ export type Engine = {
 	 * The Cursor stays on its Position (on the Frame that holds it), a playing Engine keeps
 	 * playing from the same place inside that Frame, and nothing is emitted except
 	 * `frameShown` if the current Frame changed. `settings` are the settings the Timeline
-	 * was built with.
+	 * was built with; its times are in the speed `settings.wpm` unless `options.timelineWpm`
+	 * says otherwise (a worker's rebuild joined to Frames the reader has since sped up or
+	 * slowed down), and the reader's speed is `settings.wpm` as given.
 	 */
-	replaceTimeline(timeline: Timeline, settings?: Partial<EngineSettings>): void;
+	replaceTimeline(
+		timeline: Timeline,
+		settings?: Partial<EngineSettings>,
+		options?: { timelineWpm?: number },
+	): void;
+	/** The speed the Timeline's times are in. Equals `settings.wpm` until `setWpm` is used. */
+	readonly timelineWpm: number;
+	/**
+	 * Change the speed at once, in constant time. No pacing rule reads the speed, so every
+	 * Frame's time at the new speed is the old time scaled by the ratio of the speeds; the
+	 * Engine plays the Clock at that ratio (`settings.wpm / timelineWpm`) and leaves the
+	 * Frames as they are, so a 100 000-word Timeline costs nothing to speed up. The Cursor
+	 * stays on its Frame and a playing Engine keeps its place within it. Playback is a fresh
+	 * build at the new speed's, to within a thousandth of a millisecond per Frame (durations
+	 * are rounded to that). `updateSettings` writes the ratio into the Frames first.
+	 */
+	setWpm(wpm: number): void;
 	/**
 	 * Rewind to the start of the current sentence, paragraph or chapter, or to the start of
 	 * the previous one when the Cursor is already on a start. Emits `seek`.
@@ -71,6 +89,11 @@ export type EngineOptions = {
 	settings?: Partial<EngineSettings>;
 	/** Where chapters start (see `findChapters`). Without them, back one chapter goes to the start. */
 	chapters?: readonly Position[];
+	/**
+	 * What rebuilds the Timeline from the Cursor. Defaults to `rebuildTimeline`; the Timeline
+	 * worker passes one that also sends the first Frames on before the rest are built.
+	 */
+	rebuilder?: typeof rebuildTimeline;
 } & (
 	| { timeline: Timeline; document?: Document }
 	| { document: Document; timeline?: Timeline }
@@ -109,6 +132,7 @@ function frameAtPosition(frames: readonly Frame[], position: Position): number {
  */
 export function createEngine(options: EngineOptions): Engine {
 	const { clock, document, language, chapters = [] } = options;
+	const rebuildWith = options.rebuilder ?? rebuildTimeline;
 	let settings = resolveSettings(options.settings);
 	const timelineOptions = () => ({
 		anchor,
@@ -143,6 +167,30 @@ export function createEngine(options: EngineOptions): Engine {
 	let stopTicking: (() => void) | undefined;
 	let clockOrigin = 0;
 	let timeOrigin = 0;
+	/** The speed the Timeline's times are in. `settings.wpm` differs after `setWpm`. */
+	let timelineWpm = settings.wpm;
+
+	/** How much faster than the Timeline's own times the Clock is played. */
+	const rate = () => settings.wpm / timelineWpm;
+	/** The current time in the Timeline, in the Timeline's own units. */
+	const timeNow = () => timeOrigin + (clock.now() - clockOrigin) * rate();
+
+	/** Write the speed into the Frames, so `timelineWpm` is `settings.wpm` again. */
+	const bake = () => {
+		if (settings.wpm === timelineWpm) return;
+		const scale = timelineWpm / settings.wpm;
+		const time = timeNow();
+		for (const frame of frames) {
+			frame.startMs *= scale;
+			frame.durationMs *= scale;
+		}
+		timeline.totalMs *= scale;
+		timelineWpm = settings.wpm;
+		if (playing) {
+			clockOrigin = clock.now();
+			timeOrigin = time * scale;
+		}
+	};
 
 	const emit = <E extends EngineEventName>(
 		event: E,
@@ -163,7 +211,7 @@ export function createEngine(options: EngineOptions): Engine {
 				"This Engine has no Document to rebuild its Timeline from.",
 			);
 		}
-		timeline = rebuildTimeline(
+		timeline = rebuildWith(
 			document,
 			timeline,
 			index,
@@ -230,7 +278,7 @@ export function createEngine(options: EngineOptions): Engine {
 	};
 
 	const tick = () => {
-		const time = timeOrigin + (clock.now() - clockOrigin);
+		const time = timeNow();
 		if (time >= timeline.totalMs) {
 			index = frames.length - 1;
 			stopPlaying();
@@ -299,10 +347,13 @@ export function createEngine(options: EngineOptions): Engine {
 					"This Engine has no Document to rebuild its Timeline from.",
 				);
 			}
+			// Frames from the Cursor on are rebuilt at the new speed: put the old one in first.
+			bake();
+			const time = timeNow();
 			settings = resolveSettings({ ...settings, ...patch });
 			const before = currentFrame();
-			const time = timeOrigin + (clock.now() - clockOrigin);
 			rebuild();
+			timelineWpm = settings.wpm;
 			if (playing) {
 				clockOrigin = clock.now();
 				timeOrigin = time;
@@ -316,17 +367,20 @@ export function createEngine(options: EngineOptions): Engine {
 				show();
 			}
 		},
-		replaceTimeline(next, nextSettings) {
+		replaceTimeline(next, nextSettings, replaceOptions) {
 			const before = currentFrame();
+			// Real milliseconds into the current Frame.
 			const elapsed =
 				playing && before
-					? Math.max(
-							timeOrigin + (clock.now() - clockOrigin) - before.startMs,
-							0,
-						)
+					? Math.max(timeNow() - before.startMs, 0) / rate()
 					: 0;
-			if (nextSettings)
+			if (nextSettings) {
 				settings = resolveSettings({ ...settings, ...nextSettings });
+				if (nextSettings.wpm !== undefined) timelineWpm = settings.wpm;
+			}
+			if (replaceOptions?.timelineWpm !== undefined) {
+				timelineWpm = resolveSettings({ wpm: replaceOptions.timelineWpm }).wpm;
+			}
 			timeline = next;
 			frames = next.frames;
 			startsCache.clear();
@@ -336,7 +390,7 @@ export function createEngine(options: EngineOptions): Engine {
 				clockOrigin = clock.now();
 				timeOrigin = after
 					? after.startMs +
-						Math.min(elapsed, Math.max(after.durationMs - 0.001, 0))
+						Math.min(elapsed * rate(), Math.max(after.durationMs - 0.001, 0))
 					: 0;
 			}
 			if (
@@ -350,6 +404,19 @@ export function createEngine(options: EngineOptions): Engine {
 			) {
 				show();
 			}
+		},
+		setWpm(next) {
+			const target = resolveSettings({ ...settings, wpm: next }).wpm;
+			if (target === settings.wpm) return;
+			const time = timeNow();
+			settings = { ...settings, wpm: target };
+			if (playing) {
+				clockOrigin = clock.now();
+				timeOrigin = time;
+			}
+		},
+		get timelineWpm() {
+			return timelineWpm;
 		},
 		on(event, listener) {
 			const set = listeners[event] as Set<typeof listener>;

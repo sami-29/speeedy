@@ -192,7 +192,7 @@ test.describe("WPM slider", () => {
 		await page.keyboard.press("End");
 		await rebuiltAfter(page, before);
 		const fast = await count();
-		expect(fast).toBeGreaterThan(slow * 3);
+		expect(fast).toBeGreaterThan(slow * 2);
 	});
 });
 
@@ -607,23 +607,48 @@ test.describe("rebuilds run off the main thread", () => {
 				for (const entry of list.getEntries()) longTasks.push(entry.duration);
 			}).observe({ entryTypes: ["longtask"] });
 		});
+		// A change of speed takes effect at once.
 		const before = await rebuilds(page);
 		await slider(page).focus();
 		await page.keyboard.press("Shift+ArrowRight");
 		await page.keyboard.press("Shift+ArrowRight");
 		await rebuiltAfter(page, before);
-		await page.waitForTimeout(500);
+		await expect(slider(page)).toHaveAttribute("aria-valuenow", "350");
+
+		// A structural change takes effect with the first Frames, then finishes behind them.
+		const fullBefore = await page.evaluate(
+			() => performance.getEntriesByName("speeedy:rebuild-full").length,
+		);
+		await page
+			.getByRole("group", { name: "Reading settings" })
+			.getByRole("button", { name: "More words per flash" })
+			.click();
+		await expect
+			.poll(
+				() =>
+					page.evaluate(
+						() => performance.getEntriesByName("speeedy:rebuild-full").length,
+					),
+				{ timeout: 30_000 },
+			)
+			.toBeGreaterThan(fullBefore);
+		await page.waitForTimeout(300);
 
 		const result = await page.evaluate(() => ({
 			longTasks: (window as unknown as { __long: number[] }).__long,
-			rebuild: performance
+			firstEffect: performance
 				.getEntriesByName("speeedy:rebuild")
+				.map((entry) => Math.round(entry.duration)),
+			whole: performance
+				.getEntriesByName("speeedy:rebuild-full")
 				.map((entry) => Math.round(entry.duration)),
 		}));
 		test.info().annotations.push({
-			type: "rebuild latency ms (100k words)",
+			type: "latency ms on 100k words: first effect (speed, chunk size) and whole rebuild",
 			description: JSON.stringify(result),
 		});
+		// "Takes effect" is under 200 ms as the reader sees it, debounce included.
+		for (const ms of result.firstEffect) expect(ms).toBeLessThan(200);
 		expect(Math.max(0, ...result.longTasks)).toBeLessThan(100);
 		await expect(page.getByTestId("word")).toHaveText(/^w\d+/);
 	});

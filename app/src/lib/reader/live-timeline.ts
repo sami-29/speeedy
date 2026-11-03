@@ -1,19 +1,37 @@
 import type { Position } from "@speeedy/contracts";
-import type { Engine, EngineSettings } from "@speeedy/engine";
-import { joinChange, type TimelineClient } from "./timeline-client.ts";
+import {
+	type Engine,
+	type EngineSettings,
+	spliceTimeline,
+	type TimelineChange,
+} from "@speeedy/engine";
+import type { TimelineClient } from "./timeline-client.ts";
 
 export type LiveTimelineOptions = {
 	client: Pick<TimelineClient, "change">;
-	engine: Pick<Engine, "timeline" | "position" | "replaceTimeline">;
-	/** How long the settings must sit still before they are sent. Defaults to 150 ms. */
+	engine: Pick<
+		Engine,
+		| "timeline"
+		| "position"
+		| "settings"
+		| "timelineWpm"
+		| "replaceTimeline"
+		| "setWpm"
+	>;
+	/** How long the settings must sit still before they are sent. Defaults to 60 ms. */
 	debounceMs?: number;
 	/** Milliseconds on a monotonic clock. Defaults to `performance.now`. */
 	now?: () => number;
 	/** Called with the worker's message when a change fails. The Timeline is left as it was. */
 	onError?: (message: string) => void;
-	/** Called when a rebuilt Timeline has been installed. `latencyMs` counts from the first change. */
+	/**
+	 * Called when a change has taken effect: a new speed (`wpm`, at once), the first Frames
+	 * of a rebuild (`window`) or the rest of it (`tail`). `latencyMs` counts from the first
+	 * change of a burst, so it includes the debounce.
+	 */
 	onApplied?: (info: {
 		request: "settings" | "anchor";
+		phase: "wpm" | "window" | "tail";
 		latencyMs: number;
 	}) => void;
 };
@@ -28,7 +46,7 @@ export type LiveTimeline = {
 	dispose(): void;
 };
 
-const DEBOUNCE_MS = 150;
+const DEBOUNCE_MS = 60;
 const DOCUMENT_START: Position = { block: 0, offset: 0 };
 
 type Job =
@@ -43,12 +61,15 @@ const samePosition = (a: Position, b: Position): boolean =>
 	a.block === b.block && a.offset === b.offset;
 
 /**
- * Keeps an Engine's Timeline in step with the settings, without blocking the page. A
- * change waits out a short debounce, goes to the Timeline worker as one rebuild from the
- * Cursor, and comes back to be laid over the Frames the Engine already has. While the
- * worker works the Engine plays on with the Timeline it has, so the Frame on screen never
- * moves. One request is in flight at a time and they are answered in order, so the
- * worker's Timeline and the Engine's stay the same.
+ * Keeps an Engine's Timeline in step with the settings, without blocking the page.
+ *
+ * A change of speed is applied at once, to every Frame, and never reaches the worker: no
+ * pacing rule reads the speed. Any other change waits out a short debounce, goes to the
+ * Timeline worker as one rebuild from the Cursor, and comes back in two phases: a window
+ * from the Cursor, then the rest. Each is laid over the Frames the Engine already has, at
+ * the speed the reader has by then. While the worker works the Engine plays on with the
+ * Timeline it has, so the Frame on screen never moves. One request is in flight at a time
+ * and they are answered in order, so the worker's Timeline and the Engine's stay the same.
  */
 export function createLiveTimeline(options: LiveTimelineOptions): LiveTimeline {
 	const { client, engine } = options;
@@ -71,15 +92,23 @@ export function createLiveTimeline(options: LiveTimelineOptions): LiveTimeline {
 		for (const resolve of waiters) resolve();
 	};
 
-	const apply = (job: Job, change: Parameters<typeof joinChange>[1]) => {
-		const frames = engine.timeline.frames;
-		if (change.fromIndex > frames.length) {
+	const apply = (job: Job, change: TimelineChange) => {
+		if (disposed) return;
+		if (change.fromIndex > engine.timeline.frames.length) {
 			options.onError?.("The timeline is out of step with the worker.");
 			return;
 		}
-		engine.replaceTimeline(joinChange(frames, change), change.settings);
+		// The Frames are in the Timeline's own speed; the reader may have changed theirs
+		// since the request left, and keeps the one they have.
+		const units = engine.timelineWpm;
+		engine.replaceTimeline(
+			spliceTimeline(engine.timeline, change, units),
+			{ ...change.settings, wpm: engine.settings.wpm },
+			{ timelineWpm: units },
+		);
 		options.onApplied?.({
 			request: job.kind,
+			phase: change.phase,
 			latencyMs: now() - job.startedAt,
 		});
 	};
@@ -92,18 +121,25 @@ export function createLiveTimeline(options: LiveTimelineOptions): LiveTimeline {
 			return;
 		}
 		busy = true;
+		const onChange = (change: TimelineChange) => apply(job, change);
 		const result =
 			job.kind === "settings"
-				? await client.change({
-						kind: "settings",
-						position: engine.position ?? DOCUMENT_START,
-						patch: job.patch,
-					})
-				: await client.change({ kind: "anchor", position: job.position });
+				? await client.change(
+						{
+							kind: "settings",
+							position: engine.position ?? DOCUMENT_START,
+							// The worker builds at the speed the reader has now.
+							patch: { ...job.patch, wpm: engine.settings.wpm },
+						},
+						onChange,
+					)
+				: await client.change(
+						{ kind: "anchor", position: job.position },
+						onChange,
+					);
 		busy = false;
 		if (disposed) return;
 		if (!result.ok) options.onError?.(result.error);
-		else if (result.change) apply(job, result.change);
 		void pump();
 	};
 
@@ -128,9 +164,20 @@ export function createLiveTimeline(options: LiveTimelineOptions): LiveTimeline {
 	return {
 		change(patch) {
 			if (disposed) return;
+			const { wpm, ...rebuild } = patch;
+			const started = now();
+			if (wpm !== undefined && wpm !== engine.settings.wpm) {
+				engine.setWpm(wpm);
+				options.onApplied?.({
+					request: "settings",
+					phase: "wpm",
+					latencyMs: now() - started,
+				});
+			}
+			if (Object.values(rebuild).every((value) => value === undefined)) return;
 			pending = {
-				patch: { ...pending?.patch, ...patch },
-				since: pending?.since ?? now(),
+				patch: { ...pending?.patch, ...rebuild },
+				since: pending?.since ?? started,
 			};
 			if (timer !== undefined) clearTimeout(timer);
 			timer = setTimeout(flush, debounceMs);

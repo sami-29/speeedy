@@ -15,8 +15,13 @@ export type Reading = {
 	dispose(): void;
 };
 
-/** `performance.measure` name for a rebuild, from the first change to the Timeline swap. */
+/**
+ * `performance.measure` names for a change: the time from the reader's first change of a
+ * burst until it first took effect (a new speed, or the first Frames of a rebuild), and
+ * until the whole Timeline was rebuilt.
+ */
 export const REBUILD_MEASURE = "speeedy:rebuild";
+export const REBUILD_FULL_MEASURE = "speeedy:rebuild-full";
 
 type StartOptions = {
 	timeline: Timeline;
@@ -42,19 +47,27 @@ export function startReading({
 		timeline,
 		settings: engineSettings(settings),
 	});
+	let previous: "wpm" | "window" | "tail" | undefined;
+	const measure = (name: string, latencyMs: number) => {
+		try {
+			performance.measure(name, {
+				start: performance.now() - latencyMs,
+				duration: latencyMs,
+			});
+		} catch {
+			// A measure is a diagnostic; reading goes on without it.
+		}
+	};
 	const live = createLiveTimeline({
 		client,
 		engine,
 		onError: () => onError?.(),
-		onApplied({ latencyMs }) {
-			try {
-				performance.measure(REBUILD_MEASURE, {
-					start: performance.now() - latencyMs,
-					duration: latencyMs,
-				});
-			} catch {
-				// A measure is a diagnostic; reading goes on without it.
+		onApplied({ phase, latencyMs }) {
+			if (phase !== "tail" || previous !== "window") {
+				measure(REBUILD_MEASURE, latencyMs);
 			}
+			if (phase === "tail") measure(REBUILD_FULL_MEASURE, latencyMs);
+			previous = phase;
 		},
 	});
 	const stops = [

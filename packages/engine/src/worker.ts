@@ -17,6 +17,7 @@ type WorkerScope = {
 
 const scope = globalThis as unknown as WorkerScope;
 const session = createTimelineSession();
+// Each reply is posted as it is made, so a rebuild's first Frames leave before the rest are built.
 scope.onmessage = (event) => {
-	for (const reply of session.handle(event.data)) scope.postMessage(reply);
+	session.handle(event.data, (reply) => scope.postMessage(reply));
 };
