@@ -11,6 +11,10 @@
 	"vars": {
 		"POSTHOG_HOST": "https://us.i.posthog.com"
 	},
+	// The remote config of feature flags lives in KV so the owner can change it without a
+	// deploy: write the `config` key. No id yet; the deploy ticket creates the namespace
+	// (or Wrangler provisions it) and records the id. Locally this is an in-memory store.
+	"kv_namespaces": [{ "binding": "FLAGS_KV" }],
 	// Set for real with `wrangler secret put` by the deploy ticket. Locally it lives in
 	// worker/.dev.vars, which is gitignored.
 	"secrets": { "required": ["POSTHOG_PROJECT_TOKEN"] }

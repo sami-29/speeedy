@@ -19,6 +19,11 @@ export interface AnalyticsOptions {
 	/** Runs `fn` soon. Defaults to a short timer. */
 	schedule?: (fn: () => void) => void;
 	randomUUID?: () => string;
+	/**
+	 * The active flag variants as `exp_<name>` properties, read when an event is queued and
+	 * added to it. Pass `flags.experiments`.
+	 */
+	experiments?: () => Readonly<Record<string, string>>;
 }
 
 export interface Analytics {
@@ -79,7 +84,11 @@ export function createAnalytics(options: AnalyticsOptions = {}): Analytics {
 	}
 
 	function enqueue(event: string, props: unknown): boolean {
-		const checked = checkEvent(allowed, event, props);
+		const merged =
+			typeof props === "object" && props !== null && !Array.isArray(props)
+				? { ...props, ...options.experiments?.() }
+				: props;
+		const checked = checkEvent(allowed, event, merged);
 		if (!checked.ok) return false;
 		queue.push({ event, properties: checked.properties });
 		if (!scheduled) {

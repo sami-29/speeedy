@@ -1,4 +1,5 @@
 import { handleE } from "./e";
+import { handleFlags } from "./flags";
 import { handlePlan } from "./plan";
 import { notFound } from "./respond";
 
@@ -9,11 +10,12 @@ type Handler = (
 ) => Promise<Response>;
 
 /**
- * The one Speeedy Worker. Each `/api/<name>` belongs to a module. `e` and `plan` exist so
- * far; `auth`, `billing`, `sync` and `voice` join this table as their tickets land.
+ * The one Speeedy Worker. Each `/api/<name>` belongs to a module. `e`, `flags` and `plan`
+ * exist so far; `auth`, `billing`, `sync` and `voice` join this table as their tickets land.
  */
 const modules = new Map<string, Handler>([
 	["e", handleE],
+	["flags", handleFlags],
 	["plan", handlePlan],
 ]);
 
