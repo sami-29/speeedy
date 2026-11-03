@@ -1,0 +1,11 @@
+{
+	"outcome": "document",
+	"format": "txt",
+	"title": "pride-utf8-bom",
+	"encoding": "utf-8",
+	"language": "en",
+	"blocks": 3,
+	"first": "It is a truth universally acknowledged, ",
+	"last": "d that Netherfield Park is let at last?\"",
+	"words": [89, 93]
+}

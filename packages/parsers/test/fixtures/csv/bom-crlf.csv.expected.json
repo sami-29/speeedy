@@ -1,0 +1,12 @@
+{
+	"outcome": "document",
+	"format": "csv",
+	"title": "bom-crlf",
+	"encoding": "utf-8",
+	"language": "und",
+	"blocks": 2,
+	"first": "a b",
+	"last": "1 2",
+	"words": [2, 6],
+	"kinds": ["table-text", "table-text"]
+}

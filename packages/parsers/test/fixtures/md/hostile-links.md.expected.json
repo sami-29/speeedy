@@ -1,0 +1,13 @@
+{
+	"outcome": "document",
+	"format": "markdown",
+	"title": "hostile-links",
+	"encoding": "utf-8",
+	"language": "und",
+	"blocks": 1,
+	"first": "a and b and x",
+	"last": "a and b and x",
+	"words": [3, 7],
+	"kinds": ["paragraph"],
+	"spans": 1
+}

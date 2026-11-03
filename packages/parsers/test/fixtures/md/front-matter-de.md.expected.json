@@ -1,0 +1,12 @@
+{
+	"outcome": "document",
+	"format": "markdown",
+	"title": "Der Prozess",
+	"encoding": "utf-8",
+	"language": "de",
+	"blocks": 2,
+	"first": "Kapitel eins",
+	"last": "hätte, wurde er eines Morgens verhaftet.",
+	"words": [19, 23],
+	"kinds": ["heading", "paragraph"]
+}

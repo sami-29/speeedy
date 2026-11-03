@@ -1,0 +1,11 @@
+{
+	"outcome": "document",
+	"format": "txt",
+	"title": "lines-no-blank",
+	"encoding": "utf-8",
+	"language": "und",
+	"blocks": 4,
+	"first": "Milk",
+	"last": "Butter",
+	"words": [2, 6]
+}

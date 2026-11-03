@@ -1,5 +1,6 @@
 import { comparePositions, type Position } from "@speeedy/contracts";
 import type { Clock } from "./clock";
+import { type BackUnit, backTarget, startIndexes } from "./navigation";
 import type { Frame, Timeline } from "./types";
 
 export type EngineEvents = {
@@ -25,6 +26,11 @@ export type Engine = {
 	pause(): void;
 	/** Move to the Frame at (or just before) a Position. Out-of-range Positions clamp. */
 	seek(position: Position): void;
+	/**
+	 * Rewind to the start of the current sentence, paragraph or chapter, or to the start of
+	 * the previous one when the Cursor is already on a start. Emits `seek`.
+	 */
+	back(unit?: BackUnit): void;
 	on<E extends EngineEventName>(
 		event: E,
 		listener: (payload: EngineEvents[E]) => void,
@@ -34,6 +40,8 @@ export type Engine = {
 export type EngineOptions = {
 	clock: Clock;
 	timeline: Timeline;
+	/** Where chapters start (see `findChapters`). Without them, back one chapter goes to the start. */
+	chapters?: readonly Position[];
 };
 
 /** Last Frame that starts at or before `time`. */
@@ -67,7 +75,11 @@ function frameAtPosition(frames: readonly Frame[], position: Position): number {
  * Plays a Timeline on a Clock. The Cursor is the current Frame: playing moves it forward
  * as the Clock advances, seeking moves it to a Position, and Reading Events report both.
  */
-export function createEngine({ clock, timeline }: EngineOptions): Engine {
+export function createEngine({
+	clock,
+	timeline,
+	chapters = [],
+}: EngineOptions): Engine {
 	const { frames } = timeline;
 	const listeners: {
 		[E in EngineEventName]: Set<(payload: EngineEvents[E]) => void>;
@@ -112,6 +124,27 @@ export function createEngine({ clock, timeline }: EngineOptions): Engine {
 		playing = false;
 		stopTicking?.();
 		stopTicking = undefined;
+	};
+
+	const startsCache = new Map<BackUnit, number[]>();
+	const startsFor = (unit: BackUnit) => {
+		let starts = startsCache.get(unit);
+		if (!starts) {
+			starts = startIndexes(frames, unit, chapters);
+			startsCache.set(unit, starts);
+		}
+		return starts;
+	};
+
+	const moveTo = (target: number) => {
+		index = target;
+		ended = false;
+		const frame = currentFrame();
+		if (frame) emit("seek", { position: frame.position });
+		if (playing) {
+			restartTiming();
+			show();
+		}
 	};
 
 	const tick = () => {
@@ -166,14 +199,11 @@ export function createEngine({ clock, timeline }: EngineOptions): Engine {
 		},
 		seek(position) {
 			if (frames.length === 0) return;
-			index = frameAtPosition(frames, position);
-			ended = false;
-			const frame = currentFrame();
-			if (frame) emit("seek", { position: frame.position });
-			if (playing) {
-				restartTiming();
-				show();
-			}
+			moveTo(frameAtPosition(frames, position));
+		},
+		back(unit = "sentence") {
+			if (frames.length === 0) return;
+			moveTo(backTarget(startsFor(unit), index));
 		},
 		on(event, listener) {
 			const set = listeners[event] as Set<typeof listener>;
