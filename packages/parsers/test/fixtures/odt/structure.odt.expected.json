@@ -1,0 +1,33 @@
+{
+	"outcome": "document",
+	"format": "odt",
+	"title": "Harbour Notes",
+	"encoding": null,
+	"language": "en",
+	"blocks": 19,
+	"kinds": [
+		"heading",
+		"paragraph",
+		"heading",
+		"list-item",
+		"list-item",
+		"list-item",
+		"list-item",
+		"heading",
+		"list-item",
+		"list-item",
+		"list-item",
+		"heading",
+		"quote",
+		"paragraph",
+		"code",
+		"table-text",
+		"table-text",
+		"image-placeholder",
+		"paragraph"
+	],
+	"spans": 5,
+	"first": "Harbour Notes\nThe ferry leaves at six and returns",
+	"last": "Last paragraph, with both marks.",
+	"words": [64, 72]
+}

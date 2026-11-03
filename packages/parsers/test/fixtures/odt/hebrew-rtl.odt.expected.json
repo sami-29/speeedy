@@ -1,0 +1,13 @@
+{
+	"outcome": "document",
+	"format": "odt",
+	"title": "המגדלור",
+	"encoding": null,
+	"language": "he",
+	"blocks": 3,
+	"kinds": ["heading", "paragraph", "paragraph"],
+	"spans": 1,
+	"first": "המגדלור\nהשומר היה",
+	"last": "כסוף ושקט.",
+	"words": [20, 24]
+}
