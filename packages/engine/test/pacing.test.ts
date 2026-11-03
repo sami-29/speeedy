@@ -111,7 +111,7 @@ describe("smart speed rule", () => {
 
 describe("punctuation rule", () => {
 	it("stretches a sentence end by the sentence pause multiplier", () => {
-		expect(punctuationRule(frame("end."), context())).toBe(2);
+		expect(punctuationRule(frame("end."), context())).toBe(3);
 		expect(
 			punctuationRule(frame("end."), context({ sentencePauseMultiplier: 3 })),
 		).toBe(4);
@@ -121,14 +121,14 @@ describe("punctuation rule", () => {
 	});
 
 	it("looks through closing quotes and brackets", () => {
-		expect(punctuationRule(frame('stop."'), context())).toBe(2);
-		expect(punctuationRule(frame("what?)"), context())).toBe(2);
+		expect(punctuationRule(frame('stop."'), context())).toBe(3);
+		expect(punctuationRule(frame("what?)"), context())).toBe(3);
 	});
 
 	it("stretches commas less, or like a sentence with commaAsPause", () => {
-		expect(punctuationRule(frame("so,"), context())).toBeCloseTo(1.4, 6);
+		expect(punctuationRule(frame("so,"), context())).toBeCloseTo(1.8, 6);
 		expect(punctuationRule(frame("so,"), context({ commaAsPause: true }))).toBe(
-			2,
+			3,
 		);
 	});
 
@@ -153,7 +153,7 @@ describe("punctuation rule", () => {
 	});
 
 	it("looks at the last word of a chunk", () => {
-		expect(punctuationRule(frame("one two."), context())).toBe(2);
+		expect(punctuationRule(frame("one two."), context())).toBe(3);
 		expect(punctuationRule(frame("one. two"), context())).toBe(1);
 	});
 });
@@ -222,9 +222,9 @@ describe("combined rules", () => {
 	});
 
 	it("multiplies every rule's multiplier", () => {
-		// "fox." is 3 letters (x1/1.3), a sentence end (x2), past the ramp, in a sprint (x0.5).
+		// "fox." is 3 letters (x1/1.3), a sentence end (x3 at the default sentence pause), past the ramp, in a sprint (x0.5).
 		expect(pacingMultiplier(frame("fox."), context(settings, 3))).toBeCloseTo(
-			(1 / 1.3) * 2 * 0.5,
+			(1 / 1.3) * 3 * 0.5,
 			6,
 		);
 	});
@@ -234,7 +234,7 @@ describe("combined rules", () => {
 			paragraphs("the quick brown fox. wonderful day"),
 			{ wpm: 300, ...settings },
 		);
-		const want = [307.692, 266.667, 100, 153.846, 266.667, 153.846];
+		const want = [307.692, 266.667, 100, 230.769, 266.667, 153.846];
 		expectCloseTo(
 			timeline.frames.map((f) => f.durationMs),
 			want,
@@ -252,9 +252,10 @@ describe("smart speed in a Timeline", () => {
 	});
 
 	it("changes durations when on", () => {
-		expectCloseTo(durations("the wonderful", { smartSpeed: true }), [
-			153.846, 266.667,
-		]);
+		expectCloseTo(
+			durations("the wonderful", { smartSpeed: true }),
+			[153.846, 266.667],
+		);
 	});
 });
 
@@ -349,7 +350,7 @@ describe("chunk size", () => {
 
 	it("applies the pause of the chunk's last word", () => {
 		const [first] = chunked("one two.", 2);
-		expect(first?.durationMs).toBe(800);
+		expect(first?.durationMs).toBe(1200);
 	});
 
 	it("puts the ORP pivot on the chunk's first word", () => {

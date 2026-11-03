@@ -18,7 +18,18 @@ export {
 	type EngineOptions,
 } from "./engine";
 export { computeOrp, type OrpFocus } from "./orp";
-export { buildTimeline, DEFAULT_SETTINGS } from "./timeline";
+export {
+	PACING_RULES,
+	type PacingContext,
+	type PacingFrame,
+	type PacingRule,
+	pacingMultiplier,
+	punctuationRule,
+	rampRule,
+	smartSpeedRule,
+	sprintRule,
+} from "./pacing";
+export { buildTimeline, DEFAULT_SETTINGS, rebuildTimeline } from "./timeline";
 export type {
 	EngineSettings,
 	Frame,
