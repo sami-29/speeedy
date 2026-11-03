@@ -4,10 +4,18 @@
 	"version": "0.0.0",
 	"type": "module",
 	"exports": {
-		".": "./src/index.ts"
+		".": "./src/index.ts",
+		"./worker": "./src/worker.ts"
 	},
 	"scripts": {
-		"build": "tsc -p tsconfig.json",
-		"typecheck": "tsc -p tsconfig.json --noEmit"
+		"build": "tsc -p tsconfig.build.json",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test:unit": "vitest run"
+	},
+	"dependencies": {
+		"@speeedy/contracts": "workspace:*"
+	},
+	"devDependencies": {
+		"vitest": "4.1.2"
 	}
 }
