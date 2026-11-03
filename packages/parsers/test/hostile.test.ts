@@ -202,6 +202,8 @@ describe("hostile and huge input finishes quickly with a valid outcome", () => {
 		["a million underscores", "a.md", "_".repeat(N)],
 		["a million backticks", "a.md", "`".repeat(N)],
 		["open brackets", "a.md", "[".repeat(N)],
+		["five million open brackets", "a.md", "[".repeat(N * 5)],
+		["a million emphasis pairs", "a.md", "*a* ".repeat(N / 2)],
 		["empty link openers", "a.md", "[](".repeat(N / 3)],
 		["image openers", "a.md", "![".repeat(N / 2)],
 		[
@@ -290,14 +292,21 @@ describe("hostile and huge input finishes quickly with a valid outcome", () => {
 		expectError(await parse(bytes, "many.csv"), "too-big");
 	}, 30_000);
 
-	it("caps list depth so a validator-valid Document always comes back", async () => {
-		const outcome = await parse(utf8(`${" ".repeat(400)}- deep\n`), "a.md");
-		const result = expectSuccess(outcome);
-		const block = result.document.blocks[0];
-		expect(block?.kind).toBe("list-item");
-		expect(block && "depth" in block ? block.depth : 99).toBeLessThanOrEqual(
-			10,
+	it("caps list depth at 10 however deeply the items are indented", async () => {
+		const lines = Array.from({ length: 60 }, (_, i) => `${"  ".repeat(i)}- x`);
+		const outcome = await parse(utf8(lines.join("\n")), "a.md");
+		const depths = expectSuccess(outcome).document.blocks.map((block) =>
+			block.kind === "list-item" ? block.depth : -1,
 		);
+		expect(depths).toHaveLength(60);
+		expect(Math.max(...depths)).toBe(10);
+		expect(depths[0]).toBe(0);
+		expect(depths[10]).toBe(10);
+	});
+
+	it("reads a very deeply indented lone line as code, not a list", async () => {
+		const outcome = await parse(utf8(`${" ".repeat(400)}- deep\n`), "a.md");
+		expect(expectSuccess(outcome).document.blocks[0]?.kind).toBe("code");
 	});
 });
 

@@ -123,11 +123,18 @@ describe("plain text: encodings", () => {
 		expect(textsOf(be)).toEqual(["Hello there world.", "Second."]);
 	});
 
-	it("asks for a codepage when UTF-16 without a BOM cannot be told from noise", async () => {
-		const bytes = utf16("Привет мир, как дела", "le", false);
+	it("decodes non-Latin UTF-16 without a BOM when spaces give the pattern away", async () => {
+		const le = await parse(utf16("Привет мир, как дела", "le", false), "a.txt");
+		const be = await parse(utf16("Привет мир, как дела", "be", false), "a.txt");
+		expect(textsOf(le)).toEqual(["Привет мир, как дела"]);
+		expect(textsOf(be)).toEqual(["Привет мир, как дела"]);
+	});
+
+	it("asks for a codepage when UTF-16 without a BOM has no ASCII to give it away", async () => {
+		const bytes = utf16("Привет", "le", false);
 		expectError(await parse(bytes, "a.txt"), "encoding-suspect");
 		const fixed = await parse(bytes, "a.txt", { encoding: "utf-16le" });
-		expect(textsOf(fixed)).toEqual(["Привет мир, как дела"]);
+		expect(textsOf(fixed)).toEqual(["Привет"]);
 	});
 
 	it("rejects bytes that are not valid UTF-8 as encoding-suspect", async () => {

@@ -90,6 +90,17 @@ describe("parse through the worker boundary", () => {
 		expect(backing.byteLength).toBe(19);
 	});
 
+	it("never detaches a shared Node pool when given a pooled Buffer", async () => {
+		const pooled = Buffer.from("pooled buffer text");
+		const neighbour = Buffer.from("neighbour");
+		const outcome = await client.parse(pooled, "a.txt");
+		expect(expectSuccess(outcome).document.blocks[0]).toMatchObject({
+			text: "pooled buffer text",
+		});
+		expect(neighbour.toString()).toBe("neighbour");
+		expect(pooled.byteLength).toBe(18);
+	});
+
 	it("answers too-big and unsupported through the worker as well", async () => {
 		expectError(
 			await client.parse(utf8("0123456789A"), "a.txt", { maxBytes: 10 }),
