@@ -277,7 +277,10 @@ describe("plain text: failures say why", () => {
 
 	it("returns unsupported for markup formats whose parser has not landed yet", async () => {
 		expectError(
-			await parse(utf8("<html><body>x</body></html>"), "page.html"),
+			await parse(
+				utf8("<FictionBook><body>x</body></FictionBook>"),
+				"book.fb2",
+			),
 			"unsupported",
 		);
 	});
