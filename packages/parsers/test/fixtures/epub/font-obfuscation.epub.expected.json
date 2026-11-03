@@ -1,0 +1,13 @@
+{
+	"outcome": "document",
+	"format": "epub",
+	"title": "Typeset Book",
+	"encoding": null,
+	"language": "en",
+	"blocks": 2,
+	"kinds": ["heading", "paragraph"],
+	"spans": 0,
+	"first": "Typeset\nThe fonts in this book",
+	"last": "not encryption of the text.",
+	"words": [14, 16]
+}
