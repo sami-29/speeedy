@@ -1,7 +1,12 @@
-import { comparePositions, type Position } from "@speeedy/contracts";
+import {
+	comparePositions,
+	type Document,
+	type Position,
+} from "@speeedy/contracts";
 import type { Clock } from "./clock";
 import { type BackUnit, backTarget, startIndexes } from "./navigation";
-import type { Frame, Timeline } from "./types";
+import { buildTimeline, rebuildTimeline, resolveSettings } from "./timeline";
+import type { EngineSettings, Frame, Timeline } from "./types";
 
 export type EngineEvents = {
 	play: { position: Position };
@@ -14,7 +19,10 @@ export type EngineEvents = {
 export type EngineEventName = keyof EngineEvents;
 
 export type Engine = {
+	/** The current Timeline. A settings change replaces it from the Cursor onward. */
 	readonly timeline: Timeline;
+	/** The settings the Timeline is built with, defaults filled in. */
+	readonly settings: EngineSettings;
 	readonly playing: boolean;
 	/** Index of the current Frame in the Timeline. */
 	readonly index: number;
@@ -27,6 +35,13 @@ export type Engine = {
 	/** Move to the Frame at (or just before) a Position. Out-of-range Positions clamp. */
 	seek(position: Position): void;
 	/**
+	 * Change settings and rebuild the Timeline from the Cursor onward. The Cursor stays on
+	 * its Position, a playing Engine keeps playing, and the Frames already read are kept.
+	 * Reports `frameShown` if the current Frame changed (a new chunk size, say). Needs an
+	 * Engine made from a Document.
+	 */
+	updateSettings(patch: Partial<EngineSettings>): void;
+	/**
 	 * Rewind to the start of the current sentence, paragraph or chapter, or to the start of
 	 * the previous one when the Cursor is already on a start. Emits `seek`.
 	 */
@@ -37,12 +52,21 @@ export type Engine = {
 	): () => void;
 };
 
+/**
+ * Either a ready `timeline`, or the `document` to build one from. Only an Engine that has
+ * its `document` can rebuild when settings change.
+ */
 export type EngineOptions = {
 	clock: Clock;
-	timeline: Timeline;
+	/** BCP 47 language tag of the Document. */
+	language?: string;
+	settings?: Partial<EngineSettings>;
 	/** Where chapters start (see `findChapters`). Without them, back one chapter goes to the start. */
 	chapters?: readonly Position[];
-};
+} & (
+	| { timeline: Timeline; document?: Document }
+	| { document: Document; timeline?: Timeline }
+);
 
 /** Last Frame that starts at or before `time`. */
 function frameAtTime(frames: readonly Frame[], time: number): number {
@@ -75,12 +99,24 @@ function frameAtPosition(frames: readonly Frame[], position: Position): number {
  * Plays a Timeline on a Clock. The Cursor is the current Frame: playing moves it forward
  * as the Clock advances, seeking moves it to a Position, and Reading Events report both.
  */
-export function createEngine({
-	clock,
-	timeline,
-	chapters = [],
-}: EngineOptions): Engine {
-	const { frames } = timeline;
+export function createEngine(options: EngineOptions): Engine {
+	const { clock, document, language, chapters = [] } = options;
+	let settings = resolveSettings(options.settings);
+	const timelineOptions = () => ({
+		anchor,
+		...(language !== undefined ? { language } : {}),
+	});
+	let anchor: Position = { block: 0, offset: 0 };
+	let timeline: Timeline =
+		options.timeline ??
+		buildTimeline(
+			options.document as Document,
+			settings,
+			language !== undefined ? { language } : {},
+		);
+	let frames = timeline.frames;
+	/** The anchor the Frames from the Cursor onward were built with. */
+	let builtAnchor = anchor;
 	const listeners: {
 		[E in EngineEventName]: Set<(payload: EngineEvents[E]) => void>;
 	} = {
@@ -91,6 +127,8 @@ export function createEngine({
 		end: new Set(),
 	};
 
+	/** Rewind targets per unit, computed on first use and dropped when the Timeline changes. */
+	const startsCache = new Map<BackUnit, number[]>();
 	let index = 0;
 	let playing = false;
 	let ended = false;
@@ -106,6 +144,42 @@ export function createEngine({
 	};
 
 	const currentFrame = () => frames[index];
+
+	/** Pacing that counts from where the reader pressed play needs a rebuild when that moves. */
+	const countsFromAnchor = () =>
+		settings.rampSpanWords > 0 || settings.sprintEveryWords > 0;
+
+	const rebuild = () => {
+		if (!document) {
+			throw new Error(
+				"This Engine has no Document to rebuild its Timeline from.",
+			);
+		}
+		timeline = rebuildTimeline(
+			document,
+			timeline,
+			index,
+			settings,
+			timelineOptions(),
+		);
+		frames = timeline.frames;
+		builtAnchor = anchor;
+		startsCache.clear();
+	};
+
+	/** Start counting the ramp and sprints from the current Frame. */
+	const reanchor = () => {
+		const frame = currentFrame();
+		if (!frame) return;
+		anchor = frame.position;
+		if (
+			document &&
+			countsFromAnchor() &&
+			comparePositions(anchor, builtAnchor) !== 0
+		) {
+			rebuild();
+		}
+	};
 
 	const show = () => {
 		const frame = currentFrame();
@@ -126,7 +200,6 @@ export function createEngine({
 		stopTicking = undefined;
 	};
 
-	const startsCache = new Map<BackUnit, number[]>();
 	const startsFor = (unit: BackUnit) => {
 		let starts = startsCache.get(unit);
 		if (!starts) {
@@ -142,6 +215,7 @@ export function createEngine({
 		const frame = currentFrame();
 		if (frame) emit("seek", { position: frame.position });
 		if (playing) {
+			reanchor();
 			restartTiming();
 			show();
 		}
@@ -165,7 +239,12 @@ export function createEngine({
 	};
 
 	return {
-		timeline,
+		get timeline() {
+			return timeline;
+		},
+		get settings() {
+			return settings;
+		},
 		get playing() {
 			return playing;
 		},
@@ -184,6 +263,7 @@ export function createEngine({
 				index = 0;
 				ended = false;
 			}
+			reanchor();
 			playing = true;
 			restartTiming();
 			const frame = currentFrame();
@@ -204,6 +284,29 @@ export function createEngine({
 		back(unit = "sentence") {
 			if (frames.length === 0) return;
 			moveTo(backTarget(startsFor(unit), index));
+		},
+		updateSettings(patch) {
+			if (!document) {
+				throw new Error(
+					"This Engine has no Document to rebuild its Timeline from.",
+				);
+			}
+			settings = resolveSettings({ ...settings, ...patch });
+			const before = currentFrame();
+			const time = timeOrigin + (clock.now() - clockOrigin);
+			rebuild();
+			if (playing) {
+				clockOrigin = clock.now();
+				timeOrigin = time;
+			}
+			const after = currentFrame();
+			if (
+				after &&
+				(after.text !== before?.text ||
+					comparePositions(after.end, before?.end ?? after.end) !== 0)
+			) {
+				show();
+			}
 		},
 		on(event, listener) {
 			const set = listeners[event] as Set<typeof listener>;
