@@ -11,6 +11,7 @@
 		"dev": "vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
+		"prepare": "pnpm paraglide && svelte-kit sync",
 		"lint": "node scripts/lint-runes.ts",
 		"paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy url baseLocale",
 		"typecheck": "pnpm paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",

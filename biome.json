@@ -14,8 +14,7 @@
 			"!app/static",
 			"!app/project.inlang/cache",
 			"!pnpm-lock.yaml",
-			"!app/brand",
-			"!app/messages"
+			"!app/brand"
 		]
 	},
 	"css": {
