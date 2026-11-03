@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "biome check src",
-    "lint:fix": "biome check --write src",
+    "lint": "biome check src worker",
+    "lint:fix": "biome check --write src worker",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:worker": "pnpm --filter @speeedy/worker test",
+    "typecheck:worker": "pnpm --filter @speeedy/worker types && pnpm --filter @speeedy/worker typecheck",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed",
     "prepare": "husky"
@@ -45,13 +47,8 @@
     "vitest": "^4.1.2"
   },
   "lint-staged": {
-    "src/**/*.ts": [
+    "{src,worker}/**/*.ts": [
       "biome check --write"
     ]
-  },
-  "pnpm": {
-    "overrides": {
-      "vite": "^8.0.3"
-    }
   }
 }

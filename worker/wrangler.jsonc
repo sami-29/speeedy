@@ -1,0 +1,17 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "speeedy-worker",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-10-01",
+	"workers_dev": false,
+	// Zone and host come from the domain ticket; speeedy.app is not registered yet.
+	// If a route cannot sit in front of the Pages custom domain, use api.speeedy.app
+	// as a Custom Domain instead.
+	"routes": [{ "pattern": "speeedy.app/api/*", "zone_name": "speeedy.app" }],
+	"vars": {
+		"POSTHOG_HOST": "https://us.i.posthog.com"
+	},
+	// Set for real with `wrangler secret put` by the deploy ticket. Locally it lives in
+	// worker/.dev.vars, which is gitignored.
+	"secrets": { "required": ["POSTHOG_PROJECT_TOKEN"] }
+}

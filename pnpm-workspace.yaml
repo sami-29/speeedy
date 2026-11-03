@@ -1,0 +1,4 @@
+packages:
+  - worker
+overrides:
+  vite: ^8.0.3
