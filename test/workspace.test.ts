@@ -19,6 +19,7 @@ const packageDirs = {
 	"packages/kokoro": "@speeedy/kokoro",
 	"packages/parsers": "@speeedy/parsers",
 	"packages/contracts": "@speeedy/contracts",
+	"packages/sync": "@speeedy/sync",
 	extension: "@speeedy/extension",
 	twa: "@speeedy/twa",
 	"voice-server": "@speeedy/voice-server",
@@ -82,6 +83,7 @@ describe("workspace packages", () => {
 			"engine",
 			"kokoro",
 			"parsers",
+			"sync",
 		]);
 	});
 

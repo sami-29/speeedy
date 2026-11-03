@@ -1,0 +1,22 @@
+{
+	"name": "@speeedy/sync",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test:unit": "vitest run"
+	},
+	"dependencies": {
+		"@speeedy/contracts": "workspace:*"
+	},
+	"devDependencies": {
+		"@speeedy/engine": "workspace:*",
+		"fast-check": "4.10.2",
+		"vitest": "4.1.2"
+	}
+}
