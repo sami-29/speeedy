@@ -4,9 +4,7 @@
  * the 404 for a link to it, so the build lets exactly these through. Delete a route from
  * this list when its page lands; a link to any other missing page still fails the build.
  */
-export const PLANNED_PUBLIC_ROUTES: readonly string[] = [
-	"/spreeder-alternative",
-];
+export const PLANNED_PUBLIC_ROUTES: readonly string[] = [];
 
 /** The build's answer to a prerender 404: let a planned route through, stop on the rest. */
 export function handlePrerenderError(error: {

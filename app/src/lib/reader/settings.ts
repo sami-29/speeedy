@@ -23,6 +23,25 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
 	speedRamp: false,
 };
 
+/**
+ * Settings a page can ask the reader to open with. The focus preset is the ADHD page's: a
+ * steady 220 WPM. The one study behind it ran at about 200 WPM; 220 is Speeedy's own default
+ * in the 200 to 250 range, not a result of that study.
+ */
+export const READER_PRESETS = {
+	focus: { wpm: 220 },
+} as const satisfies Record<string, Partial<ReaderSettings>>;
+
+export type ReaderPreset = keyof typeof READER_PRESETS;
+
+/** The settings with a preset laid over them. No preset leaves them as they are. */
+export function withPreset(
+	settings: ReaderSettings,
+	preset: ReaderPreset | undefined,
+): ReaderSettings {
+	return preset ? { ...settings, ...READER_PRESETS[preset] } : settings;
+}
+
 export const MIN_CHUNK_SIZE = 1;
 export const MAX_CHUNK_SIZE = 5;
 

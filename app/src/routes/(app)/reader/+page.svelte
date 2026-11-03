@@ -22,6 +22,7 @@ import { type Reading, startReading } from "#lib/reader/reading.ts";
 import {
 	DEFAULT_READER_SETTINGS,
 	type ReaderSettings,
+	withPreset,
 } from "#lib/reader/settings.ts";
 
 const loader = createReaderLoader();
@@ -175,6 +176,7 @@ onMount(() => {
 		void restore();
 		return;
 	}
+	settings = withPreset(settings, handed.preset);
 	const source: ReaderSource =
 		"file" in handed
 			? { kind: "file", file: handed.file }
