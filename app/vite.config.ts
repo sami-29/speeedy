@@ -4,6 +4,7 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import { sourcemapPlan } from "./scripts/sourcemaps-plan.ts";
+import { handlePrerenderError } from "./src/lib/seo/planned.ts";
 
 // Which extension origins may send a page to the Library, set per build. Unset, the app trusts
 // the development extension (see src/lib/launcher/config.ts); a release build lists the store IDs.
@@ -36,6 +37,8 @@ export default defineConfig({
 			// Public routes prerender. App routes are prerendered as empty client-only shells
 			// (see src/routes/(app)); the fallback serves `/account/*`, which has no fixed list.
 			adapter: adapter({ fallback: "200.html" }),
+			// A link to a public page that a later ticket builds must not stop the build.
+			prerender: { handleHttpError: handlePrerenderError },
 			// Runes mode for our own code only. A global `runes: true` would also force
 			// node_modules, so it is set per file here and checked by `pnpm lint`.
 			dynamicCompileOptions: ({ filename }) =>
