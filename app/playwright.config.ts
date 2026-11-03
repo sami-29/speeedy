@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Parallel worktrees can each run e2e: set PW_PORT to a free port. A busy port fails the run
+// loudly instead of testing whatever build another worktree left on it.
+const port = Number(process.env.PW_PORT ?? 4173);
+
 // The e2e run builds the static site and serves it with `vite preview`, so it tests the
 // prerendered output that Cloudflare Pages will serve.
 export default defineConfig({
@@ -8,12 +12,12 @@ export default defineConfig({
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 1 : 0,
 	reporter: process.env.CI ? [["github"], ["list"]] : "list",
-	use: { baseURL: "http://localhost:4173", trace: "retain-on-failure" },
+	use: { baseURL: `http://localhost:${port}`, trace: "retain-on-failure" },
 	projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
 	webServer: {
-		command: "pnpm build && pnpm preview --port 4173 --strictPort",
-		url: "http://localhost:4173",
-		reuseExistingServer: !process.env.CI,
+		command: `pnpm build && pnpm preview --port ${port} --strictPort`,
+		url: `http://localhost:${port}`,
+		reuseExistingServer: false,
 		timeout: 180_000,
 	},
 });

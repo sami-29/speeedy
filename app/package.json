@@ -20,6 +20,11 @@
 		"icons": "node scripts/generate-icons.ts",
 		"icons:check": "node scripts/generate-icons.ts --check"
 	},
+	"dependencies": {
+		"@speeedy/contracts": "workspace:*",
+		"@speeedy/engine": "workspace:*",
+		"@speeedy/parsers": "workspace:*"
+	},
 	"devDependencies": {
 		"@axe-core/playwright": "4.14.0",
 		"@inlang/paraglide-js": "2.29.2",
