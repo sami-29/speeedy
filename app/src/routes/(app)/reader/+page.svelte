@@ -1,7 +1,8 @@
 <script lang="ts">
 import type { Timeline } from "@speeedy/engine";
-import { onDestroy } from "svelte";
+import { onDestroy, onMount } from "svelte";
 import { m } from "#lib/paraglide/messages.js";
+import { takeHandOff } from "#lib/reader/handoff.ts";
 import { readerModes } from "#lib/reader/modes.ts";
 import { createReaderLoader, type ReaderSource } from "#lib/reader/open.ts";
 import { READER_SETTINGS } from "#lib/reader/settings.ts";
@@ -25,6 +26,12 @@ async function open(source: ReaderSource) {
 	if (result.ok) session = { timeline: result.timeline, title: result.title };
 	else error = result.message;
 }
+
+// A public page (the front door) can hand over pasted text or a file; open it at once.
+onMount(() => {
+	const handedOver = takeHandOff();
+	if (handedOver) void open(handedOver);
+});
 
 function onSubmit(event: SubmitEvent) {
 	event.preventDefault();

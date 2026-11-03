@@ -138,7 +138,9 @@ test.describe("paste or drop box", () => {
 		const box = page.getByTestId("paste-box");
 		const data = await page.evaluateHandle((text) => {
 			const transfer = new DataTransfer();
-			transfer.items.add(new File([text], "dropped.txt", { type: "text/plain" }));
+			transfer.items.add(
+				new File([text], "dropped.txt", { type: "text/plain" }),
+			);
 			return transfer;
 		}, TEXT);
 		await box.dispatchEvent("dragover", { dataTransfer: data });
@@ -152,12 +154,12 @@ test.describe("paste or drop box", () => {
 	}) => {
 		await page.goto("/");
 		await page.locator('input[type="file"]').setInputFiles({
-			name: "book.xyz",
-			mimeType: "application/octet-stream",
-			buffer: Buffer.from([0, 1, 2, 3, 4, 5]),
+			name: "picture.png",
+			mimeType: "image/png",
+			buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
 		});
 		await expect(page).toHaveURL(/\/reader$/);
-		await expect(page.getByRole("alert")).toBeVisible();
+		await expect(page.getByRole("alert")).toContainText("not text");
 	});
 
 	test("the text never goes into the URL or a request", async ({ page }) => {
@@ -173,7 +175,9 @@ test.describe("paste or drop box", () => {
 });
 
 test.describe("robots.txt", () => {
-	test("allows every crawler and points to the sitemap", async ({ request }) => {
+	test("allows every crawler and points to the sitemap", async ({
+		request,
+	}) => {
 		const response = await request.get("/robots.txt");
 		expect(response.status()).toBe(200);
 		expect(response.headers()["content-type"]).toContain("text/plain");

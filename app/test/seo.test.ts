@@ -60,8 +60,10 @@ describe("robots.txt", () => {
 	});
 
 	it("does not block the app routes, so crawlers can read their noindex", () => {
+		// The Sitemap line is left out: its own URL starts with "/s".
+		const rules = lines.filter((line) => !/^sitemap:/i.test(line));
 		for (const route of ["/reader", "/library", "/stats", "/training", "/s"]) {
-			expect(robots).not.toContain(route);
+			expect(rules.filter((line) => line.includes(route))).toEqual([]);
 		}
 	});
 });
