@@ -1,0 +1,9 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["node"],
+		"rewriteRelativeImportExtensions": true,
+		"noEmit": true
+	},
+	"include": ["src", "test", "bench"]
+}

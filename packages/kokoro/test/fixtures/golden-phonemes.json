@@ -1,0 +1,202 @@
+[
+	{
+		"text": "Hello, world!",
+		"phonemes": "həlˈO, wˈɜɹld!"
+	},
+	{
+		"text": "I don't think it's on the table.",
+		"phonemes": "ˌI dˈOnt θˈɪŋk ɪts ˌɔn ðə tˈAbᵊl."
+	},
+	{
+		"text": "We're sure they'll come, but you can't know.",
+		"phonemes": "wˌɪɹ ʃˈʊɹ ðAl kˈʌm, bˌʌt ju kˈænt nˈO."
+	},
+	{
+		"text": "She wouldn't have done it if he hadn't asked.",
+		"phonemes": "ʃˌi wˈʊdᵊnt hæv dˈʌn ɪt ɪf hi hˈædᵊnt ˈæskt."
+	},
+	{
+		"text": "Put it on the shelf, then sit on the chair.",
+		"phonemes": "pˌʊt ɪt ˌɔn ðə ʃˈɛlf, ðˈɛn sˈɪt ˌɔn ðə ʧˈɛɹ."
+	},
+	{
+		"text": "The apple fell on the ground.",
+		"phonemes": "ði ˈæpᵊl fˈɛl ˌɔn ðə ɡɹˈWnd."
+	},
+	{
+		"text": "The cat sat on the mat.",
+		"phonemes": "ðə kˈæt sˈæt ˌɔn ðə mˈæt."
+	},
+	{
+		"text": "An hour passed before the end of the day.",
+		"phonemes": "ɐn ˈWəɹ pˈæst bəfˈɔɹ ði ˈɛnd ʌv ðə dˈA."
+	},
+	{
+		"text": "He went to the store to buy an orange.",
+		"phonemes": "hˌi wˈɛnt tə ðə stˈɔɹ tə bˈI ɐn ˈɔɹᵊnʤ."
+	},
+	{
+		"text": "The dog's bone was under the boys' bed.",
+		"phonemes": "ðə dˈɔɡz bˈOn wʌz ˈʌndəɹ ðə bˈYz bˈɛd."
+	},
+	{
+		"text": "James's coat is in the children's room.",
+		"phonemes": "ʤˈAmzᵻz kˈOt ɪz ɪn ðə ʧˈɪldɹᵊnz ɹˈum."
+	},
+	{
+		"text": "It was the teacher's idea, not the student's.",
+		"phonemes": "ˌɪt wʌz ðə tˈiʧəɹz Idˈiə, nˌɑt ðə stˈudᵊnts."
+	},
+	{
+		"text": "There are 3 cats and 42 dogs.",
+		"phonemes": "ðˌɛɹ ɑɹ θɹˈi kˈæts ænd fˈɔɹTi tˈu dˈɔɡz."
+	},
+	{
+		"text": "The year 1984 was long ago.",
+		"phonemes": "ðə jˈɪɹ nˌIntˈin ˈATi fˈɔɹ wʌz lˈɔŋ əɡˈO."
+	},
+	{
+		"text": "She was born in 2024.",
+		"phonemes": "ʃˌi wʌz bˈɔɹn ɪn twˈɛnti twˈɛnti fˈɔɹ."
+	},
+	{
+		"text": "It costs $5 or maybe $12.50 today.",
+		"phonemes": "ˌɪt kˈɔsts fˈIv dˈɑləɹz ɔɹ mˈAbi twˈɛlv dˈɑləɹz ænd fˈɪfti sˈɛnts tədˈA."
+	},
+	{
+		"text": "About 25% of people said no.",
+		"phonemes": "əbˈWt twˈɛnti fˈIv pəɹsˈɛnt ʌv pˈipᵊl sˈɛd nˈO."
+	},
+	{
+		"text": "He finished 1st and she came 3rd.",
+		"phonemes": "hˌi fˈɪnəʃt fˈɜɹst ænd ʃi kˈAm θˈɜɹd."
+	},
+	{
+		"text": "The value is 3.14 exactly.",
+		"phonemes": "ðə vˈælju ɪz θɹˈi pYnt wˈʌn fˈɔɹ ɪɡzˈæktli."
+	},
+	{
+		"text": "Call me at 7 tonight.",
+		"phonemes": "kˈɔl mˌi æt sˈɛvən tənˈIt."
+	},
+	{
+		"text": "\"Stop,\" she said, \"right now.\"",
+		"phonemes": "“stˈɑp,” ʃi sˈɛd, “ɹˈIt nˈW.”"
+	},
+	{
+		"text": "He said, \"I will be there.\"",
+		"phonemes": "hˌi sˈɛd, “ˌI wɪl bi ðˈɛɹ.”"
+	},
+	{
+		"text": "The result (as expected) was clear.",
+		"phonemes": "ðə ɹəzˈʌlt (æz ɪkspˈɛktᵻd) wʌz klˈɪɹ."
+	},
+	{
+		"text": "Wait — what did you say?",
+		"phonemes": "wˈAt — wˌʌt dˈɪd ju sˈA?"
+	},
+	{
+		"text": "Well... that was strange.",
+		"phonemes": "wˈɛl... ðˈæt wʌz stɹˈAnʤ."
+	},
+	{
+		"text": "London and Paris are big cities.",
+		"phonemes": "lˈʌndən ænd pˈɛɹəs ɑɹ bˈɪɡ sˈɪTiz."
+	},
+	{
+		"text": "Alice met Bob in New York.",
+		"phonemes": "ˈælɪs mˈɛt bˈɑb ɪn nˈu jˈɔɹk."
+	},
+	{
+		"text": "Apple and Google make software.",
+		"phonemes": "ˈæpᵊl ænd ɡˈuɡᵊl mˌAk sˈɔftwˌɛɹ."
+	},
+	{
+		"text": "Obama spoke in Chicago.",
+		"phonemes": "Obˈɑmə spˈOk ɪn ʃɪkˈɑɡO."
+	},
+	{
+		"text": "The NASA team launched a rocket.",
+		"phonemes": "ðə nˈæsə tˈim lˈɔnʧt ɐ ɹˈɑkət."
+	},
+	{
+		"text": "Reading quickly helps you learn faster.",
+		"phonemes": "ɹˈidɪŋ kwˈɪkli hˈɛlps ju lˈɜɹn fˈæstəɹ."
+	},
+	{
+		"text": "They were running, jumping and playing.",
+		"phonemes": "ðˌA wɜɹ ɹˈʌnɪŋ, ʤˈʌmpɪŋ ænd plˈAɪŋ."
+	},
+	{
+		"text": "The books were stacked on the tables.",
+		"phonemes": "ðə bˈʊks wɜɹ stˈækt ˌɔn ðə tˈAbᵊlz."
+	},
+	{
+		"text": "She walked home and wanted to rest.",
+		"phonemes": "ʃˌi wˈɔkt hˈOm ænd wˈɑntᵻd tə ɹˈɛst."
+	},
+	{
+		"text": "Is this the right way to the station?",
+		"phonemes": "ˌɪz ðɪs ðə ɹˈIt wˈA tə ðə stˈAʃən?"
+	},
+	{
+		"text": "Yes! We did it!",
+		"phonemes": "jˈɛs! wˌi dˈɪd ɪt!"
+	},
+	{
+		"text": "Quietly, the river flowed past the old mill.",
+		"phonemes": "kwˈIətli, ðə ɹˈɪvəɹ flˈOd pˈæst ði ˈOld mˈɪl."
+	},
+	{
+		"text": "Every morning I drink a cup of coffee.",
+		"phonemes": "ˈɛvəɹi mˈɔɹnɪŋ ˌI dɹˈɪŋk ɐ kˈʌp ʌv kˈɔfi."
+	},
+	{
+		"text": "My brother and I went fishing.",
+		"phonemes": "mˌI bɹˈʌðəɹ ænd ˌI wˈɛnt fˈɪʃɪŋ."
+	},
+	{
+		"text": "The quick brown fox jumps over the lazy dog.",
+		"phonemes": "ðə kwˈɪk bɹˈWn fˈɑks ʤˈʌmps ˈOvəɹ ðə lˈAzi dˈɔɡ."
+	},
+	{
+		"text": "Please close the door behind you.",
+		"phonemes": "plˈiz klˈOz ðə dˈɔɹ bəhˈInd ju."
+	},
+	{
+		"text": "Nobody knows what happened that night.",
+		"phonemes": "nˈObˌɑdi nˈOz wˌʌt hˈæpənd ðˈæt nˈIt."
+	},
+	{
+		"text": "Our neighbors bought a new car.",
+		"phonemes": "ˌWəɹ nˈAbəɹz bˈɔt ɐ nˈu kˈɑɹ."
+	},
+	{
+		"text": "The weather was cold; the wind was strong.",
+		"phonemes": "ðə wˈɛðəɹ wʌz kˈOld; ðə wˈɪnd wʌz stɹˈɔŋ."
+	},
+	{
+		"text": "Speed reading is a useful skill.",
+		"phonemes": "spˈid ɹˈidɪŋ ɪz ɐ jˈusfᵊl skˈɪl."
+	},
+	{
+		"text": "Listen carefully to the words.",
+		"phonemes": "lˈɪsᵊn kˈɛɹfᵊli tə ðə wˈɜɹdz."
+	},
+	{
+		"text": "A small bird sang in the tree.",
+		"phonemes": "ɐ smˈɔl bˈɜɹd sˈæŋ ɪn ðə tɹˈi."
+	},
+	{
+		"text": "The meeting starts at noon.",
+		"phonemes": "ðə mˈiTɪŋ stˈɑɹts æt nˈun."
+	},
+	{
+		"text": "Thank you for reading this sentence.",
+		"phonemes": "θˈæŋk ju fɔɹ ɹˈidɪŋ ðɪs sˈɛntᵊns."
+	},
+	{
+		"text": "Her answer surprised everyone in the room.",
+		"phonemes": "hˌɜɹ ˈænsəɹ səɹpɹˈIzd ˈɛvɹiwən ɪn ðə ɹˈum."
+	}
+]

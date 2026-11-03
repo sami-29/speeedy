@@ -1,0 +1,24 @@
+{
+	"name": "@speeedy/kokoro",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./worker": "./src/worker.ts",
+		"./client": "./src/client.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test:unit": "vitest run",
+		"fetch:assets": "node scripts/fetch-assets.ts",
+		"bench": "node bench/rtf.ts"
+	},
+	"dependencies": {
+		"@speeedy/engine": "workspace:*",
+		"onnxruntime-web": "1.31.1"
+	},
+	"devDependencies": {
+		"vitest": "4.1.2"
+	}
+}

@@ -14,6 +14,8 @@ saveExact: true
 allowBuilds:
   esbuild: true
   workerd: true
+  # onnxruntime-web pulls it in; its postinstall only prints a version notice.
+  protobufjs: false
 
 overrides:
   vite: ^8.0.3
