@@ -1,14 +1,17 @@
 import "fake-indexeddb/auto";
-import type { Document } from "@speeedy/contracts";
+import type { Block, Document } from "@speeedy/contracts";
+import { type DeviceDocument, SYNCED_SETTINGS } from "@speeedy/sync";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	createLibraryStore,
+	type DocumentMeta,
 	effectiveLanguage,
 	LIBRARY_DB_NAME,
 	LibraryError,
 	type LibraryStore,
 	SCHEMA_VERSION,
 } from "../src/lib/library/store.ts";
+import { LINE_HIDDEN_SETTING } from "../src/lib/stats/load.ts";
 
 let counter = 0;
 let clock = 1_000;
@@ -64,6 +67,11 @@ describe("documents", () => {
 			createdAt: 1_000,
 			deviceOnly: false,
 			sync: { pending: false, remoteId: null },
+			// Nothing has changed yet, so a fresh copy never beats a real change elsewhere.
+			positionChangedAt: 0,
+			titleChangedAt: 0,
+			languageOverrideChangedAt: 0,
+			deviceOnlyChangedAt: 0,
 		});
 		expect(meta.contentHash).toMatch(/^[0-9a-f]{64}$/);
 		expect(await store.list()).toEqual([meta]);
@@ -259,6 +267,178 @@ describe("rename, Position and language", () => {
 			expect(meta.deviceOnly).toBe(false);
 		},
 	);
+});
+
+describe("what Sync needs from the Library", () => {
+	const blocks = (...list: Block[]): Document => ({ version: 1, blocks: list });
+	const addBlocks = (...list: Block[]) =>
+		store.addDocument({ document: blocks(...list), title: "T", language: "en" });
+	const paragraph = (text: string): Block => ({ kind: "paragraph", text, spans: [] });
+
+	it.each<[string, Block[], Block[]]>([
+		[
+			"a heading and a paragraph",
+			[{ kind: "heading", level: 1, text: "Same words", spans: [] }],
+			[paragraph("Same words")],
+		],
+		[
+			"one block and two",
+			[paragraph("one\n\ntwo")],
+			[paragraph("one"), paragraph("two")],
+		],
+		[
+			"two heading levels",
+			[{ kind: "heading", level: 1, text: "Title", spans: [] }],
+			[{ kind: "heading", level: 2, text: "Title", spans: [] }],
+		],
+		[
+			"two list depths",
+			[{ kind: "list-item", depth: 0, ordered: false, text: "item", spans: [] }],
+			[{ kind: "list-item", depth: 1, ordered: false, text: "item", spans: [] }],
+		],
+		[
+			"an ordered and an unordered list",
+			[{ kind: "list-item", depth: 0, ordered: true, text: "item", spans: [] }],
+			[{ kind: "list-item", depth: 0, ordered: false, text: "item", spans: [] }],
+		],
+		[
+			"a quote and a code block",
+			[{ kind: "quote", text: "x = 1", spans: [] }],
+			[{ kind: "code", text: "x = 1", spans: [] }],
+		],
+	])("keeps %s with the same words as two documents", async (_, one, other) => {
+		const first = await addBlocks(...one);
+		const second = await addBlocks(...other);
+		expect(second.duplicate).toBe(false);
+		expect(second.meta.contentHash).not.toBe(first.meta.contentHash);
+		expect(second.meta.contentHash).toMatch(/^[0-9a-f]{64}$/);
+	});
+
+	it("treats the same text with other emphasis or image sizes as one document", async () => {
+		const first = await addBlocks(
+			{ kind: "paragraph", text: "bold words", spans: [] },
+			{ kind: "image-placeholder", alt: "A chart" },
+		);
+		const second = await addBlocks(
+			{
+				kind: "paragraph",
+				text: "bold words",
+				spans: [{ kind: "strong", start: 0, end: 4 }],
+			},
+			{ kind: "image-placeholder", alt: "A chart", width: 640, height: 480 },
+		);
+		expect(second.duplicate).toBe(true);
+		expect(second.meta.id).toBe(first.meta.id);
+	});
+
+	it("stamps a rename, a language choice and device-only with their own change times", async () => {
+		const { meta } = await add("some words");
+		clock = 5_000;
+		expect((await store.rename(meta.id, "New")).titleChangedAt).toBe(5_000);
+		clock = 6_000;
+		expect(
+			(await store.setLanguageOverride(meta.id, "fr")).languageOverrideChangedAt,
+		).toBe(6_000);
+		clock = 7_000;
+		expect(
+			(await store.setLanguageOverride(meta.id, null)).languageOverrideChangedAt,
+		).toBe(7_000);
+		clock = 8_000;
+		expect((await store.setDeviceOnly(meta.id, true)).deviceOnlyChangedAt).toBe(8_000);
+		expect(await store.get(meta.id)).toMatchObject({
+			titleChangedAt: 5_000,
+			languageOverrideChangedAt: 7_000,
+			deviceOnlyChangedAt: 8_000,
+			positionChangedAt: 0,
+		});
+	});
+
+	it("doesn't stamp a change that was refused", async () => {
+		const { meta } = await add("some words");
+		clock = 5_000;
+		await expect(store.rename(meta.id, " ")).rejects.toThrow(LibraryError);
+		expect((await store.get(meta.id))?.titleChangedAt).toBe(0);
+	});
+
+	it("takes a Position read later on another device, keeping that device's time", async () => {
+		const { meta } = await store.addDocument({
+			document: doc("first block", "second block"),
+			title: "Two",
+			language: "en",
+		});
+		clock = 9_000;
+		await store.savePosition(meta.id, { block: 0, offset: 3 }, 0.1);
+		clock = 20_000;
+		const applied = await store.applyRemotePosition(meta.id, {
+			position: { block: 1, offset: 2 },
+			progress: 0.6,
+			positionChangedAt: 12_000,
+		});
+		expect(applied).toBe(true);
+		expect(await store.get(meta.id)).toMatchObject({
+			position: { block: 1, offset: 2 },
+			progress: 0.6,
+			positionChangedAt: 12_000,
+			lastReadAt: 12_000,
+		});
+	});
+
+	it("keeps this device's Position when it was read later", async () => {
+		const { meta } = await add("some words here");
+		clock = 9_000;
+		await store.savePosition(meta.id, { block: 0, offset: 3 }, 0.1);
+		const applied = await store.applyRemotePosition(meta.id, {
+			position: { block: 0, offset: 9 },
+			progress: 0.9,
+			positionChangedAt: 8_000,
+		});
+		expect(applied).toBe(false);
+		expect(await store.get(meta.id)).toMatchObject({
+			position: { block: 0, offset: 3 },
+			progress: 0.1,
+			positionChangedAt: 9_000,
+			lastReadAt: 9_000,
+		});
+	});
+
+	it("settles a Position read at the same moment the way Sync does, on the larger record", async () => {
+		const { meta } = await add("some words here");
+		clock = 9_000;
+		await store.savePosition(meta.id, { block: 0, offset: 3 }, 0.1);
+		const later = { position: { block: 0, offset: 9 }, progress: 0.9, positionChangedAt: 9_000 };
+		const earlier = { position: { block: 0, offset: 1 }, progress: 0, positionChangedAt: 9_000 };
+		expect(await store.applyRemotePosition(meta.id, earlier)).toBe(false);
+		expect(await store.applyRemotePosition(meta.id, later)).toBe(true);
+		expect((await store.get(meta.id))?.position).toEqual({ block: 0, offset: 9 });
+	});
+
+	it("refuses a remote Position that could not be one, and an unknown document", async () => {
+		const { meta } = await add("some words here");
+		const good = { position: { block: 0, offset: 1 }, progress: 0.5, positionChangedAt: 5 };
+		for (const bad of [
+			{ ...good, position: { block: -1, offset: 0 } },
+			{ ...good, progress: 1.5 },
+			{ ...good, progress: Number.NaN },
+			{ ...good, positionChangedAt: Number.POSITIVE_INFINITY },
+		]) {
+			await expect(store.applyRemotePosition(meta.id, bad)).rejects.toMatchObject({
+				code: "invalid-argument",
+			});
+		}
+		await expect(store.applyRemotePosition("missing", good)).rejects.toMatchObject({
+			code: "not-found",
+		});
+	});
+
+	it("holds documents in the shape Sync merges", async () => {
+		const { meta } = await add("some words");
+		const forSync: DeviceDocument = meta satisfies DocumentMeta;
+		expect(forSync.id).toBe(meta.id);
+	});
+
+	it("syncs the Library line setting", () => {
+		expect(SYNCED_SETTINGS).toContain(LINE_HIDDEN_SETTING);
+	});
 });
 
 describe("delete and undo", () => {

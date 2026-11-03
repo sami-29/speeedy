@@ -24,6 +24,7 @@
 		"@speeedy/contracts": "workspace:*",
 		"@speeedy/engine": "workspace:*",
 		"@speeedy/parsers": "workspace:*",
+		"@speeedy/sync": "workspace:*",
 		"idb": "8.0.4"
 	},
 	"devDependencies": {
