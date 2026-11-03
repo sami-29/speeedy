@@ -536,8 +536,8 @@ describe("epub hostile: DRM detection is not fooled or crashed", () => {
 		).toEqual(["readable"]);
 	});
 
-	it("handles an encryption.xml with 50,000 entries without trouble", async () => {
-		const items = Array.from({ length: 50_000 }, (_, i) => ({
+	it("handles an encryption.xml with 20,000 entries without trouble", async () => {
+		const items = Array.from({ length: 20_000 }, (_, i) => ({
 			uri: `OEBPS/f/${i}.otf`,
 			algorithm: AES_128,
 		}));

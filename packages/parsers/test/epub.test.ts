@@ -103,7 +103,7 @@ describe("epub: chapters, order and headings", () => {
 			],
 		});
 		const [text] = textsOf(await read(bytes));
-		expect(text).toBe("Non breaking — dash, … é&éA <tag>");
+		expect(text).toBe("Non breaking — dash, … é&éA <tag>");
 		expect(text).not.toMatch(/&\w+;/);
 	});
 
