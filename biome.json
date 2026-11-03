@@ -1,6 +1,49 @@
 {
 	"$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
 	"files": {
-		"includes": ["**", "!**/worker-configuration.d.ts", "!**/dist", "!**/*.md"]
-	}
+		"includes": [
+			"**",
+			"!**/worker-configuration.d.ts",
+			"!**/dist",
+			"!**/*.md",
+			"!**/.svelte-kit",
+			"!app/build",
+			"!app/src/lib/paraglide",
+			"!app/playwright-report",
+			"!**/test-results",
+			"!app/static",
+			"!app/project.inlang/cache",
+			"!pnpm-lock.yaml",
+			"!app/brand",
+			"!app/messages"
+		]
+	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["**/*.svelte"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noUnusedImports": "off",
+						"noUnusedVariables": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": ["app/src/app.css"],
+			"linter": {
+				"rules": { "complexity": { "noImportantStyles": "off" } }
+			}
+		},
+		{
+			"includes": ["app/src/app.html"],
+			"linter": { "rules": { "a11y": { "useValidLang": "off" } } }
+		}
+	]
 }

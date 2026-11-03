@@ -59,8 +59,7 @@ jobs:
       - run: pnpm --filter @speeedy/worker typecheck
       - run: pnpm test:worker
 
-  # Placeholder until the app exists (#17/#18): `pnpm e2e` runs any package's `e2e`
-  # script and passes when none define one.
+  # Playwright e2e and the axe smoke test run against the built static app (`app/e2e`).
   e2e:
     runs-on: ubuntu-latest
     steps:
@@ -71,4 +70,10 @@ jobs:
           node-version: 22.22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @speeedy/app exec playwright install --with-deps chromium
       - run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: app/test-results

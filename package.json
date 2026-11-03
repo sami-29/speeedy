@@ -9,10 +9,10 @@
 	},
 	"scripts": {
 		"build": "pnpm -r --if-present build",
-		"lint": "biome check .",
+		"lint": "biome check . && pnpm -r --if-present lint",
 		"lint:fix": "biome check --write .",
 		"typecheck": "tsc --noEmit && pnpm -r --if-present typecheck",
-		"test:workspace": "node --test test/workspace.test.ts",
+		"test:workspace": "node --test test/workspace.test.ts test/app-shell.test.ts",
 		"test:unit": "pnpm test:workspace && pnpm -r --if-present test:unit",
 		"test:worker": "pnpm --filter @speeedy/worker test",
 		"e2e": "pnpm -r --if-present e2e"

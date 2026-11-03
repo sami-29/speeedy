@@ -3,7 +3,38 @@
 	"private": true,
 	"version": "0.0.0",
 	"type": "module",
+	"imports": {
+		"#lib": "./src/lib",
+		"#lib/*": "./src/lib/*"
+	},
 	"scripts": {
-		"build": "node -e \"console.log('@speeedy/app has nothing to build yet')\""
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"lint": "node scripts/lint-runes.ts",
+		"paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy url baseLocale",
+		"typecheck": "pnpm paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+		"test:unit": "pnpm icons:check && vitest run",
+		"e2e": "playwright test",
+		"icons": "node scripts/generate-icons.ts",
+		"icons:check": "node scripts/generate-icons.ts --check"
+	},
+	"devDependencies": {
+		"@axe-core/playwright": "4.14.0",
+		"@inlang/paraglide-js": "2.29.2",
+		"@inlang/plugin-message-format": "4.5.5",
+		"@playwright/test": "1.64.1",
+		"@sveltejs/adapter-static": "4.0.0",
+		"@sveltejs/kit": "3.1.0",
+		"@sveltejs/vite-plugin-svelte": "7.3.1",
+		"@tailwindcss/vite": "4.3.3",
+		"@types/node": "22.20.5",
+		"sharp": "0.35.2",
+		"svelte": "5.57.3",
+		"svelte-check": "4.7.7",
+		"tailwindcss": "4.3.3",
+		"typescript": "6.0.3",
+		"vite": "8.3.5",
+		"vitest": "4.1.2"
 	}
 }
