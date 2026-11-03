@@ -41,11 +41,14 @@ function setup(
 	const requests: string[] = [];
 	const fetcher = (async (url: string) => {
 		requests.push(String(url));
-		const file = Object.values(files).find(([asset]) => asset.url === String(url));
+		const file = Object.values(files).find(
+			([asset]) => asset.url === String(url),
+		);
 		if (!file) return new Response("missing", { status: 404 });
 		return new Response(file[1].slice(), { status: 200 });
 	}) as unknown as typeof fetch;
-	const posted: { message: KokoroWorkerMessage; transfer: Transferable[] }[] = [];
+	const posted: { message: KokoroWorkerMessage; transfer: Transferable[] }[] =
+		[];
 	const sessions: { bytes: Uint8Array; threads: number }[] = [];
 	const worker = createKokoroWorker({
 		assets,
@@ -64,11 +67,21 @@ function setup(
 
 describe("threadCount", () => {
 	it("uses up to four threads, half the cores, only when cross-origin isolated", () => {
-		expect(threadCount({ crossOriginIsolated: true, hardwareConcurrency: 8 })).toBe(4);
-		expect(threadCount({ crossOriginIsolated: true, hardwareConcurrency: 16 })).toBe(4);
-		expect(threadCount({ crossOriginIsolated: true, hardwareConcurrency: 4 })).toBe(2);
-		expect(threadCount({ crossOriginIsolated: true, hardwareConcurrency: 1 })).toBe(1);
-		expect(threadCount({ crossOriginIsolated: false, hardwareConcurrency: 8 })).toBe(1);
+		expect(
+			threadCount({ crossOriginIsolated: true, hardwareConcurrency: 8 }),
+		).toBe(4);
+		expect(
+			threadCount({ crossOriginIsolated: true, hardwareConcurrency: 16 }),
+		).toBe(4);
+		expect(
+			threadCount({ crossOriginIsolated: true, hardwareConcurrency: 4 }),
+		).toBe(2);
+		expect(
+			threadCount({ crossOriginIsolated: true, hardwareConcurrency: 1 }),
+		).toBe(1);
+		expect(
+			threadCount({ crossOriginIsolated: false, hardwareConcurrency: 8 }),
+		).toBe(1);
 	});
 });
 
@@ -109,9 +122,17 @@ describe("Kokoro worker", () => {
 		const { worker, requests, posted, sessions, last } = setup();
 		await worker.handle({ type: "download", consent: true });
 		expect(requests).toHaveLength(4);
-		expect(posted.some(({ message }) => message.type === "progress")).toBe(true);
-		expect(last()).toEqual({ type: "ready", threads: 4, crossOriginIsolated: true });
-		expect(sessions).toEqual([{ bytes: new Uint8Array([1, 2, 3, 4]), threads: 4 }]);
+		expect(posted.some(({ message }) => message.type === "progress")).toBe(
+			true,
+		);
+		expect(last()).toEqual({
+			type: "ready",
+			threads: 4,
+			crossOriginIsolated: true,
+		});
+		expect(sessions).toEqual([
+			{ bytes: new Uint8Array([1, 2, 3, 4]), threads: 4 },
+		]);
 
 		await worker.handle({
 			type: "generate",
@@ -133,7 +154,10 @@ describe("Kokoro worker", () => {
 
 	it("loads from the cache on a later visit without the network", async () => {
 		const store = memoryStore();
-		await setup(undefined, store).worker.handle({ type: "download", consent: true });
+		await setup(undefined, store).worker.handle({
+			type: "download",
+			consent: true,
+		});
 		const later = setup(undefined, store);
 		await later.worker.handle({ type: "status" });
 		expect(later.last()).toMatchObject({ type: "status", downloaded: true });
@@ -155,7 +179,11 @@ describe("Kokoro worker", () => {
 			hardwareConcurrency: 8,
 		});
 		await worker.handle({ type: "download", consent: true });
-		expect(last()).toEqual({ type: "ready", threads: 1, crossOriginIsolated: false });
+		expect(last()).toEqual({
+			type: "ready",
+			threads: 1,
+			crossOriginIsolated: false,
+		});
 		expect(sessions[0]?.threads).toBe(1);
 	});
 

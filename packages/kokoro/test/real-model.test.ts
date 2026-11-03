@@ -46,7 +46,10 @@ describe.skipIf(!ready)("Kokoro-7M-Distill on WASM", () => {
 	it("says the same sentence faster at a higher speed", async () => {
 		const sentence = "Reading quickly helps you learn faster.";
 		const normal = await kokoro.generate(sentence, { voice: "af_msa" });
-		const fast = await kokoro.generate(sentence, { voice: "af_msa", speed: 1.5 });
+		const fast = await kokoro.generate(sentence, {
+			voice: "af_msa",
+			speed: 1.5,
+		});
 		expect(fast.samples.length).toBeLessThan(normal.samples.length * 0.85);
 	}, 60_000);
 });

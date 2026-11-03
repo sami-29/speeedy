@@ -9,10 +9,11 @@
 		"./client": "./src/client.ts"
 	},
 	"scripts": {
+		"build": "tsc -p tsconfig.build.json",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
 		"test:unit": "vitest run",
 		"fetch:assets": "node scripts/fetch-assets.ts",
-		"bench": "node bench/rtf.ts"
+		"bench": "vitest run --config bench/vitest.config.ts"
 	},
 	"dependencies": {
 		"@speeedy/engine": "workspace:*",

@@ -21,7 +21,11 @@ const asset: Asset = {
 	sha256: sha256(body),
 };
 
-type Plan = { status?: number; ignoreRange?: boolean; fail?: (n: number, range: string) => "throw" | "short" | undefined };
+type Plan = {
+	status?: number;
+	ignoreRange?: boolean;
+	fail?: (n: number, range: string) => "throw" | "short" | undefined;
+};
 
 /** A fake server for `body` that honours Range requests and logs what it was asked. */
 function server(plan: Plan = {}, content = body) {
@@ -89,7 +93,9 @@ describe("downloadAsset", () => {
 
 	it("resumes from the stored parts after giving up, without fetching them again", async () => {
 		const store = memoryStore();
-		const broken = server({ fail: (_n, range) => (range === "bytes=512-767" ? "throw" : undefined) });
+		const broken = server({
+			fail: (_n, range) => (range === "bytes=512-767" ? "throw" : undefined),
+		});
 		await expect(
 			downloadAsset(asset, {
 				fetch: broken.fetch,
@@ -99,16 +105,24 @@ describe("downloadAsset", () => {
 				retryDelayMs: 0,
 			}),
 		).rejects.toThrow();
-		expect(broken.requests.filter((r) => r === "bytes=512-767")).toHaveLength(3);
+		expect(broken.requests.filter((r) => r === "bytes=512-767")).toHaveLength(
+			3,
+		);
 		const { fetch, requests } = server();
-		expect(await downloadAsset(asset, { fetch, store, partSize: 256 })).toEqual(body);
+		expect(await downloadAsset(asset, { fetch, store, partSize: 256 })).toEqual(
+			body,
+		);
 		expect(requests).toEqual(["bytes=512-767", "bytes=768-999"]);
 	});
 
 	it("accepts a server that ignores Range and sends the whole file", async () => {
 		const { fetch } = server({ ignoreRange: true });
 		expect(
-			await downloadAsset(asset, { fetch, store: memoryStore(), partSize: 256 }),
+			await downloadAsset(asset, {
+				fetch,
+				store: memoryStore(),
+				partSize: 256,
+			}),
 		).toEqual(body);
 	});
 

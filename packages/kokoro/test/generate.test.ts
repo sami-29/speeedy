@@ -114,9 +114,9 @@ describe("generate", () => {
 
 	it("refuses text that is not English", async () => {
 		const kokoro = generator();
-		expect(await codeOf(kokoro.generate("Привет, мир.", { voice: "af_msa" }))).toBe(
-			"not-english",
-		);
+		expect(
+			await codeOf(kokoro.generate("Привет, мир.", { voice: "af_msa" })),
+		).toBe("not-english");
 		expect(await codeOf(kokoro.generate("你好", { voice: "af_msa" }))).toBe(
 			"not-english",
 		);
@@ -134,15 +134,15 @@ describe("generate", () => {
 
 	it("refuses a sentence longer than the model's 510 phonemes", async () => {
 		const sentence = Array.from({ length: 120 }, () => "hello").join(" ");
-		expect(await codeOf(generator().generate(sentence, { voice: "af_msa" }))).toBe(
-			"too-long",
-		);
+		expect(
+			await codeOf(generator().generate(sentence, { voice: "af_msa" })),
+		).toBe("too-long");
 	});
 
 	it("refuses an unknown voice and an empty sentence", async () => {
-		expect(await codeOf(generator().generate("Hello.", { voice: "nope" }))).toBe(
-			"unknown-voice",
-		);
+		expect(
+			await codeOf(generator().generate("Hello.", { voice: "nope" })),
+		).toBe("unknown-voice");
 		expect(await codeOf(generator().generate("  ", { voice: "af_msa" }))).toBe(
 			"empty",
 		);
@@ -157,8 +157,8 @@ describe("generate", () => {
 				};
 			},
 		};
-		expect(await codeOf(generator(session).generate("Hello.", { voice: "af_msa" }))).toBe(
-			"bad-output",
-		);
+		expect(
+			await codeOf(generator(session).generate("Hello.", { voice: "af_msa" })),
+		).toBe("bad-output");
 	});
 });

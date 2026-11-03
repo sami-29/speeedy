@@ -45,6 +45,7 @@ export {
 	recentWpms,
 } from "./stats";
 export { buildTimeline, DEFAULT_SETTINGS, rebuildTimeline } from "./timeline";
+export { type Token, tokenize } from "./tokenizer";
 export type {
 	EngineSettings,
 	Frame,
