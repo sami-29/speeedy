@@ -15,12 +15,15 @@ import { clampWpm } from "./wpm.ts";
 let {
 	reading,
 	title,
+	source,
 	settings = $bindable(),
 	failed = false,
 	onNewText,
 }: {
 	reading: Reading;
 	title: string | null;
+	/** Where the text came from, for the page to tell apart. */
+	source: string;
 	settings: ReaderSettings;
 	failed?: boolean;
 	onNewText: () => void;
@@ -148,7 +151,9 @@ function onKeydown(event: KeyboardEvent) {
 
 <svelte:window onkeydown={onKeydown} onpointerdown={wake} />
 
-<h1 class="sr-only">{title ?? m.reader_reading()}</h1>
+<h1 class="sr-only" data-testid="reader-source" data-source={source}>
+	{title ?? m.reader_reading()}
+</h1>
 
 <div class="bar chrome px-gutter pt-s-2" data-dim={dimmed}>
 	<button type="button" class="segment border-2 border-ink" onclick={onNewText}>

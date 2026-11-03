@@ -1,8 +1,11 @@
 <script lang="ts">
+import { onMount } from "svelte";
 import "../app.css";
+import NewsletterForm from "#lib/NewsletterForm.svelte";
+import { newsletterPageFor, showsFooterForm } from "#lib/newsletter.ts";
 import { m } from "#lib/paraglide/messages.js";
-import { localizeHref } from "#lib/paraglide/runtime.js";
-import { trackPageview } from "#lib/telemetry.ts";
+import { deLocalizeUrl, localizeHref } from "#lib/paraglide/runtime.js";
+import { startErrorCapture, trackPageview } from "#lib/telemetry.ts";
 import { theme } from "#lib/theme.svelte.ts";
 import { applyTheme, type Theme } from "#lib/theme.ts";
 import { afterNavigate } from "$app/navigation";
@@ -10,12 +13,22 @@ import { page } from "$app/state";
 
 let { children } = $props();
 
+// Uncaught errors are reported by code and stack frames only, never their message.
+onMount(startErrorCapture);
+
 // One route-only $pageview per page, on first load and on every client-side navigation.
 afterNavigate((navigation) =>
 	trackPageview(navigation.to?.url.pathname ?? window.location.pathname),
 );
 
 const inApp = $derived(page.route.id?.startsWith("/(app)") ?? false);
+
+// The path without a locale prefix or a trailing slash, as the route tables list it.
+const path = $derived(
+	deLocalizeUrl(page.url).pathname.replace(/(.)\/+$/, "$1"),
+);
+// Not on a reading surface, and not where the page carries the full block itself.
+const showForm = $derived(showsFooterForm(path));
 
 // App routes follow the saved theme; public pages are always Paper.
 $effect(() => {
@@ -76,6 +89,16 @@ const themes = $derived<{ id: Theme; short: string; label: string }[]>([
 <main id="main" class="poster-axis pb-s-6">
 	{@render children()}
 </main>
+
+{#if showForm}
+	<footer class="rule-heavy mt-s-5 poster px-gutter py-s-4">
+		<div class="poster-head"></div>
+		<div class="grid gap-s-3">
+			<NewsletterForm page={newsletterPageFor(path)} />
+			<p class="caption text-ink-3">{m.newsletter_address()}</p>
+		</div>
+	</footer>
+{/if}
 
 <style>
 	.wordmark-night {

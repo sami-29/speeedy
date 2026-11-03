@@ -1,3 +1,4 @@
+import type { Document, Position } from "@speeedy/contracts";
 import type { Timeline } from "@speeedy/engine";
 import TimelineWorker from "@speeedy/engine/worker?worker";
 import {
@@ -18,19 +19,42 @@ export type ReaderSource =
 	| { kind: "text"; text: string }
 	| { kind: "file"; file: File };
 
+/** A built Timeline, and the link to the worker that holds the text it was built from. */
+export type Built = {
+	timeline: Timeline;
+	/** Talks to the Timeline worker that holds this text, for settings rebuilds. */
+	client: TimelineClient;
+};
+
 export type OpenResult =
-	| {
+	| ({
 			ok: true;
-			timeline: Timeline;
 			title: string | null;
-			/** Talks to the Timeline worker that holds this text, for settings rebuilds. */
-			client: TimelineClient;
-	  }
+			/** What the parser made of the source, so the Library can keep it. */
+			document: Document;
+			/** The detected language: a BCP 47 tag, `und` when unknown. */
+			language: string;
+	  } & Built)
+	| { ok: false; message: string };
+
+export type ParseSourceResult =
+	| { ok: true; document: Document; title: string | null; language: string }
 	| { ok: false; message: string };
 
 export type ReaderLoader = {
 	/** Parse the source, then build its first Timeline. Both run in workers. */
 	open(source: ReaderSource, settings: ReaderSettings): Promise<OpenResult>;
+	/** Parse the source and stop there. The Library page keeps the Document without reading it. */
+	parse(source: ReaderSource): Promise<ParseSourceResult>;
+	/**
+	 * Build a Timeline for a stored Document. `anchor` is where the reader resumes, so the
+	 * speed ramp counts from there. Null when the build fails.
+	 */
+	build(
+		document: Document,
+		options: { language: string; anchor?: Position },
+		settings: ReaderSettings,
+	): Promise<Built | null>;
 	/** Stop both workers. Call when the reader goes away. */
 	dispose(): void;
 };
@@ -68,25 +92,64 @@ export function createReaderLoader(): ReaderLoader {
 			? clients.parser.parseText(source.text)
 			: clients.parser.parse(await source.file.arrayBuffer(), source.file.name);
 
+	const build = async (
+		clients: ReturnType<typeof start>,
+		document: Document,
+		language: string,
+		settings: ReaderSettings,
+		anchor?: Position,
+	): Promise<Built | null> => {
+		const built = await clients.timelines.build({
+			document,
+			settings: engineSettings(settings),
+			options: {
+				language: language === "und" ? undefined : language,
+				anchor,
+			},
+		});
+		return built.ok
+			? { timeline: built.timeline, client: clients.timelines }
+			: null;
+	};
+
 	return {
 		async open(source, settings) {
 			const clients = start();
 			const outcome = await parse(clients, source);
 			if (!outcome.ok) return { ok: false, message: outcome.message };
-			const language =
-				outcome.language.code === "und" ? undefined : outcome.language.code;
-			const built = await clients.timelines.build({
-				document: outcome.document,
-				settings: engineSettings(settings),
-				options: { language },
-			});
-			if (!built.ok) return { ok: false, message: BUILD_FAILED };
+			const built = await build(
+				clients,
+				outcome.document,
+				outcome.language.code,
+				settings,
+			);
+			if (!built) return { ok: false, message: BUILD_FAILED };
 			return {
 				ok: true,
-				timeline: built.timeline,
+				...built,
 				title: outcome.title,
-				client: clients.timelines,
+				document: outcome.document,
+				language: outcome.language.code,
 			};
+		},
+		async parse(source) {
+			const outcome = await parse(start(), source);
+			if (!outcome.ok) return { ok: false, message: outcome.message };
+			return {
+				ok: true,
+				document: outcome.document,
+				title: outcome.title,
+				language: outcome.language.code,
+			};
+		},
+		build(document, options, settings) {
+			return build(
+				start(),
+				document,
+				options.language,
+				settings,
+				options.anchor,
+			);
 		},
 		dispose() {
 			parser?.dispose();

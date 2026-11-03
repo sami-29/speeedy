@@ -212,7 +212,11 @@ export function createTimelineSession(
 			id: request.id,
 			document: request.document,
 			...(request.settings ? { settings: request.settings } : {}),
-			options: { ...(language !== undefined ? { language } : {}), tokenCache },
+			options: {
+				...(language !== undefined ? { language } : {}),
+				...(request.options?.anchor ? { anchor: request.options.anchor } : {}),
+				tokenCache,
+			},
 		});
 		if (!response.ok) {
 			emit({ kind: "failed", id: request.id, error: response.error });

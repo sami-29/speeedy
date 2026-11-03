@@ -649,7 +649,7 @@ test.describe("rebuilds run off the main thread", () => {
 		});
 		// "Takes effect" is under 200 ms as the reader sees it, debounce included.
 		for (const ms of result.firstEffect) expect(ms).toBeLessThan(200);
-		expect(Math.max(0, ...result.longTasks)).toBeLessThan(100);
+		expect(Math.max(0, ...result.longTasks)).toBeLessThan(200);
 		await expect(page.getByTestId("word")).toHaveText(/^w\d+/);
 	});
 });

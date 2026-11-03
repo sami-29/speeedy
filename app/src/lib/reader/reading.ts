@@ -1,3 +1,4 @@
+import type { Position } from "@speeedy/contracts";
 import {
 	createEngine,
 	createTimerClock,
@@ -29,6 +30,10 @@ type StartOptions = {
 	client: Pick<TimelineClient, "change">;
 	/** Called when the worker could not apply a change. */
 	onError?: () => void;
+	/** Where to start reading. Without it reading starts at the first Frame. */
+	startAt?: Position;
+	/** Told where the reader is: on each Frame, and `final` on a pause or the end. */
+	onposition?: (position: Position, final: boolean) => void;
 };
 
 /**
@@ -41,12 +46,15 @@ export function startReading({
 	settings,
 	client,
 	onError,
+	startAt,
+	onposition,
 }: StartOptions): Reading {
 	const engine = createEngine({
 		clock: createTimerClock(),
 		timeline,
 		settings: engineSettings(settings),
 	});
+	if (startAt) engine.seek(startAt);
 	let previous: "wpm" | "window" | "tail" | undefined;
 	const measure = (name: string, latencyMs: number) => {
 		try {
@@ -75,13 +83,17 @@ export function startReading({
 		engine.on("seek", ({ position }) => {
 			if (engine.playing) live.anchor(position);
 		}),
+		engine.on("frameShown", ({ frame }) => onposition?.(frame.position, false)),
+		engine.on("pause", ({ position }) => onposition?.(position, true)),
+		engine.on("end", ({ position }) => onposition?.(position, true)),
 	];
 	return {
 		engine,
 		live,
 		dispose() {
-			for (const stop of stops) stop();
+			// Pause first, so the Position of a pause reaches `onposition` before it is detached.
 			engine.pause();
+			for (const stop of stops) stop();
 			live.dispose();
 		},
 	};

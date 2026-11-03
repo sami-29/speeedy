@@ -33,8 +33,8 @@ describe("token cache", () => {
 		).toEqual(rebuildWindow(document, base, 3, settings, {}, 5));
 		// Nothing was tokenized again: the very same entries are still there.
 		expect([...tokenCache.values()]).toEqual(stored);
-		stored.forEach((entry, i) =>
-			expect([...tokenCache.values()][i]).toBe(entry),
-		);
+		for (const [i, entry] of stored.entries()) {
+			expect([...tokenCache.values()][i]).toBe(entry);
+		}
 	});
 });

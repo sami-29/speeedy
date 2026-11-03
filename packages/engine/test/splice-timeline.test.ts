@@ -105,7 +105,8 @@ describe("spliceTimeline", () => {
 		// The rest are the very same Frames, untouched: cheap on a long Document.
 		const rest = spliced.frames.slice(5);
 		expect(rest).toHaveLength(base.frames.length - 6);
-		rest.forEach((frame, i) => expect(frame).toBe(base.frames[6 + i]));
+		for (const [i, frame] of rest.entries())
+			expect(frame).toBe(base.frames[6 + i]);
 		const moved =
 			(window.frames[1]?.startMs ?? 0) + (window.frames[1]?.durationMs ?? 0);
 		expect(spliced.totalMs).toBeCloseTo(
