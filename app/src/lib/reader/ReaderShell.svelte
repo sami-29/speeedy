@@ -159,6 +159,10 @@ function onKeydown(event: KeyboardEvent) {
 	<button type="button" class="segment border-2 border-ink" onclick={onNewText}>
 		{m.reader_new_text()}
 	</button>
+	{#if source === "share"}
+		<!-- Anyone can craft a Share Link, so its text is marked as not ours and waits for Play. -->
+		<p class="caption w-full text-ink-2" data-testid="shared-notice">{m.reader_shared_notice()}</p>
+	{/if}
 	<div role="group" aria-label={m.reader_mode_label()} class="flex border-2 border-ink">
 		{#each modes as entry (entry.id)}
 			<button
@@ -173,7 +177,7 @@ function onKeydown(event: KeyboardEvent) {
 
 {#if mode}
 	{#await mode.view() then view}
-		<view.default engine={reading.engine} />
+		<view.default engine={reading.engine} autoplay={source !== "share"} />
 	{/await}
 {/if}
 

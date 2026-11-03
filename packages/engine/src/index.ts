@@ -17,6 +17,7 @@ export {
 	type EngineEvents,
 	type EngineOptions,
 } from "./engine";
+export { localDate, shiftDate } from "./local-date";
 export { type BackUnit, findChapters } from "./navigation";
 export { computeOrp, type OrpFocus } from "./orp";
 export {
@@ -45,6 +46,19 @@ export {
 	recentWpms,
 } from "./stats";
 export {
+	type DatedSession,
+	type DaySummary,
+	DEFAULT_DAILY_GOAL_MINUTES,
+	dailyGoalFor,
+	dailySummaries,
+	daySummary,
+	type GoalChange,
+	READING_DAY_MS,
+	readingDays,
+	type Streaks,
+	streaks,
+} from "./streaks";
+export {
 	buildTimeline,
 	DEFAULT_SETTINGS,
 	rebuildTimeline,
@@ -59,6 +73,7 @@ export {
 	type TimelineSession,
 	type TimelineSessionOptions,
 } from "./timeline-session";
+
 export type {
 	EngineSettings,
 	Frame,

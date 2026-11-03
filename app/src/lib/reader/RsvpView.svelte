@@ -3,7 +3,7 @@ import type { Frame } from "@speeedy/engine";
 import { m } from "#lib/paraglide/messages.js";
 import type { ModeProps } from "./modes.ts";
 
-let { engine }: ModeProps = $props();
+let { engine, autoplay = true }: ModeProps = $props();
 
 // The word is written straight into these nodes from the engine's frame events.
 // Nothing about the word is reactive state, so playing never re-renders the component.
@@ -34,7 +34,7 @@ $effect(() => {
 		}),
 	];
 	if (current.frame) show(current.frame);
-	current.play();
+	if (autoplay) current.play();
 	return () => {
 		current.pause();
 		for (const stop of stops) stop();

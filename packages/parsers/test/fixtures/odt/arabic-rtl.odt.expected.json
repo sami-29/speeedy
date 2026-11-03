@@ -1,0 +1,13 @@
+{
+	"outcome": "document",
+	"format": "odt",
+	"title": "المنارة",
+	"encoding": null,
+	"language": "ar",
+	"blocks": 3,
+	"kinds": ["heading", "paragraph", "paragraph"],
+	"spans": 1,
+	"first": "المنارة\nكان الحارس",
+	"last": "هادئا وفضيا.",
+	"words": [20, 24]
+}

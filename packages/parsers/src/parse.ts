@@ -6,9 +6,12 @@ import {
 import { clip, normalizeText, scanControls, tidyLine } from "./clean";
 import { csvToBlocks } from "./csv";
 import { decodeBytes } from "./decode";
+import { docxToBlocks } from "./docx";
+import { epubToBlocks } from "./epub";
 import { htmlToBlocks } from "./html";
 import { detectLanguage, normalizeLanguageTag } from "./language";
 import { type MarkdownMeta, markdownToBlocks } from "./markdown";
+import { odtToBlocks } from "./odt";
 import { plainTextToBlocks } from "./plain";
 import {
 	BlockSink,
@@ -61,10 +64,7 @@ const BINARY_EXTENSIONS = new Set([
  */
 const NOT_YET_EXTENSIONS = new Set([
 	"pdf",
-	"epub",
-	"docx",
 	"doc",
-	"odt",
 	"rtf",
 	"xhtml",
 	"mhtml",
@@ -72,7 +72,6 @@ const NOT_YET_EXTENSIONS = new Set([
 	"azw",
 	"azw3",
 	"fb2",
-	"zip",
 	"pages",
 ]);
 
@@ -268,6 +267,51 @@ function parseTextFormat(
 	});
 }
 
+async function parseDocx(
+	bytes: Uint8Array,
+	hints: Hints,
+	fileTitle: string | null,
+): Promise<ParseOutcome> {
+	const sink = new BlockSink(hints.maxBlocks);
+	const meta = await docxToBlocks(bytes, sink);
+	return finish(sink, {
+		title: meta.title ?? fileTitle,
+		format: "docx",
+		encoding: null,
+		hinted: hints.language,
+		metadataLanguage: null,
+	});
+}
+
+async function parseBook(
+	bytes: Uint8Array,
+	extension: string,
+	hints: Hints,
+	fileTitle: string | null,
+): Promise<ParseOutcome> {
+	const sink = new BlockSink(hints.maxBlocks);
+	if (extension === "odt") {
+		const meta = await odtToBlocks(bytes, sink);
+		return finish(sink, {
+			title: meta.title ?? fileTitle,
+			format: "odt",
+			encoding: null,
+			hinted: hints.language,
+			metadataLanguage: null,
+		});
+	}
+	const meta = await epubToBlocks(bytes, sink, {
+		fromZip: extension === "zip",
+	});
+	return finish(sink, {
+		title: meta.title ?? fileTitle,
+		format: "epub",
+		encoding: null,
+		hinted: hints.language,
+		metadataLanguage: meta.language,
+	});
+}
+
 function toOutcome(error: unknown): ParseOutcome {
 	if (error instanceof ParseFailure)
 		return failure(error.reason, error.message);
@@ -304,6 +348,17 @@ export async function parse(
 		}
 		const segment = lastSegment(fileName);
 		const extension = extensionOf(segment);
+		if (extension === "docx") {
+			return await parseDocx(view, options, titleFromFileName(segment));
+		}
+		if (extension === "epub" || extension === "zip" || extension === "odt") {
+			return await parseBook(
+				view,
+				extension,
+				options,
+				titleFromFileName(segment),
+			);
+		}
 		if (NOT_YET_EXTENSIONS.has(extension)) {
 			return failure(
 				"unsupported",

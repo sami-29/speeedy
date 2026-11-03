@@ -5,6 +5,8 @@ import {
 	type Engine,
 	type Timeline,
 } from "@speeedy/engine";
+import { library } from "#lib/library/instance.ts";
+import { recordSessions } from "#lib/stats/record.ts";
 import { createLiveTimeline, type LiveTimeline } from "./live-timeline.ts";
 import { engineSettings, type ReaderSettings } from "./settings.ts";
 import type { TimelineClient } from "./timeline-client.ts";
@@ -30,6 +32,8 @@ type StartOptions = {
 	client: Pick<TimelineClient, "change">;
 	/** Called when the worker could not apply a change. */
 	onError?: () => void;
+	/** The Library document being read, or null for text that is not kept. */
+	documentId?: string | null;
 	/** Where to start reading. Without it reading starts at the first Frame. */
 	startAt?: Position;
 	/** Told where the reader is: on each Frame, and `final` on a pause or the end. */
@@ -46,13 +50,22 @@ export function startReading({
 	settings,
 	client,
 	onError,
+	documentId = null,
 	startAt,
 	onposition,
 }: StartOptions): Reading {
+	const clock = createTimerClock();
 	const engine = createEngine({
-		clock: createTimerClock(),
+		clock,
 		timeline,
 		settings: engineSettings(settings),
+	});
+	// Every Reading Mode is read through this Engine, so every one records its Sessions.
+	const recording = recordSessions({
+		engine,
+		clock,
+		store: library(),
+		documentId,
 	});
 	if (startAt) engine.seek(startAt);
 	let previous: "wpm" | "window" | "tail" | undefined;
@@ -94,6 +107,7 @@ export function startReading({
 			// Pause first, so the Position of a pause reaches `onposition` before it is detached.
 			engine.pause();
 			for (const stop of stops) stop();
+			recording.end();
 			live.dispose();
 		},
 	};

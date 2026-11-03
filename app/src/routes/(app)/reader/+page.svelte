@@ -10,6 +10,7 @@ import { progressTracker } from "#lib/library/progress.ts";
 import { type DocumentSource, effectiveLanguage } from "#lib/library/store.ts";
 import { documentTitle } from "#lib/library/title.ts";
 import { m } from "#lib/paraglide/messages.js";
+import { takeHandoff } from "#lib/reader/handoff.ts";
 import {
 	type Built,
 	createReaderLoader,
@@ -80,6 +81,7 @@ function show(
 			timeline: built.timeline,
 			settings,
 			client: built.client,
+			documentId: kept?.id ?? null,
 			startAt,
 			onposition: saver?.record,
 			onError: () => {
@@ -89,7 +91,7 @@ function show(
 	};
 }
 
-async function open(source: ReaderSource) {
+async function open(source: ReaderSource, from: DocumentSource = "own") {
 	error = "";
 	opening = true;
 	const result = await loader.open(source, settings);
@@ -104,6 +106,7 @@ async function open(source: ReaderSource) {
 			document: result.document,
 			title: documentTitle(result.title, result.document),
 			language: result.language,
+			source: from,
 		});
 		await store.setCurrent(meta.id);
 		const kept = { id: meta.id, document: result.document };
@@ -121,7 +124,7 @@ async function open(source: ReaderSource) {
 		show(resumed ?? result, meta.title, meta.source, kept, startAt);
 	} catch {
 		// The Library is out of reach (private window, storage blocked): read without keeping.
-		show(result, result.title, "own");
+		show(result, result.title, from);
 	}
 	opening = false;
 }
@@ -148,8 +151,20 @@ async function restore() {
 	}
 }
 
+// Text or a file handed over by another route (a paste or drop on `/`, a Share Link opened at
+// `/s`) wins over the Library's current document: open it, which also keeps it in the Library
+// with its source, and do not restore.
 onMount(() => {
-	void restore();
+	const handed = takeHandoff();
+	if (!handed) {
+		void restore();
+		return;
+	}
+	const source: ReaderSource =
+		"file" in handed
+			? { kind: "file", file: handed.file }
+			: { kind: "text", text: handed.text };
+	void open(source, handed.source);
 });
 
 /** Back to the start panel. The next refresh shows the panel too. */

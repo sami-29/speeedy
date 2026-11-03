@@ -213,6 +213,52 @@ describe("rename, Position and language", () => {
 		expect((await store.setDeviceOnly(meta.id, true)).deviceOnly).toBe(true);
 		expect((await store.get(meta.id))?.deviceOnly).toBe(true);
 	});
+
+	// A stranger wrote a Share Link's text, so Sync must not upload it unless the reader says so.
+	it("keeps a shared document device-only from the start, until the reader changes it", async () => {
+		const { meta } = await store.addDocument({
+			document: doc("words from a link"),
+			title: "Shared",
+			language: "en",
+			source: "share",
+		});
+		expect(meta).toMatchObject({ source: "share", deviceOnly: true });
+		expect(await store.get(meta.id)).toMatchObject({
+			source: "share",
+			deviceOnly: true,
+		});
+		expect((await store.setDeviceOnly(meta.id, false)).deviceOnly).toBe(false);
+	});
+
+	it("keeps the same shared text once, however often its link is opened", async () => {
+		const shared = () =>
+			store.addDocument({
+				document: doc("words from a link"),
+				title: "Shared",
+				language: "en",
+				source: "share",
+			});
+		const first = await shared();
+		const second = await shared();
+		expect(second).toMatchObject({
+			duplicate: true,
+			meta: { id: first.meta.id },
+		});
+		expect(await store.list()).toHaveLength(1);
+	});
+
+	it.each(["own", "demo"] as const)(
+		"leaves %s documents off device-only",
+		async (source) => {
+			const { meta } = await store.addDocument({
+				document: doc(`a ${source} text`),
+				title: "Mine",
+				language: "en",
+				source,
+			});
+			expect(meta.deviceOnly).toBe(false);
+		},
+	);
 });
 
 describe("delete and undo", () => {

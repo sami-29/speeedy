@@ -653,3 +653,53 @@ test.describe("rebuilds run off the main thread", () => {
 		await expect(page.getByTestId("word")).toHaveText(/^w\d+/);
 	});
 });
+
+/** What the Library holds: each Session's document id, and the ids of the kept documents. */
+const stored = (page: Page) =>
+	page.evaluate(
+		() =>
+			new Promise<{ sessionDocs: (string | null)[]; documentIds: string[] }>(
+				(resolve) => {
+					const open = indexedDB.open("speeedy-library");
+					open.onsuccess = () => {
+						const db = open.result;
+						const sessions = db
+							.transaction("sessions")
+							.objectStore("sessions")
+							.getAll();
+						sessions.onsuccess = () => {
+							const keys = db
+								.transaction("documents")
+								.objectStore("documents")
+								.getAllKeys();
+							keys.onsuccess = () => {
+								db.close();
+								resolve({
+									sessionDocs: sessions.result.map((row) => row.documentId),
+									documentIds: keys.result as string[],
+								});
+							};
+						};
+					};
+				},
+			),
+	);
+
+test.describe("Sessions", () => {
+	test("reading is recorded as a Session that carries the document's id", async ({
+		page,
+	}) => {
+		await start(page);
+		await page.waitForTimeout(2500);
+		// Leaving the reader ends the recording, which saves the Session.
+		await page.getByRole("button", { name: "New text" }).click();
+		await expect
+			.poll(async () => (await stored(page)).sessionDocs.length, {
+				timeout: 10_000,
+			})
+			.toBe(1);
+		const { sessionDocs, documentIds } = await stored(page);
+		expect(documentIds).toHaveLength(1);
+		expect(sessionDocs).toEqual(documentIds);
+	});
+});

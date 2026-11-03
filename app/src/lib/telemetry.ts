@@ -1,6 +1,8 @@
 import {
 	type Analytics,
+	type ClientEventName,
 	createAnalytics,
+	type EventProps,
 	type Flags,
 	injectedFlagConfig,
 	installErrorCapture,
@@ -45,4 +47,12 @@ export function startErrorCapture(): () => void {
 			return true;
 		},
 	});
+}
+
+/** Queues a registered event. Properties are enums and bounded numbers, checked by the registry. */
+export function trackEvent<N extends ClientEventName>(
+	event: N,
+	props: EventProps<N>,
+): void {
+	void start().then((t) => t.analytics.track(event, props));
 }

@@ -6,6 +6,8 @@ import type { Component } from "svelte";
 export type ModeProps = {
 	/** The Engine the shell controls. The view shows its Frames and starts playing it. */
 	engine: Engine;
+	/** Start playing at once. False shows the first word and waits for Play (shared text). */
+	autoplay?: boolean;
 };
 
 /** A mode's view is loaded on demand, so the registry carries no component code. */
