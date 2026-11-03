@@ -14,7 +14,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build } from "esbuild";
+import { build, type Plugin } from "esbuild";
 import {
 	buildManifest,
 	STORE_REF,
@@ -27,6 +27,25 @@ const app = join(root, "..", "app");
 
 /** The site the app is served from in development (`vite dev`). */
 export const DEV_ORIGIN = "http://localhost:5173";
+
+/**
+ * The parsers load pdf.js on demand, which esbuild would fold into the extension (megabytes).
+ * The launcher only ever reads HTML, so that import is swapped for a stub that is never called.
+ */
+const withoutPdf: Plugin = {
+	name: "without-pdf",
+	setup(builder) {
+		builder.onResolve({ filter: /\/pdf\/blocks$/ }, (args) => ({
+			path: args.path,
+			namespace: "without-pdf",
+		}));
+		builder.onLoad({ filter: /.*/, namespace: "without-pdf" }, () => ({
+			contents:
+				'export const pdfToBlocks = () => { throw new Error("The launcher does not read PDF."); };',
+			loader: "js",
+		}));
+	},
+};
 
 export type BuildOptions = {
 	outDir: string;
@@ -85,6 +104,7 @@ export async function buildExtension(options: BuildOptions): Promise<void> {
 			),
 			outdir: out,
 			bundle: true,
+			plugins: [withoutPdf],
 			format: "iife",
 			platform: "browser",
 			target: target === "firefox" ? "firefox140" : "chrome120",

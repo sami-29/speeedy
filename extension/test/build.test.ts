@@ -4,6 +4,7 @@ import {
 	readdirSync,
 	readFileSync,
 	rmSync,
+	statSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -42,6 +43,12 @@ describe.each(TARGETS)("the %s build", (target) => {
 		]) {
 			expect(existsSync(join(out, target, file)), file).toBe(true);
 		}
+	});
+
+	it("leaves pdf.js out, since the launcher only reads web pages", () => {
+		const size = statSync(join(out, target, "extract.js")).size;
+		expect(size).toBeLessThan(1_000_000);
+		expect(read(target, "extract.js")).not.toMatch(/pdfjs/i);
 	});
 
 	it("ships the Readability licence, which asks for its text to travel with the code", () => {
