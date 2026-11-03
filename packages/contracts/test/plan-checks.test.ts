@@ -3,8 +3,8 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
+import { describe, it } from "vitest";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const PLAN = "(?:free|plus)";

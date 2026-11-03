@@ -1,4 +1,4 @@
-import type { EventDef, PropSpec, Registry } from "./events.ts";
+import type { EventDef, EventRegistry, PropSpec } from "./events.ts";
 
 /** A marker that stands for document text. It must never get through any event. */
 export const CANARY = "CANARY-document-text-7f3a9c";
@@ -30,7 +30,7 @@ function maximalValue(spec: PropSpec): string | number | boolean {
 }
 
 /** For each event, a valid payload that sets every property. */
-export function validExamples(registry: Registry): Example[] {
+export function validExamples(registry: EventRegistry): Example[] {
 	return Object.entries(registry).map(([event, def]) => ({
 		event,
 		origin: def.origin,
@@ -48,7 +48,7 @@ export function validExamples(registry: Registry): Example[] {
  * text: it is tried in every closed property and in properties that do not exist. Free
  * text is bounded where a survey declares it, so those cases go one character over.
  */
-export function privacyCases(registry: Registry): PrivacyCase[] {
+export function privacyCases(registry: EventRegistry): PrivacyCase[] {
 	const cases: PrivacyCase[] = [];
 	for (const example of validExamples(registry)) {
 		const def = registry[example.event];

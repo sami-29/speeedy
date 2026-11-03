@@ -24,7 +24,7 @@ export interface EventDef {
 	props: Readonly<Record<string, PropSpec>>;
 }
 
-export type Registry = Readonly<Record<string, EventDef>>;
+export type EventRegistry = Readonly<Record<string, EventDef>>;
 
 /** Route patterns a pageview may carry. Anything else is sent as `other`. */
 export const ROUTES = [
@@ -34,7 +34,6 @@ export const ROUTES = [
 	"/stats",
 	"/training",
 	"/s",
-	"/account",
 	"/account/[page]",
 	"/reading-speed-test",
 	"/pdf-speed-reader",
@@ -110,7 +109,7 @@ export const EVENTS = {
 			"The Worker opened a hosted checkout for the Plus plan. Carries the billing interval only.",
 		props: { interval: { kind: "enum", values: ["monthly", "annual"] } },
 	},
-} as const satisfies Registry;
+} as const satisfies EventRegistry;
 
 export type EventName = keyof typeof EVENTS;
 
@@ -153,7 +152,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** Checks the registry's own rules. An empty list means the registry is sound. */
-export function registryProblems(registry: Registry): string[] {
+export function registryProblems(registry: EventRegistry): string[] {
 	const problems: string[] = [];
 	for (const [name, def] of Object.entries(registry)) {
 		const at = (message: string) => problems.push(`${name}: ${message}`);
@@ -262,7 +261,7 @@ export type CheckResult =
 
 /** Checks one event against a registry. Both the app and the Worker use this. */
 export function checkEvent(
-	registry: Registry,
+	registry: EventRegistry,
 	name: string,
 	props: unknown,
 ): CheckResult {
@@ -287,19 +286,22 @@ export function checkEvent(
 	return { ok: true, schemaVersion: def.schemaVersion, properties };
 }
 
-function byOrigin(registry: Registry, origin: EventDef["origin"]): Registry {
+function byOrigin(
+	registry: EventRegistry,
+	origin: EventDef["origin"],
+): EventRegistry {
 	return Object.fromEntries(
 		Object.entries(registry).filter(([, def]) => def.origin === origin),
 	);
 }
 
 /** The events a client may send. The Worker's `/api/e` allowlist is exactly this. */
-export function clientEvents(registry: Registry): Registry {
+export function clientEvents(registry: EventRegistry): EventRegistry {
 	return byOrigin(registry, "client");
 }
 
 /** The events only the Worker may send. */
-export function serverEvents(registry: Registry): Registry {
+export function serverEvents(registry: EventRegistry): EventRegistry {
 	return byOrigin(registry, "server");
 }
 

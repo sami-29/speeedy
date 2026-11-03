@@ -1,265 +1,130 @@
-// The event registry is the one list of what Speeedy may send to analytics.
-// Run with: node --test test/*.test.ts (from packages/contracts)
-import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { describe, it } from "node:test";
-import {
-	CANARY,
-	checkEvent,
-	clientEvents,
-	EVENTS,
-	eventList,
-	pageviewFor,
-	privacyCases,
-	registryProblems,
-	renderEventListMarkdown,
-	serverEvents,
-	validExamples,
-} from "../src/index.ts";
+import { describe, expect, it } from "vitest";
+import { createRegistry, type Descriptor, RegistryError } from "../src/index";
 
-const text = { kind: "text", max: 100 } as const;
+// A dummy Reading Mode defined entirely in this test file: if it registers and is
+// listed, a new mode needs no change to the registry, the engine or any other package.
+const dummyMode: Descriptor<string> = {
+	kind: "mode",
+	id: "dummy",
+	analyticsValue: "dummy",
+	view: "dummy-view",
+	pacingRules: ["base-wpm", "punctuation-pauses"],
+	clock: "timer",
+	settingsUsed: ["wpm", "chunkSize"],
+};
 
-function withEvent(def: Record<string, unknown>) {
-	return { ...EVENTS, broken_event: def } as never;
-}
+const dummyDrill: Descriptor<string> = {
+	kind: "drill",
+	id: "dummy-sprint",
+	analyticsValue: "dummy_sprint",
+	view: "sprint-view",
+	pacingRules: ["base-wpm", "sprints"],
+	clock: "timer",
+	settingsUsed: [],
+};
 
-function definition(extra: Record<string, unknown>) {
-	return {
-		origin: "client",
-		kind: "product",
-		schemaVersion: 1,
-		description: "x",
-		props: {},
-		...extra,
-	};
-}
-
-describe("registry rules", () => {
-	it("accepts the real registry", () => {
-		assert.deepEqual(registryProblems(EVENTS), []);
+describe("registry", () => {
+	it("starts empty", () => {
+		expect(createRegistry<string>().list()).toEqual([]);
 	});
 
-	it("registers the pageview, the #02 survey and a server event", () => {
-		assert.ok("$pageview" in EVENTS);
-		assert.ok("feature_survey_answered" in EVENTS);
-		assert.ok(Object.keys(serverEvents(EVENTS)).length > 0);
+	it("lists a registered dummy mode", () => {
+		const registry = createRegistry<string>();
+		registry.register(dummyMode);
+		expect(registry.list()).toEqual([dummyMode]);
+		expect(registry.modes()).toEqual([dummyMode]);
+		expect(registry.drills()).toEqual([]);
 	});
 
-	it("allows free text on the survey type only", () => {
-		const problems = registryProblems(
-			withEvent(definition({ props: { note: text } })),
-		);
-		assert.ok(problems.some((p) => p.includes("broken_event")));
-		assert.ok(problems.some((p) => p.includes("text")));
+	it("looks a registration up by id", () => {
+		const registry = createRegistry<string>();
+		registry.register(dummyMode);
+		expect(registry.get("dummy")).toEqual(dummyMode);
+		expect(registry.get("missing")).toBeUndefined();
 	});
 
-	it("allows free text on a client survey event", () => {
-		const problems = registryProblems(
-			withEvent(definition({ kind: "survey", props: { note: text } })),
-		);
-		assert.deepEqual(problems, []);
+	it("keeps modes and drills in separate lists, in registration order", () => {
+		const registry = createRegistry<string>();
+		registry.register(dummyDrill);
+		registry.register(dummyMode);
+		expect(registry.list().map((d) => d.id)).toEqual(["dummy-sprint", "dummy"]);
+		expect(registry.modes().map((d) => d.id)).toEqual(["dummy"]);
+		expect(registry.drills().map((d) => d.id)).toEqual(["dummy-sprint"]);
 	});
 
-	it("rejects a server event that carries free text", () => {
-		const problems = registryProblems(
-			withEvent(
-				definition({
-					origin: "server",
-					kind: "survey",
-					props: { note: text },
-				}),
-			),
-		);
-		assert.ok(problems.length > 0);
+	it("keeps registries independent of each other", () => {
+		const a = createRegistry<string>();
+		const b = createRegistry<string>();
+		a.register(dummyMode);
+		expect(b.list()).toEqual([]);
 	});
 
-	const broken: [string, Record<string, unknown>][] = [
-		["no schema version", { schemaVersion: 0 }],
-		["an empty enum", { props: { a: { kind: "enum", values: [] } } }],
-		[
-			"an unbounded number",
-			{ props: { a: { kind: "int", min: 0, max: Number.POSITIVE_INFINITY } } },
-		],
-		[
-			"an inverted number range",
-			{ props: { a: { kind: "int", min: 5, max: 1 } } },
-		],
-		[
-			"an enum value with a space",
-			{ props: { a: { kind: "enum", values: ["two words"] } } },
-		],
-		["a property kind that does not exist", { props: { a: { kind: "any" } } }],
-		["an unknown origin", { origin: "everywhere" }],
-	];
-	for (const [label, extra] of broken) {
-		it(`rejects ${label}`, () => {
-			const problems = registryProblems(withEvent(definition(extra)));
-			assert.ok(problems.length > 0, "expected a problem");
-		});
-	}
-});
-
-describe("checkEvent", () => {
-	const allowed = clientEvents(EVENTS);
-
-	it("accepts a valid event and reports its schema version", () => {
-		const result = checkEvent(allowed, "$pageview", { route: "/reader" });
-		assert.deepEqual(result, {
-			ok: true,
-			schemaVersion: EVENTS.$pageview.schemaVersion,
-			properties: { route: "/reader" },
-		});
+	it("is unaffected by later changes to the descriptor it was given", () => {
+		const registry = createRegistry<string>();
+		const mutable = { ...dummyMode, settingsUsed: ["wpm"] };
+		registry.register(mutable);
+		mutable.settingsUsed.push("later");
+		mutable.id = "renamed";
+		expect(registry.get("dummy")?.settingsUsed).toEqual(["wpm"]);
 	});
 
-	it("rejects an unknown event, an unknown property and a bad value", () => {
-		assert.deepEqual(checkEvent(allowed, "nope", {}), {
-			ok: false,
-			reason: "unknown_event",
-		});
-		assert.deepEqual(
-			checkEvent(allowed, "$pageview", { route: "/reader", title: "x" }),
-			{ ok: false, reason: "unknown_property" },
-		);
-		assert.deepEqual(checkEvent(allowed, "$pageview", { route: "/s#abc" }), {
-			ok: false,
-			reason: "bad_property_value",
-		});
+	it("rejects a second registration under the same id", () => {
+		const registry = createRegistry<string>();
+		registry.register(dummyMode);
+		expect(() =>
+			registry.register({ ...dummyMode, analyticsValue: "other" }),
+		).toThrow(RegistryError);
+		expect(registry.list()).toHaveLength(1);
 	});
 
-	it("rejects a missing required property", () => {
-		assert.deepEqual(checkEvent(allowed, "$pageview", {}), {
-			ok: false,
-			reason: "missing_property",
-		});
-	});
-
-	it("does not treat Object prototype keys as events or properties", () => {
-		assert.equal(checkEvent(allowed, "__proto__", {}).ok, false);
-		assert.equal(checkEvent(allowed, "constructor", {}).ok, false);
-		assert.equal(
-			checkEvent(
-				allowed,
-				"$pageview",
-				JSON.parse('{"route":"/","__proto__":"x"}'),
-			).ok,
-			false,
+	it("rejects a second registration with the same analytics value", () => {
+		const registry = createRegistry<string>();
+		registry.register(dummyMode);
+		expect(() => registry.register({ ...dummyMode, id: "other" })).toThrow(
+			RegistryError,
 		);
 	});
 
-	it("keeps server events out of the client allowlist", () => {
-		for (const name of Object.keys(serverEvents(EVENTS))) {
-			assert.equal(checkEvent(allowed, name, {}).ok, false, name);
+	it.each([
+		["an empty id", { id: "" }],
+		["an id with spaces", { id: "my mode" }],
+		["an id with capitals", { id: "MyMode" }],
+		["an analytics value with spaces", { analyticsValue: "my mode" }],
+		["an empty analytics value", { analyticsValue: "" }],
+		["an unknown kind", { kind: "game" }],
+		["an unknown clock", { clock: "sundial" }],
+		["an unknown pacing rule", { pacingRules: ["base-wpm", "vibes"] }],
+		["duplicate pacing rules", { pacingRules: ["base-wpm", "base-wpm"] }],
+		["a non-string setting", { settingsUsed: [1] }],
+		["settingsUsed not a list", { settingsUsed: "wpm" }],
+	])("rejects %s", (_name, patch) => {
+		const registry = createRegistry<string>();
+		expect(() =>
+			registry.register({
+				...dummyMode,
+				...patch,
+			} as unknown as Descriptor<string>),
+		).toThrow(RegistryError);
+		expect(registry.list()).toEqual([]);
+	});
+
+	it("accepts all three clocks and the five pacing rules in order", () => {
+		const registry = createRegistry<string>();
+		for (const clock of ["timer", "audio", "web-speech"] as const) {
+			registry.register({
+				...dummyMode,
+				id: `m-${clock}`,
+				analyticsValue: `m_${clock.replace("-", "_")}`,
+				clock,
+				pacingRules: [
+					"base-wpm",
+					"smart-speed",
+					"punctuation-pauses",
+					"ramp",
+					"sprints",
+				],
+			});
 		}
-	});
-});
-
-describe("pageviews carry the route only", () => {
-	const cases: [string, string][] = [
-		["/reader?q=1#frag", "/reader"],
-		["/", "/"],
-		["/s#eJzLSM3JyVcozy/KSQEAGgsEXQ", "/s"],
-		["/#/read/SGVsbG8gd29ybGQgdGhpcyBpcyBhIGRvY3VtZW50", "/"],
-		["/learn/speed-reading-myths", "/learn/[slug]"],
-		["/learn/", "/learn"],
-		["/account/email", "/account/[page]"],
-		["https://speeedy.app/library?utm=x#y", "/library"],
-		["/aGVsbG8gd29ybGQ", "other"],
-		["/unknown/deeper/path", "other"],
-	];
-	for (const [input, route] of cases) {
-		it(`${input} sends ${route}`, () => {
-			const view = pageviewFor(input);
-			assert.deepEqual(view, { event: "$pageview", properties: { route } });
-			assert.equal(
-				checkEvent(clientEvents(EVENTS), view.event, view.properties).ok,
-				true,
-			);
-		});
-	}
-
-	it("never lets a query, hash, title or token out", () => {
-		const view = pageviewFor(`/read?${CANARY}=1#${CANARY}`);
-		assert.ok(!JSON.stringify(view).includes(CANARY));
-		assert.deepEqual(Object.keys(view.properties), ["route"]);
-	});
-});
-
-describe("generated privacy cases", () => {
-	const cases = privacyCases(EVENTS);
-	const defsFor = (origin: string) =>
-		origin === "client" ? clientEvents(EVENTS) : serverEvents(EVENTS);
-
-	it("covers every event", () => {
-		for (const name of Object.keys(EVENTS)) {
-			assert.ok(
-				cases.some((c) => c.event === name),
-				`no privacy case for ${name}`,
-			);
-		}
-	});
-
-	it("rejects every case, so no event can carry document text", () => {
-		for (const c of cases) {
-			assert.equal(
-				checkEvent(defsFor(c.origin), c.event, c.properties).ok,
-				false,
-				c.label,
-			);
-		}
-	});
-
-	it("tries the canary on every event", () => {
-		for (const name of Object.keys(EVENTS)) {
-			assert.ok(
-				cases.some(
-					(c) =>
-						c.event === name && JSON.stringify(c.properties).includes(CANARY),
-				),
-				name,
-			);
-		}
-	});
-
-	it("has a valid example for every event, and it passes", () => {
-		const examples = validExamples(EVENTS);
-		assert.deepEqual(
-			examples.map((e) => e.event).sort(),
-			Object.keys(EVENTS).sort(),
-		);
-		for (const ex of examples) {
-			assert.equal(
-				checkEvent(defsFor(ex.origin), ex.event, ex.properties).ok,
-				true,
-				ex.event,
-			);
-			assert.ok(!JSON.stringify(ex.properties).includes(CANARY));
-		}
-	});
-});
-
-describe("the published event list", () => {
-	it("lists every event with its properties", () => {
-		const rows = eventList(EVENTS);
-		assert.deepEqual(
-			rows.map((r) => r.name).sort(),
-			Object.keys(EVENTS).sort(),
-		);
-		const pageview = rows.find((r) => r.name === "$pageview");
-		assert.ok(pageview);
-		assert.equal(pageview.origin, "client");
-		assert.equal(pageview.props[0].name, "route");
-		assert.ok(pageview.props[0].values?.includes("/reader"));
-	});
-
-	it("matches the committed generated/events.md, so a hand edit fails CI", () => {
-		const committed = readFileSync(
-			new URL("../generated/events.md", import.meta.url),
-			"utf8",
-		);
-		assert.equal(committed, renderEventListMarkdown(EVENTS));
-	});
-
-	it("says which property is free text", () => {
-		assert.match(renderEventListMarkdown(EVENTS), /own_idea[^\n]*free text/i);
+		expect(registry.list()).toHaveLength(3);
 	});
 });

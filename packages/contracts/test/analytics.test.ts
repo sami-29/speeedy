@@ -1,6 +1,6 @@
 // The app's typed send function, driven through a fake fetch.
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import {
 	CANARY,
 	createAnalytics,

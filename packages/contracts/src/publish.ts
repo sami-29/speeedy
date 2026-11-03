@@ -1,4 +1,4 @@
-import type { EventDef, PropSpec, Registry } from "./events.ts";
+import type { EventDef, EventRegistry, PropSpec } from "./events.ts";
 
 export interface PropRow {
 	name: string;
@@ -33,7 +33,7 @@ function propRow(name: string, spec: PropSpec): PropRow {
 }
 
 /** The registry as plain rows: what the published event list renders. */
-export function eventList(registry: Registry): EventRow[] {
+export function eventList(registry: EventRegistry): EventRow[] {
 	return Object.entries(registry).map(([name, def]) => ({
 		name,
 		origin: def.origin,
@@ -58,7 +58,7 @@ function describe(prop: PropRow): string {
 }
 
 /** The published event list as Markdown. `generated/events.md` is this output. */
-export function renderEventListMarkdown(registry: Registry): string {
+export function renderEventListMarkdown(registry: EventRegistry): string {
 	const lines = [
 		"<!-- Generated from packages/contracts/src/events.ts by `pnpm --filter @speeedy/contracts generate`. Do not edit by hand. -->",
 		"",
