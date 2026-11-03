@@ -277,3 +277,22 @@ describe("the ramp and sprints run from each play", () => {
 		expect(engine.frame?.text).toBe("six");
 	});
 });
+
+describe("rewinding after a rebuild", () => {
+	it("uses the sentence starts of the rebuilt Timeline", () => {
+		const { engine } = setup({}, "One two. Three four. Five six.");
+		engine.seek(at(21));
+		engine.back("sentence");
+		expect(engine.frame?.text).toBe("Three");
+		engine.seek(at(0));
+		engine.updateSettings({ chunkSize: 2 });
+		expect(engine.timeline.frames.map((f) => f.text)).toEqual([
+			"One two.",
+			"Three four.",
+			"Five six.",
+		]);
+		engine.seek(at(21));
+		engine.back("sentence");
+		expect(engine.frame?.text).toBe("Three four.");
+	});
+});

@@ -4,6 +4,7 @@ import {
 	type Position,
 } from "@speeedy/contracts";
 import type { Clock } from "./clock";
+import { type BackUnit, backTarget, startIndexes } from "./navigation";
 import { buildTimeline, rebuildTimeline, resolveSettings } from "./timeline";
 import type { EngineSettings, Frame, Timeline } from "./types";
 
@@ -40,6 +41,11 @@ export type Engine = {
 	 * Engine made from a Document.
 	 */
 	updateSettings(patch: Partial<EngineSettings>): void;
+	/**
+	 * Rewind to the start of the current sentence, paragraph or chapter, or to the start of
+	 * the previous one when the Cursor is already on a start. Emits `seek`.
+	 */
+	back(unit?: BackUnit): void;
 	on<E extends EngineEventName>(
 		event: E,
 		listener: (payload: EngineEvents[E]) => void,
@@ -55,6 +61,8 @@ export type EngineOptions = {
 	/** BCP 47 language tag of the Document. */
 	language?: string;
 	settings?: Partial<EngineSettings>;
+	/** Where chapters start (see `findChapters`). Without them, back one chapter goes to the start. */
+	chapters?: readonly Position[];
 } & (
 	| { timeline: Timeline; document?: Document }
 	| { document: Document; timeline?: Timeline }
@@ -92,7 +100,7 @@ function frameAtPosition(frames: readonly Frame[], position: Position): number {
  * as the Clock advances, seeking moves it to a Position, and Reading Events report both.
  */
 export function createEngine(options: EngineOptions): Engine {
-	const { clock, document, language } = options;
+	const { clock, document, language, chapters = [] } = options;
 	let settings = resolveSettings(options.settings);
 	const timelineOptions = () => ({
 		anchor,
@@ -119,6 +127,8 @@ export function createEngine(options: EngineOptions): Engine {
 		end: new Set(),
 	};
 
+	/** Rewind targets per unit, computed on first use and dropped when the Timeline changes. */
+	const startsCache = new Map<BackUnit, number[]>();
 	let index = 0;
 	let playing = false;
 	let ended = false;
@@ -154,6 +164,7 @@ export function createEngine(options: EngineOptions): Engine {
 		);
 		frames = timeline.frames;
 		builtAnchor = anchor;
+		startsCache.clear();
 	};
 
 	/** Start counting the ramp and sprints from the current Frame. */
@@ -187,6 +198,27 @@ export function createEngine(options: EngineOptions): Engine {
 		playing = false;
 		stopTicking?.();
 		stopTicking = undefined;
+	};
+
+	const startsFor = (unit: BackUnit) => {
+		let starts = startsCache.get(unit);
+		if (!starts) {
+			starts = startIndexes(frames, unit, chapters);
+			startsCache.set(unit, starts);
+		}
+		return starts;
+	};
+
+	const moveTo = (target: number) => {
+		index = target;
+		ended = false;
+		const frame = currentFrame();
+		if (frame) emit("seek", { position: frame.position });
+		if (playing) {
+			reanchor();
+			restartTiming();
+			show();
+		}
 	};
 
 	const tick = () => {
@@ -247,15 +279,11 @@ export function createEngine(options: EngineOptions): Engine {
 		},
 		seek(position) {
 			if (frames.length === 0) return;
-			index = frameAtPosition(frames, position);
-			ended = false;
-			const frame = currentFrame();
-			if (frame) emit("seek", { position: frame.position });
-			if (playing) {
-				reanchor();
-				restartTiming();
-				show();
-			}
+			moveTo(frameAtPosition(frames, position));
+		},
+		back(unit = "sentence") {
+			if (frames.length === 0) return;
+			moveTo(backTarget(startsFor(unit), index));
 		},
 		updateSettings(patch) {
 			if (!document) {
