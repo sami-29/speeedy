@@ -19,6 +19,8 @@ export const EVIL_ORIGIN = "http://evil.test";
 export const ARTICLE_TITLE = "How the lighthouse keeper counted his staircase";
 
 type Fixtures = {
+	/** A key for the unpacked extension, when it should not be the development one. */
+	extensionKey: string | undefined;
 	context: BrowserContext;
 	worker: Worker;
 	extensionId: string;
@@ -30,8 +32,8 @@ type Fixtures = {
  * The store build has neither; the manifest tests cover that.
  */
 export const test = base.extend<Fixtures>({
-	// biome-ignore lint/correctness/noEmptyPattern: Playwright reads the fixtures from this pattern.
-	context: async ({}, use, testInfo) => {
+	extensionKey: [undefined, { option: true }],
+	context: async ({ extensionKey }, use, testInfo) => {
 		const baseURL = testInfo.project.use.baseURL as string;
 		const dir = mkdtempSync(join(tmpdir(), "speeedy-ext-e2e-"));
 		const extension = join(dir, "extension");
@@ -39,6 +41,7 @@ export const test = base.extend<Fixtures>({
 			outDir: extension,
 			origin: baseURL,
 			dev: true,
+			devKey: extensionKey,
 			targets: ["chrome"],
 			e2e: { hostPermissions: ["http://articles.test/*"] },
 		});

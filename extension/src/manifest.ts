@@ -16,8 +16,10 @@ export type Manifest = Record<string, unknown>;
 export type ManifestOptions = {
 	/** One to four dot-separated numbers, which is what all three stores accept. */
 	version: string;
-	/** A dev build carries the development key, so its ID is fixed. */
+	/** A dev build carries a key, so its ID is fixed. */
 	dev: boolean;
+	/** The public key a dev build carries instead of the development key. */
+	key?: string;
 	/**
 	 * Only the end-to-end build sets this: Playwright cannot click the toolbar button, so it
 	 * needs site access to run what the click would. Never set in a store build.
@@ -92,7 +94,7 @@ export function buildManifest(
 			},
 		};
 	} else if (options.dev) {
-		manifest.key = DEV_EXTENSION_KEY;
+		manifest.key = options.key ?? DEV_EXTENSION_KEY;
 	}
 	return manifest;
 }

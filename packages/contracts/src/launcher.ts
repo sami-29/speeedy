@@ -75,7 +75,6 @@ export type LauncherAck = {
 
 const PAGE_KEYS = ["type", "version", "title", "url", "language", "document"];
 const LANGUAGE_TAG = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
-const LINK_SCHEMES = new Set(["http", "https", "mailto", "tel"]);
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
 	if (typeof value !== "object" || value === null) return false;
@@ -88,17 +87,47 @@ const fail = (reason: LauncherRejection): LauncherValidation => ({
 	reason,
 });
 
-/** The scheme a browser would read from a link target, which ignores spaces and controls. */
-function linkScheme(href: string): string | null {
+const LINK_SCHEMES = new Set(["http:", "https:", "mailto:", "tel:"]);
+
+/** Longer than this before cleaning is refused unread, so padding cannot make a scan costly. */
+const HREF_SCAN = LAUNCHER_LIMITS.href * 4;
+
+type HrefCheck =
+	| { ok: true; href: string }
+	| { ok: false; reason: "too-big" | "bad-document" };
+
+/**
+ * Judge a link target the way a browser would read it. Spaces, controls and zero-width
+ * characters are stripped from the whole target first, because browsers ignore some of them
+ * inside a scheme. What is left must be an absolute address that parses and uses http, https,
+ * mailto or tel. The cleaned target is what gets kept.
+ */
+function checkHref(raw: string): HrefCheck {
+	if (raw.length > HREF_SCAN) return { ok: false, reason: "too-big" };
 	let cleaned = "";
-	for (const char of href.length > 200 ? href.slice(0, 200) : href) {
+	for (const char of raw) {
 		const code = char.codePointAt(0) ?? 0;
 		if (code <= 32 || (code >= 127 && code <= 159)) continue;
 		if (code === 0x200b || code === 0xfeff || code === 0x2060) continue;
 		cleaned += char;
 	}
-	const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(cleaned.slice(0, 40));
-	return scheme?.[1]?.toLowerCase() ?? null;
+	if (cleaned.length > LAUNCHER_LIMITS.href) {
+		return { ok: false, reason: "too-big" };
+	}
+	try {
+		if (!LINK_SCHEMES.has(new URL(cleaned).protocol)) {
+			return { ok: false, reason: "bad-document" };
+		}
+	} catch {
+		return { ok: false, reason: "bad-document" };
+	}
+	return { ok: true, href: cleaned };
+}
+
+/** The link target to keep, or null when the app would refuse it. */
+export function cleanLinkHref(raw: string): string | null {
+	const checked = checkHref(raw);
+	return checked.ok ? checked.href : null;
 }
 
 /**
@@ -113,7 +142,15 @@ function overCaps(blocks: unknown[]): boolean {
 		if (!isRecord(block)) continue;
 		const text = block.kind === "image-placeholder" ? block.alt : block.text;
 		if (typeof text === "string") characters += text.length;
-		if (Array.isArray(block.spans)) spans += block.spans.length;
+		if (Array.isArray(block.spans)) {
+			spans += block.spans.length;
+			// A link target is text too, and counts toward the same cap.
+			for (const span of block.spans) {
+				if (isRecord(span) && typeof span.href === "string") {
+					characters += span.href.length;
+				}
+			}
+		}
 		if (
 			characters > LAUNCHER_LIMITS.characters ||
 			spans > LAUNCHER_LIMITS.spans
@@ -124,16 +161,28 @@ function overCaps(blocks: unknown[]): boolean {
 	return false;
 }
 
-function hasUnsafeLink(document: Document): boolean {
-	for (const block of document.blocks) {
-		if (block.kind === "image-placeholder") continue;
+/** The Document with every link target cleaned, or why one cannot be kept. */
+function cleanLinks(
+	document: Document,
+): { ok: true; document: Document } | { ok: false; reason: LauncherRejection } {
+	const blocks = [...document.blocks];
+	for (let i = 0; i < document.blocks.length; i++) {
+		const block = document.blocks[i];
+		if (!block || block.kind === "image-placeholder") continue;
+		if (!block.spans.some((span) => span.kind === "link")) continue;
+		const spans: typeof block.spans = [];
 		for (const span of block.spans) {
-			if (span.kind !== "link") continue;
-			const scheme = linkScheme(span.href);
-			if (scheme !== null && !LINK_SCHEMES.has(scheme)) return true;
+			if (span.kind !== "link") {
+				spans.push(span);
+				continue;
+			}
+			const checked = checkHref(span.href);
+			if (!checked.ok) return checked;
+			spans.push({ ...span, href: checked.href });
 		}
+		blocks[i] = { ...block, spans };
 	}
-	return false;
+	return { ok: true, document: { ...document, blocks } };
 }
 
 /**
@@ -188,7 +237,8 @@ export function validateLauncherPage(value: unknown): LauncherValidation {
 		}
 		const checked = validateDocument(document);
 		if (!checked.ok) return fail("bad-document");
-		if (hasUnsafeLink(checked.document)) return fail("bad-document");
+		const cleaned = cleanLinks(checked.document);
+		if (!cleaned.ok) return fail(cleaned.reason);
 
 		return {
 			ok: true,
@@ -198,7 +248,7 @@ export function validateLauncherPage(value: unknown): LauncherValidation {
 				title,
 				url: address.href,
 				language,
-				document: checked.document,
+				document: cleaned.document,
 			},
 		};
 	} catch {

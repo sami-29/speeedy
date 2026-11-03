@@ -38,7 +38,9 @@ The extension asks for no site access, runs no script on pages by itself, and ha
 
 ## Before submitting
 
-- Release builds need the store extension ID in the app: set `SPEEEDY_EXTENSION_ORIGINS`
-  (`chrome-extension://<id>,moz-extension://*`) when building the app, or the app refuses pages
-  from the store build. Edge assigns its own ID, so list both.
+- The app must be built with the store extension IDs, or it refuses every extension: a
+  production build with `SPEEEDY_EXTENSION_ORIGINS` unset trusts none. Set it to
+  `chrome-extension://<chromeId>,chrome-extension://<edgeId>,moz-extension://*`. Chrome and Edge IDs
+  are known after the first store upload. Firefox pages are kept only after the reader confirms
+  them (docs/adr/0005).
 - The Firefox add-on ID is `launcher@speeedy.app`. It cannot change after the first AMO submission.

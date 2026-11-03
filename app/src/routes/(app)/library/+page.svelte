@@ -1,4 +1,5 @@
 <script lang="ts">
+import type { LauncherPage } from "@speeedy/contracts";
 import { onDestroy, onMount } from "svelte";
 import { TRUSTED_ORIGINS } from "#lib/launcher/config.ts";
 import { startLauncherReceiver } from "#lib/launcher/receiver.ts";
@@ -35,6 +36,12 @@ let draftLanguage = $state("");
 let editError = $state("");
 let pending = $state.raw<{ removed: RemovedDocument; title: string }>();
 let undoTimer: ReturnType<typeof setTimeout> | undefined;
+/** A page a Firefox extension sent, waiting for the reader to keep or discard it. */
+let asking = $state.raw<{
+	page: LauncherPage;
+	answer: (keep: boolean) => void;
+}>();
+let keepButton = $state<HTMLButtonElement>();
 
 const lastRead = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 
@@ -57,12 +64,38 @@ onMount(() => {
 		save: async (page) => {
 			await saveLauncherPage(library(), page);
 		},
+		confirm: (page) =>
+			new Promise<boolean>((resolve) => {
+				asking = {
+					page,
+					answer: (keep) => {
+						asking = undefined;
+						resolve(keep);
+					},
+				};
+			}),
 		saved: () => {
 			void goto(localizeHref("/reader"));
 		},
 	});
-	return () => receiver.stop();
+	return () => {
+		receiver.stop();
+		asking?.answer(false);
+	};
 });
+
+$effect(() => {
+	if (asking) keepButton?.focus();
+});
+
+/** The site a launcher page came from, for the question. Empty when the address is unreadable. */
+function sourceHost(page: LauncherPage): string {
+	try {
+		return new URL(page.url).host;
+	} catch {
+		return "";
+	}
+}
 
 onDestroy(() => {
 	clearTimeout(undoTimer);
@@ -186,6 +219,34 @@ const languageChoices = (doc: DocumentMeta): string[] =>
 
 <div class="poster pt-s-6">
 	<h1 class="headline poster-head">{m.app_library_title()}</h1>
+	{#if asking}
+		{@const page = asking.page}
+		<section
+			class="mb-s-4 border-2 border-ink p-s-3"
+			aria-labelledby="launcher-keep-title"
+			role="alert"
+			data-testid="launcher-confirm"
+		>
+			<h2 id="launcher-keep-title" class="title">{m.library_keep_title()}</h2>
+			<p class="lead mt-s-1 [overflow-wrap:anywhere]">{documentTitle(page.title, page.document)}</p>
+			<p class="caption mt-s-1 text-ink-2 [overflow-wrap:anywhere]">
+				{m.library_keep_lead({ host: sourceHost(page) })}
+			</p>
+			<div class="mt-s-3 flex flex-wrap gap-s-2">
+				<button
+					type="button"
+					class="button-primary"
+					bind:this={keepButton}
+					onclick={() => asking?.answer(true)}>{m.library_keep()}</button
+				>
+				<button
+					type="button"
+					class="segment border-2 border-ink"
+					onclick={() => asking?.answer(false)}>{m.library_discard()}</button
+				>
+			</div>
+		</section>
+	{/if}
 	<IntakePanel onadd={add} {busy} {error} />
 
 	<h2 class="title poster-head">{m.library_table_label()}</h2>

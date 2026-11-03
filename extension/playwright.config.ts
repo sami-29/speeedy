@@ -1,4 +1,6 @@
 import { defineConfig } from "@playwright/test";
+import { DEV_EXTENSION_ID } from "@speeedy/contracts/launcher";
+import { ASK_EXTENSION_ID } from "./e2e/ask-key.ts";
 
 // The extension is loaded unpacked into Chromium and talks to the built app, served the way
 // the app's own e2e run serves it. Set PW_PORT to a free port when worktrees run side by side.
@@ -18,6 +20,14 @@ export default defineConfig({
 	webServer: {
 		command: `pnpm --filter @speeedy/app build && pnpm --filter @speeedy/app preview --port ${port} --strictPort`,
 		url: `http://localhost:${port}`,
+		// A production build trusts no extension unless told which. This build pins the
+		// development extension, and lists the second test extension as one to ask about.
+		env: {
+			SPEEEDY_EXTENSION_ORIGINS: [
+				`chrome-extension://${DEV_EXTENSION_ID}`,
+				`ask:chrome-extension://${ASK_EXTENSION_ID}`,
+			].join(","),
+		},
 		reuseExistingServer: false,
 		timeout: 240_000,
 	},

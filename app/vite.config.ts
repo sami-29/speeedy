@@ -3,19 +3,18 @@ import adapter from "@sveltejs/adapter-static";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
+import { trustedOriginsDefine } from "./scripts/extension-origins.ts";
 import { sourcemapPlan } from "./scripts/sourcemaps-plan.ts";
 import { handlePrerenderError } from "./src/lib/seo/planned.ts";
 
-// Which extension origins may send a page to the Library, set per build. Unset, the app trusts
-// the development extension (see src/lib/launcher/config.ts); a release build lists the store IDs.
-const extensionOrigins = process.env.SPEEEDY_EXTENSION_ORIGINS;
-
-export default defineConfig({
+// Which extension origins may send a page to the Library is fixed per build (see
+// scripts/extension-origins.ts): a production build trusts none unless SPEEEDY_EXTENSION_ORIGINS
+// lists them.
+export default defineConfig(({ command }) => ({
 	define: {
-		__SPEEEDY_EXTENSION_ORIGINS__:
-			extensionOrigins === undefined
-				? "undefined"
-				: JSON.stringify(extensionOrigins),
+		__SPEEEDY_EXTENSION_ORIGINS__: JSON.stringify(
+			trustedOriginsDefine(command, process.env),
+		),
 	},
 	build: {
 		// Source maps are built only when `scripts/upload-sourcemaps.ts` will upload and then
@@ -45,4 +44,4 @@ export default defineConfig({
 				filename.includes("/node_modules/") ? undefined : { runes: true },
 		}),
 	],
-});
+}));

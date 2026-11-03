@@ -25,7 +25,7 @@ const MESSAGES: Record<
 		"Speeedy could not read this tab. Click the Speeedy button again while you are on the page.",
 	empty: "There is no text on this page to read.",
 	"too-big": "This page is too large for Speeedy to open.",
-	refused: "Speeedy could not keep this page.",
+	refused: "Speeedy did not keep this page.",
 	timeout: "Speeedy did not answer. Check that it opened, then try again.",
 };
 

@@ -35,6 +35,8 @@ export type BuildOptions = {
 	/** Dev builds carry the development key. Release builds leave the ID to the store. */
 	dev: boolean;
 	targets?: readonly Target[];
+	/** A dev build's public key, when it should not use the development key. */
+	devKey?: string;
 	/** The end-to-end build: site access for these patterns and a hook to start the launcher. */
 	e2e?: { hostPermissions: readonly string[] };
 };
@@ -96,6 +98,7 @@ export async function buildExtension(options: BuildOptions): Promise<void> {
 		const manifest = buildManifest(target, {
 			version,
 			dev: options.dev,
+			key: options.devKey,
 			hostPermissions: options.e2e?.hostPermissions,
 		});
 		writeFileSync(
@@ -115,6 +118,11 @@ export async function buildExtension(options: BuildOptions): Promise<void> {
 			join(out, "archivo-wdth.woff2"),
 		);
 		cpSync(join(app, "static", "fonts", "OFL.txt"), join(out, "OFL.txt"));
+		// Apache-2.0 asks for the licence text to travel with the bundled code.
+		cpSync(
+			join(root, "node_modules", "@mozilla", "readability", "LICENSE.md"),
+			join(out, "Readability-LICENSE.md"),
+		);
 		for (const size of [16, 32, 48, 128]) {
 			cpSync(
 				join(app, "brand", "generated", "extension", `icon-${size}.png`),

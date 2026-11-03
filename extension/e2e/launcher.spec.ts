@@ -1,5 +1,6 @@
 import type { Page, Request } from "@playwright/test";
 import { DEV_EXTENSION_ID } from "@speeedy/contracts";
+import { ASK_EXTENSION_ID, ASK_EXTENSION_KEY } from "./ask-key.ts";
 import {
 	ARTICLE_TITLE,
 	ARTICLE_URL,
@@ -166,4 +167,74 @@ test("the Speeedy tab keeps nothing when a web page posts a look-alike message",
 	expect(await libraryRows(library as Page)).toEqual([]);
 	// Speeedy told the page it was ready and answered nothing else: no ack, no refusal.
 	expect(received.heard).toEqual([{ type: "speeedy:ready", version: 1 }]);
+});
+
+// Firefox cannot pin its sender, so the Library asks before it keeps a page from such an
+// extension. Chromium cannot produce a Firefox origin, so this runs a second test extension that
+// the app build lists as `ask:`.
+test.describe("an extension the Library asks the reader about", () => {
+	test.use({ extensionKey: ASK_EXTENSION_KEY });
+
+	test("has the second test ID", ({ extensionId }) => {
+		expect(extensionId).toBe(ASK_EXTENSION_ID);
+	});
+
+	test("keeps nothing until the reader chooses Keep", async ({
+		context,
+		worker,
+	}) => {
+		const article = await context.newPage();
+		await article.goto(ARTICLE_URL);
+		const speeedy = context.waitForEvent("page", {
+			predicate: (page) => page.url().startsWith("http://localhost"),
+		});
+		await launchFromArticleTab(worker);
+		const tab = await speeedy;
+
+		const question = tab.getByTestId("launcher-confirm");
+		await expect(question).toBeVisible();
+		await expect(question).toContainText("Keep this page?");
+		await expect(question).toContainText(ARTICLE_TITLE);
+		await expect(question).toContainText("articles.test");
+		await expect(tab).toHaveURL(/\/library$/);
+		expect(await libraryRows(tab)).toEqual([]);
+
+		await question.getByRole("button", { name: "Keep" }).click();
+		await expect(tab).toHaveURL(/\/reader$/);
+		const rows = await libraryRows(tab);
+		expect(rows).toHaveLength(1);
+		expect(rows[0]).toMatchObject({
+			title: ARTICLE_TITLE,
+			sourceUrl: ARTICLE_URL,
+		});
+	});
+
+	test("keeps nothing when the reader chooses Discard, and the extension says so", async ({
+		context,
+		worker,
+	}) => {
+		const article = await context.newPage();
+		await article.goto(ARTICLE_URL);
+		const speeedy = context.waitForEvent("page", {
+			predicate: (page) => page.url().startsWith("http://localhost"),
+		});
+		await launchFromArticleTab(worker);
+		const tab = await speeedy;
+
+		await tab
+			.getByTestId("launcher-confirm")
+			.getByRole("button", { name: "Discard" })
+			.click();
+		await expect(tab.getByTestId("launcher-confirm")).toHaveCount(0);
+		await expect(tab).toHaveURL(/\/library$/);
+		expect(await libraryRows(tab)).toEqual([]);
+
+		const relay = context
+			.pages()
+			.find((page) => page.url().startsWith("chrome-extension://"));
+		expect(relay).toBeDefined();
+		await expect((relay as Page).locator("#status")).toContainText(
+			"did not keep this page",
+		);
+	});
 });
