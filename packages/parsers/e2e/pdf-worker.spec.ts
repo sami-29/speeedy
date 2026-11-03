@@ -118,31 +118,35 @@ test("stops a small file that would keep pdf.js busy for minutes", async ({
 	page,
 }) => {
 	await ready(page, []);
-	// Four million drawing operators that draw nothing: about 100 KB on disk, and minutes of
-	// work for pdf.js to interpret.
+	// Thirty million drawing operators that draw nothing: about 100 KB on disk, and many
+	// seconds of work for pdf.js to interpret even on a fast machine. The limit is a fraction
+	// of a second, so the file is far past it whatever the hardware (a slow runner needed
+	// 2 s for a seventh of this).
+	const count = 30_000_000;
 	const operators = new TextEncoder().encode("q Q\n");
-	const stream = new Uint8Array(operators.length * 4_000_000);
-	for (let i = 0; i < 4_000_000; i++)
-		stream.set(operators, i * operators.length);
+	const stream = new Uint8Array(operators.length * count);
+	for (let i = 0; i < count; i++) stream.set(operators, i * operators.length);
 	const bomb = buildPdf({
 		pages: [
 			{
 				content: {
-					data: deflateSync(stream, { level: 9 }),
+					data: deflateSync(stream, { level: 1 }),
 					filter: "FlateDecode",
 				},
 			},
 		],
 	});
+	// Load the PDF code first, so that the clock below runs against reading, not downloading.
+	expect((await open(page, "textbook-pages.pdf")).ok).toBe(true);
 	const started = Date.now();
 	const outcome = await openBase64(
 		page,
 		Buffer.from(bomb).toString("base64"),
 		"bomb.pdf",
-		{ maxMillis: 3000 },
+		{ maxMillis: 300 },
 	);
 	expect(outcome).toMatchObject({ ok: false, reason: "too-big" });
-	expect(Date.now() - started).toBeLessThan(15_000);
+	expect(Date.now() - started).toBeLessThan(10_000);
 	// The parser worker is still there and the next file reads normally.
 	expect((await open(page, "textbook-pages.pdf")).ok).toBe(true);
 });

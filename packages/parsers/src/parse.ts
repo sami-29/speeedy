@@ -160,9 +160,13 @@ function titleFromFileName(segment: string): string | null {
 	return title === "" ? null : title;
 }
 
-/** A PDF starts with `%PDF-`, though the format allows up to 1 KB of junk before it. */
-function hasPdfHeader(bytes: Uint8Array): boolean {
-	const end = Math.min(bytes.length - 4, 1024);
+/**
+ * Does the file open with the PDF header? A PDF starts with `%PDF-` and the format allows up to
+ * 1 KB of junk before it, but only a file named `.pdf` gets that allowance: a Markdown or text
+ * file that mentions `%PDF-` near the top is text. Any other name needs the header at byte 0.
+ */
+function hasPdfHeader(bytes: Uint8Array, extension: string): boolean {
+	const end = extension === "pdf" ? Math.min(bytes.length - 4, 1024) : 1;
 	for (let i = 0; i < end; i++) {
 		if (
 			bytes[i] === 0x25 &&
@@ -405,7 +409,7 @@ export async function parse(
 				`Speeedy cannot open .${extension} files yet. Paste the text instead.`,
 			);
 		}
-		if (extension === "pdf" || hasPdfHeader(view)) {
+		if (extension === "pdf" || hasPdfHeader(view, extension)) {
 			return await parsePdfFile(view, options, titleFromFileName(segment));
 		}
 		const magic = hasMagic(view);
