@@ -7,7 +7,7 @@
  * itself, and says why it refused in a fixed word that never echoes the content.
  */
 
-import { type Document, validateDocument } from "./document";
+import { type Document, validateDocument } from "./document.ts";
 
 export const LAUNCHER_VERSION = 1;
 
@@ -22,6 +22,8 @@ export const LAUNCHER_LIMITS = {
 	/** Total inline spans over all blocks. */
 	spans: 200_000,
 } as const;
+
+export type LauncherLimits = { [K in keyof typeof LAUNCHER_LIMITS]: number };
 
 /**
  * The extension ID that unpacked and test builds get from the development key in their

@@ -3,10 +3,14 @@ import { DEV_EXTENSION_ID, DEV_EXTENSION_KEY } from "@speeedy/contracts";
 import { describe, expect, it } from "vitest";
 import { buildManifest, STORE_REF, TARGETS } from "../src/manifest.ts";
 
+/** A manifest read loosely, the way a browser reads the JSON. */
+// biome-ignore lint/suspicious/noExplicitAny: the tests poke at nested manifest fields.
+type Loose = Record<string, any>;
+
 const options = { version: "1.2.3", dev: false };
 
 describe.each(TARGETS)("the %s manifest", (target) => {
-	const manifest = buildManifest(target, options) as Record<string, any>;
+	const manifest = buildManifest(target, options) as Loose;
 
 	it("is Manifest V3 and carries the build's version", () => {
 		expect(manifest.manifest_version).toBe(3);
@@ -60,10 +64,7 @@ describe.each(TARGETS)("the %s manifest", (target) => {
 	});
 
 	it("pins the development ID in a dev build", () => {
-		const dev = buildManifest(target, { ...options, dev: true }) as Record<
-			string,
-			any
-		>;
+		const dev = buildManifest(target, { ...options, dev: true }) as Loose;
 		if (target === "firefox") {
 			expect(dev).not.toHaveProperty("key");
 			return;
@@ -82,14 +83,14 @@ describe.each(TARGETS)("the %s manifest", (target) => {
 
 describe("Chrome and Edge", () => {
 	it.each(["chrome", "edge"] as const)("%s runs a service worker", (target) => {
-		const manifest = buildManifest(target, options) as Record<string, any>;
+		const manifest = buildManifest(target, options) as Loose;
 		expect(manifest.background).toEqual({ service_worker: "background.js" });
 		expect(manifest).not.toHaveProperty("browser_specific_settings");
 	});
 });
 
 describe("Firefox", () => {
-	const manifest = buildManifest("firefox", options) as Record<string, any>;
+	const manifest = buildManifest("firefox", options) as Loose;
 
 	it("runs an event page, since Firefox has no extension service workers", () => {
 		expect(manifest.background).toEqual({ scripts: ["background.js"] });

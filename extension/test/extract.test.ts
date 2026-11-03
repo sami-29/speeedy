@@ -49,7 +49,7 @@ describe("extractPage on an article", () => {
 		expect(result.ok && result.page).toMatchObject({
 			type: "speeedy:page",
 			version: 1,
-			title: "The lighthouse keeper's staircase",
+			title: "How the lighthouse keeper counted his staircase",
 			language: "en",
 			url: ARTICLE_URL,
 		});
