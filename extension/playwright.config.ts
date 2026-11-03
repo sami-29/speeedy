@@ -11,6 +11,9 @@ export default defineConfig({
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 1 : 0,
 	reporter: process.env.CI ? [["github"], ["list"]] : "list",
+	// Three browsers load the app at once, so a cold page can take a while.
+	expect: { timeout: 15_000 },
+	timeout: 60_000,
 	use: { baseURL: `http://localhost:${port}`, trace: "retain-on-failure" },
 	webServer: {
 		command: `pnpm --filter @speeedy/app build && pnpm --filter @speeedy/app preview --port ${port} --strictPort`,

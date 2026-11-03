@@ -31,8 +31,14 @@ async function attack(
 			window.addEventListener("message", (event) => heard.push(event.data));
 			const child = window.open(`${target}/library`, "_blank");
 			if (!child) throw new Error("the page could not open Speeedy");
-			for (let round = 0; round < 10; round++) {
+			// Keep posting until Speeedy has loaded and said it is ready, then for a second more,
+			// so the checks that follow run against a receiver that was listening.
+			const started = Date.now();
+			let readyAt = 0;
+			while (Date.now() - started < 30_000) {
 				for (const payload of payloads) child.postMessage(payload, "*");
+				if (readyAt === 0 && heard.length > 0) readyAt = Date.now();
+				if (readyAt !== 0 && Date.now() - readyAt > 1000) break;
 				await new Promise((resolve) => setTimeout(resolve, 100));
 			}
 			return heard;

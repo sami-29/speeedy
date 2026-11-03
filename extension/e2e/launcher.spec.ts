@@ -142,8 +142,14 @@ test("the Speeedy tab keeps nothing when a web page posts a look-alike message",
 			window.addEventListener("message", (event) => heard.push(event.data));
 			const child = window.open(`${target}/library`, "_blank");
 			if (!child) return { opened: false, heard };
-			for (let i = 0; i < 20; i++) {
+			// Keep posting until Speeedy has loaded and said it is ready, then for a second more,
+			// so the check below runs against a receiver that was listening.
+			const started = Date.now();
+			let readyAt = 0;
+			while (Date.now() - started < 30_000) {
 				child.postMessage(page, "*");
+				if (readyAt === 0 && heard.length > 0) readyAt = Date.now();
+				if (readyAt !== 0 && Date.now() - readyAt > 1000) break;
 				await new Promise((resolve) => setTimeout(resolve, 100));
 			}
 			return { opened: true, heard };
