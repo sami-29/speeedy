@@ -1,7 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 
-const TEXT = "one two three four five six seven eight nine ten eleven twelve";
+// Long enough that a slow runner cannot reach the end before a test pauses.
+const TEXT =
+	`one two three four five six seven eight nine ten eleven twelve ${"more ".repeat(60)}`.trim();
 const WORDS = TEXT.split(" ");
 
 async function start(page: Page, text: string) {
@@ -14,10 +16,13 @@ test.describe("paste to read", () => {
 	test("paste, Start, read at 250 WPM, pause on a word", async ({ page }) => {
 		await start(page, TEXT);
 		const word = page.getByTestId("word");
-		await expect(word).toHaveText("one");
+		await expect(word).toHaveText(/\S/);
 		await expect(page.getByTestId("wpm")).toHaveText("250 WPM");
 
-		await expect(word).toHaveText("three", { timeout: 4000 });
+		// Playwright polls, so wait for any later word rather than one exact word.
+		await expect(word).toHaveText(/^(three|four|five|six|seven|eight)$/, {
+			timeout: 4000,
+		});
 		await page.getByRole("button", { name: "Pause" }).click();
 		const paused = (await word.textContent()) ?? "";
 		expect(WORDS.indexOf(paused)).toBeGreaterThanOrEqual(2);
@@ -30,32 +35,27 @@ test.describe("paste to read", () => {
 		await expect(word).not.toHaveText(paused, { timeout: 2000 });
 	});
 
-	test("words arrive in order, none skipped, at the start", async ({
+	test("words arrive in order, none skipped, from the first", async ({
 		page,
 	}) => {
+		// Recorded in the page from before Start, so polling cannot miss a word.
+		await page.addInitScript(() => {
+			const seen: string[] = [];
+			(window as unknown as { __words: string[] }).__words = seen;
+			new MutationObserver(() => {
+				const text =
+					document.querySelector('[data-testid="word"]')?.textContent ?? "";
+				if (text && text !== seen[seen.length - 1]) seen.push(text);
+			}).observe(document, {
+				subtree: true,
+				childList: true,
+				characterData: true,
+			});
+		});
 		await start(page, TEXT);
-		const word = page.getByTestId("word");
-		await expect(word).toHaveText("one");
+		await page.waitForTimeout(1000);
 		const seen = await page.evaluate(
-			(first) =>
-				new Promise<string[]>((resolve) => {
-					const target = document.querySelector('[data-testid="word"]');
-					const out = [first];
-					const observer = new MutationObserver(() => {
-						const text = target?.textContent ?? "";
-						if (text !== out[out.length - 1]) out.push(text);
-					});
-					observer.observe(target as Node, {
-						subtree: true,
-						childList: true,
-						characterData: true,
-					});
-					setTimeout(() => {
-						observer.disconnect();
-						resolve(out);
-					}, 900);
-				}),
-			"one",
+			() => (window as unknown as { __words: string[] }).__words,
 		);
 		expect(seen.slice(0, 3)).toEqual(["one", "two", "three"]);
 	});
@@ -73,7 +73,7 @@ test.describe("paste to read", () => {
 		page,
 	}) => {
 		await start(page, TEXT);
-		await expect(page.getByTestId("word")).toHaveText("one");
+		await expect(page.getByTestId("word")).toHaveText(/\S/);
 		await expect(page.getByRole("button", { name: "Pause" })).toBeFocused();
 		await page.keyboard.press("Space");
 		await expect(page.getByRole("button", { name: "Play" })).toBeFocused();
@@ -153,7 +153,7 @@ test.describe("the word", () => {
 	test("cuts between words: no fade, no slide", async ({ page }) => {
 		await start(page, TEXT);
 		const word = page.getByTestId("word");
-		await expect(word).toHaveText("one");
+		await expect(word).toHaveText(/\S/);
 		const motion = await word.evaluate((el) => {
 			const out: { transition: string; animation: string; opacity: string }[] =
 				[];
@@ -178,7 +178,7 @@ test.describe("the word", () => {
 
 	test("playing writes only the word element", async ({ page }) => {
 		await start(page, TEXT);
-		await expect(page.getByTestId("word")).toHaveText("two");
+		await expect(page.getByTestId("word")).toHaveText(/\S/);
 		const result = await page.evaluate(
 			() =>
 				new Promise<{ outside: number; inside: number }>((resolve) => {
@@ -213,7 +213,7 @@ test.describe("off the main thread", () => {
 		let workers = 0;
 		page.on("worker", () => workers++);
 		await start(page, TEXT);
-		await expect(page.getByTestId("word")).toHaveText("one");
+		await expect(page.getByTestId("word")).toHaveText(/\S/);
 		expect(workers).toBeGreaterThanOrEqual(2);
 	});
 });
@@ -227,7 +227,7 @@ for (const viewport of [
 	}) => {
 		await page.setViewportSize(viewport);
 		await start(page, TEXT);
-		await expect(page.getByTestId("word")).toHaveText("one");
+		await expect(page.getByTestId("word")).toHaveText(/\S/);
 		await page.getByRole("button", { name: "Pause" }).click();
 		await page.evaluate(() => document.fonts.ready);
 		const results = await new AxeBuilder({ page })
