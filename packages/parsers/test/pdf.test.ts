@@ -5,6 +5,7 @@ import {
 	expectSuccess,
 	expectWellFormed,
 	textsOf,
+	utf8,
 } from "./helpers";
 import {
 	buildPdf,
@@ -736,6 +737,29 @@ describe("pdf: files that cannot be read", () => {
 		const bytes = buildPdf({ pages: [page(flow([P1]).runs)] });
 		expect(textsOf(await parse(bytes, "report.txt"))).toEqual([P1]);
 		expect(textsOf(await parse(bytes, "report"))).toEqual([P1]);
+	});
+
+	it("opens a markdown file that mentions the PDF header as text", async () => {
+		const text = utf8(
+			"# Notes on file formats\n\nEvery PDF starts with %PDF-1.7 or a close cousin of it.\n",
+		);
+		const result = expectSuccess(await parse(text, "notes.md"));
+		expect(result.format).toBe("markdown");
+		expect(textsOf(result)).toContain(
+			"Every PDF starts with %PDF-1.7 or a close cousin of it.",
+		);
+	});
+
+	it("opens text and web pages that mention the PDF header near the top", async () => {
+		const plain = utf8(
+			"The first line says %PDF-1.4 in passing.\n\nThen a second paragraph.\n",
+		);
+		expect(expectSuccess(await parse(plain, "notes.txt")).format).toBe("txt");
+		expect(expectSuccess(await parse(plain, "notes")).format).toBe("txt");
+		const page = utf8(
+			"<html><body><p>A PDF begins with %PDF-1.7 and then objects follow, as the spec says.</p></body></html>",
+		);
+		expect(expectSuccess(await parse(page, "page.html")).format).toBe("html");
 	});
 
 	it("allows junk before the header, as the PDF format does", async () => {
