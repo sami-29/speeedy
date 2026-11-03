@@ -65,6 +65,42 @@ const ico = (images: { size: number; png: Buffer }[]) => {
 	return Buffer.concat([header, ...entries, ...images.map((i) => i.png)]);
 };
 
+// The share image, 1200x630 (wayfinder ticket 24): paper, with the red axis at 35% running
+// the full height and breaking only where the wordmark's own ticks take over. The wordmark's
+// red ticks sit on that axis; the line above and below is drawn to the same width.
+const OG = { width: 1200, height: 630, axisX: 420, wordmarkScale: 0.2 };
+const WORDMARK_VIEWBOX = { x: -10, y: -900, width: 4370, height: 1200 };
+// The ticks inside the wordmark master (x and width, in its own units).
+const WORDMARK_TICK = { x: 1589.401611328125, width: 62 };
+
+async function ogImage(): Promise<Buffer> {
+	const { width, height, axisX, wordmarkScale: s } = OG;
+	const view = WORDMARK_VIEWBOX;
+	const source = master("wordmark").toString("utf8");
+	if (
+		!source.includes(
+			`viewBox="${view.x} ${view.y} ${view.width} ${view.height}"`,
+		)
+	) {
+		throw new Error(
+			"wordmark master changed: update WORDMARK_VIEWBOX and WORDMARK_TICK",
+		);
+	}
+	const inner = source
+		.replace(/^[\s\S]*?<svg[^>]*>/, "")
+		.replace(/<\/svg>\s*$/, "");
+	const tickCentre = (WORDMARK_TICK.x + WORDMARK_TICK.width / 2 - view.x) * s;
+	const left = axisX - tickCentre;
+	const markHeight = view.height * s;
+	const top = (height - markHeight) / 2;
+	const axisWidth = WORDMARK_TICK.width * s;
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" shape-rendering="geometricPrecision"><rect width="${width}" height="${height}" fill="#eff1f1"/><rect x="${axisX - axisWidth / 2}" y="0" width="${axisWidth}" height="${top}" fill="#d12d16"/><rect x="${axisX - axisWidth / 2}" y="${top + markHeight}" width="${axisWidth}" height="${height - top - markHeight}" fill="#d12d16"/><svg x="${left}" y="${top}" width="${view.width * s}" height="${markHeight}" viewBox="${view.x} ${view.y} ${view.width} ${view.height}">${inner}</svg></svg>`;
+	return sharp(Buffer.from(svg), { density: 72 })
+		.resize(width, height)
+		.png()
+		.toBuffer();
+}
+
 export async function buildIcons(): Promise<Map<string, Buffer>> {
 	const out = new Map<string, Buffer>();
 	const icon512 = master("icon-512");
@@ -100,6 +136,8 @@ export async function buildIcons(): Promise<Map<string, Buffer>> {
 			await render(master(name), size),
 		);
 	}
+
+	out.set("static/og-image.png", await ogImage());
 
 	// Android adaptive layers are 108dp; 432px is xxxhdpi.
 	for (const layer of ["background", "foreground", "monochrome"]) {

@@ -120,8 +120,20 @@ async function restore() {
 	}
 }
 
+// Text or a file handed over by another route (a paste or drop on `/`, a Share Link opened at
+// `/s`) wins over the Library's current document: open it, which also keeps it in the Library
+// with its source, and do not restore.
 onMount(() => {
-	void restore();
+	const handed = takeHandoff();
+	if (!handed) {
+		void restore();
+		return;
+	}
+	const source: ReaderSource =
+		"file" in handed
+			? { kind: "file", file: handed.file }
+			: { kind: "text", text: handed.text };
+	void open(source, handed.source);
 });
 
 /** Back to the start panel. The next refresh shows the panel too. */
@@ -133,10 +145,6 @@ function leave() {
 		.setCurrent(null)
 		.catch(() => undefined);
 }
-
-// Text handed over by another route, such as a Share Link opened at /s.
-const handed = takeHandoff();
-if (handed) void open({ kind: "text", text: handed.text }, handed.source);
 
 function onSubmit(event: SubmitEvent) {
 	event.preventDefault();
