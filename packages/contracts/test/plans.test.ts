@@ -1,6 +1,6 @@
-// Seam: the plans module's public functions. Run with: node --test packages/contracts/test/
+// Seam: the plans module's public functions. Run with: pnpm --filter @speeedy/contracts test:unit
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import {
 	type EntitlementAccount,
 	hasFeature,

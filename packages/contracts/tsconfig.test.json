@@ -1,7 +1,9 @@
 {
-	"extends": "../../tsconfig.base.json",
+	"extends": "./tsconfig.json",
 	"compilerOptions": {
 		"noEmit": true,
+		"declaration": false,
+		"rootDir": ".",
 		"allowImportingTsExtensions": true,
 		"types": ["node"]
 	},

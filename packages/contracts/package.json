@@ -9,6 +9,9 @@
 	"scripts": {
 		"build": "tsc -p tsconfig.json",
 		"typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
-		"test:unit": "node --test test/*.test.ts"
+		"test:unit": "vitest run"
+	},
+	"devDependencies": {
+		"vitest": "4.1.2"
 	}
 }

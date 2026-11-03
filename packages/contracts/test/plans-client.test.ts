@@ -1,6 +1,6 @@
 // Seam: the app's typed client for the Worker's plan endpoint.
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import {
 	type FetchLike,
 	readPlan,
