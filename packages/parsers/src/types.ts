@@ -43,6 +43,8 @@ export type SourceFormat =
 	| "csv"
 	| "html"
 	| "docx"
+	| "epub"
+	| "odt"
 	| "pasted"
 	| "pdf";
 

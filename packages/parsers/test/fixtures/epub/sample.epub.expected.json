@@ -1,0 +1,13 @@
+{
+	"outcome": "document",
+	"format": "epub",
+	"title": "Test Book",
+	"encoding": null,
+	"language": "und",
+	"blocks": 1,
+	"kinds": ["paragraph"],
+	"spans": 0,
+	"first": "Hello EPUB world",
+	"last": "Hello EPUB world",
+	"words": [3, 3]
+}

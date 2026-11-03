@@ -1,0 +1,13 @@
+{
+	"outcome": "document",
+	"format": "odt",
+	"title": "Gece Feneri",
+	"encoding": null,
+	"language": "tr",
+	"blocks": 3,
+	"kinds": ["heading", "paragraph", "paragraph"],
+	"spans": 1,
+	"first": "Gece Feneri\nFener bekçisi",
+	"last": "bırakılırdı.",
+	"words": [28, 32]
+}
