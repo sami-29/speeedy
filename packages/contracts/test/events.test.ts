@@ -9,6 +9,8 @@ import {
 	clientEvents,
 	EVENTS,
 	eventList,
+	NEWSLETTER_PAGES,
+	NEWSLETTER_TOPICS,
 	pageviewFor,
 	privacyCases,
 	registryProblems,
@@ -261,5 +263,55 @@ describe("the published event list", () => {
 
 	it("says which property is free text", () => {
 		assert.match(renderEventListMarkdown(EVENTS), /own_idea[^\n]*free text/i);
+	});
+});
+
+describe("newsletter_signup", () => {
+	it("is a server event with a topic and a page, both enums", () => {
+		const def = EVENTS.newsletter_signup;
+		assert.equal(def.origin, "server");
+		assert.equal(def.props.topic.kind, "enum");
+		assert.equal(def.props.page.kind, "enum");
+		assert.deepEqual([...def.props.topic.values], [...NEWSLETTER_TOPICS]);
+		assert.deepEqual([...def.props.page.values], [...NEWSLETTER_PAGES]);
+	});
+
+	it("is not a client event", () => {
+		assert.equal(
+			checkEvent(clientEvents(EVENTS), "newsletter_signup", {
+				topic: "speeedy",
+				page: "home",
+			}).ok,
+			false,
+		);
+	});
+
+	it("takes nothing but the two enums", () => {
+		const server = serverEvents(EVENTS);
+		assert.equal(
+			checkEvent(server, "newsletter_signup", {
+				topic: "speeedy",
+				page: "home",
+			}).ok,
+			true,
+		);
+		for (const extra of ["email", "email_address", "address"]) {
+			assert.equal(
+				checkEvent(server, "newsletter_signup", {
+					topic: "speeedy",
+					page: "home",
+					[extra]: "reader@example.com",
+				}).ok,
+				false,
+				extra,
+			);
+		}
+		assert.equal(
+			checkEvent(server, "newsletter_signup", {
+				topic: "reader@example.com",
+				page: "home",
+			}).ok,
+			false,
+		);
 	});
 });
