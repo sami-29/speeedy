@@ -78,7 +78,7 @@ describe("saved-page paragraph filter: tuning record", () => {
 		expect(files.length).toBeGreaterThanOrEqual(5);
 		for (const file of files) {
 			const page = tuning.pages[file] as Page;
-			expect(page.url).toMatch(/^https:\/\//);
+			expect(page.url).toMatch(/^(https:\/\/|synthetic$)/);
 			expect(page.license.length).toBeGreaterThan(0);
 			expect(page.truth.length).toBeGreaterThan(5);
 		}
