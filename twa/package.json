@@ -1,0 +1,9 @@
+{
+	"name": "@speeedy/twa",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"build": "node -e \"console.log('@speeedy/twa has nothing to build yet')\""
+	}
+}

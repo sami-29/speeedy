@@ -6,16 +6,15 @@ Thanks for your interest. This document covers everything you need to get starte
 
 ## Development Setup
 
-**Prerequisites:** [Node.js](https://nodejs.org) 20+ and [pnpm](https://pnpm.io)
+**Prerequisites:** [Node.js](https://nodejs.org) 22.22+ and [pnpm](https://pnpm.io) (the exact version is pinned in `packageManager`; Corepack or `pnpm/action-setup` picks it up)
 
 ```bash
 git clone https://github.com/sami-29/speeedy
 cd speeedy
 pnpm install
-pnpm dev
 ```
 
-The dev server starts at `http://localhost:5173`.
+The repo is a pnpm workspace: `app`, `worker`, `packages/engine`, `packages/parsers`, `packages/contracts`, `extension`, `twa` and `voice-server`.
 
 ---
 
@@ -23,12 +22,13 @@ The dev server starts at `http://localhost:5173`.
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dev` | Start dev server |
-| `pnpm build` | Production build (runs `tsc` first) |
-| `pnpm test` | Run unit tests |
-| `pnpm test:watch` | Run tests in watch mode |
-| `pnpm lint` | Check for lint errors |
+| `pnpm build` | Build every package that has a build step |
+| `pnpm typecheck` | Type-check the root and every package |
+| `pnpm lint` | Check for lint errors (Biome) |
 | `pnpm lint:fix` | Auto-fix lint errors |
+| `pnpm test:unit` | Run the workspace-shape test and each package's unit tests |
+| `pnpm test:worker` | Run the Worker tests |
+| `pnpm e2e` | Run end-to-end tests (none yet) |
 
 ---
 
@@ -39,34 +39,12 @@ The dev server starts at `http://localhost:5173`.
 - **No `any` casts** unless the type is genuinely unknowable (e.g. non-standard browser APIs)
 - **Comments should explain *why*, not *what*** — if the code is self-explanatory, skip the comment
 
-A pre-commit hook runs `lint-staged` automatically on staged `.ts` files.
-
----
-
-## Architecture
-
-Speeedy uses [Lit](https://lit.dev) web components with **light DOM** (no shadow DOM) so Tailwind classes apply directly.
-
-```
-src/
-├── components/     Lit elements — pages, panels, overlays
-├── config.ts       Site-wide constants (URL, GitHub link)
-├── data/           Static data (benchmark passages)
-├── models/         TypeScript interfaces (types.ts)
-├── services/       Business logic — framework-agnostic
-└── utils/          Pure helper functions
-```
-
-**Services are the core.** Components should be thin wrappers that call services and render state. The RSVP engine ([`src/services/rsvp-engine.ts`](src/services/rsvp-engine.ts)) is the most critical file — changes there need careful testing.
-
----
-
 ## Pull Requests
 
-1. Fork the repo and create a branch from `main`
+1. Fork the repo and create a branch from `2.0`
 2. Make your changes
-3. Run `pnpm build` — must pass with no TypeScript errors
-4. Run `pnpm test` — all tests must pass
+3. Run `pnpm typecheck` and `pnpm build` — must pass with no TypeScript errors
+4. Run `pnpm test:unit` and `pnpm test:worker` — all tests must pass
 5. Run `pnpm lint` — no lint errors
 6. Open a PR with a clear title and description
 
@@ -99,7 +77,7 @@ When contributing a change that warrants a version bump, update [CHANGELOG.md](C
 
 ## Releasing
 
-1. Bump `package.json`, update `CHANGELOG.md`, and update `src/components/changelog-page.ts`.
+1. Bump `package.json` and update `CHANGELOG.md`.
 2. Commit to `main` with a message like `release: v1.3.0 - short description`.
 3. GitHub Actions creates the `v1.3.0` tag and publishes the release using the matching changelog section.
 

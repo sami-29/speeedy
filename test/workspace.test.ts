@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path: string) => readFileSync(join(root, path), "utf8");
-const json = (path: string) => JSON.parse(read(path)) as Record<string, unknown>;
+const json = (path: string) =>
+	JSON.parse(read(path)) as Record<string, unknown>;
 
 const packageDirs = {
 	app: "@speeedy/app",
@@ -46,7 +47,13 @@ describe("clean slate", () => {
 	});
 
 	it("keeps the files that carry over", () => {
-		for (const path of [".github", "LICENSE", "README.md", "CHANGELOG.md", ".gitignore"]) {
+		for (const path of [
+			".github",
+			"LICENSE",
+			"README.md",
+			"CHANGELOG.md",
+			".gitignore",
+		]) {
 			assert.ok(existsSync(join(root, path)), `${path} is missing`);
 		}
 	});
@@ -55,8 +62,19 @@ describe("clean slate", () => {
 describe("workspace packages", () => {
 	it("lists every package in pnpm-workspace.yaml", () => {
 		const yaml = read("pnpm-workspace.yaml");
-		for (const entry of ["app", "worker", "packages/*", "extension", "twa", "voice-server"]) {
-			assert.match(yaml, new RegExp(`^  - ${entry.replace("*", "\\*")}$`, "m"), entry);
+		for (const entry of [
+			"app",
+			"worker",
+			"packages/*",
+			"extension",
+			"twa",
+			"voice-server",
+		]) {
+			assert.match(
+				yaml,
+				new RegExp(`^  - ${entry.replace("*", "\\*")}$`, "m"),
+				entry,
+			);
 		}
 		assert.deepEqual(readdirSync(join(root, "packages")).sort(), [
 			"contracts",
@@ -89,13 +107,23 @@ describe("workspace packages", () => {
 });
 
 describe("dependency hygiene", () => {
-	const manifests = ["package.json", ...Object.keys(packageDirs).map((d) => `${d}/package.json`)];
+	const manifests = [
+		"package.json",
+		...Object.keys(packageDirs).map((d) => `${d}/package.json`),
+	];
 
 	it("uses exact versions in every package.json", () => {
 		const loose: string[] = [];
 		for (const file of manifests) {
-			const pkg = json(file) as Record<string, Record<string, string> | undefined>;
-			for (const field of ["dependencies", "devDependencies", "peerDependencies"]) {
+			const pkg = json(file) as Record<
+				string,
+				Record<string, string> | undefined
+			>;
+			for (const field of [
+				"dependencies",
+				"devDependencies",
+				"peerDependencies",
+			]) {
 				for (const [dep, range] of Object.entries(pkg[field] ?? {})) {
 					if (!/^(\d+\.\d+\.\d+(-[\w.]+)?|workspace:\*)$/.test(range)) {
 						loose.push(`${file} ${dep}@${range}`);
@@ -107,7 +135,10 @@ describe("dependency hygiene", () => {
 	});
 
 	it("pins packageManager to one exact pnpm version", () => {
-		assert.match(String(json("package.json").packageManager), /^pnpm@\d+\.\d+\.\d+$/);
+		assert.match(
+			String(json("package.json").packageManager),
+			/^pnpm@\d+\.\d+\.\d+$/,
+		);
 	});
 
 	it("allows builds through allowBuilds, not the removed onlyBuiltDependencies", () => {
@@ -175,10 +206,16 @@ describe("licence and README", () => {
 describe("noindex on non-main builds", () => {
 	it("adds X-Robots-Tag: noindex only for branch preview hosts", () => {
 		const blocks = read("app/public/_headers").split(/\n(?=\S)/);
-		const noindex = blocks.filter((block) => /X-Robots-Tag: noindex/.test(block));
+		const noindex = blocks.filter((block) =>
+			/X-Robots-Tag: noindex/.test(block),
+		);
 		assert.ok(noindex.length > 0, "a noindex rule");
 		for (const block of noindex) {
-			assert.match(block, /^https:\/\/\*\.[\w.-]+\/\*/, "scoped to preview hosts");
+			assert.match(
+				block,
+				/^https:\/\/\*\.[\w.-]+\/\*/,
+				"scoped to preview hosts",
+			);
 		}
 	});
 });
