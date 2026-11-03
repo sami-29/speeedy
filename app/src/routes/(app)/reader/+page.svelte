@@ -2,6 +2,7 @@
 import type { Timeline } from "@speeedy/engine";
 import { onDestroy } from "svelte";
 import { m } from "#lib/paraglide/messages.js";
+import { type ReadingSource, takeHandoff } from "#lib/reader/handoff.ts";
 import { readerModes } from "#lib/reader/modes.ts";
 import { createReaderLoader, type ReaderSource } from "#lib/reader/open.ts";
 import { READER_SETTINGS } from "#lib/reader/settings.ts";
@@ -15,16 +16,25 @@ let text = $state("");
 let error = $state("");
 let opening = $state(false);
 let dragging = $state(false);
-let session = $state.raw<{ timeline: Timeline; title: string | null }>();
+let session = $state.raw<{
+	timeline: Timeline;
+	title: string | null;
+	source: ReadingSource;
+}>();
 
-async function open(source: ReaderSource) {
+async function open(source: ReaderSource, from: ReadingSource = "own") {
 	error = "";
 	opening = true;
 	const result = await loader.open(source);
 	opening = false;
-	if (result.ok) session = { timeline: result.timeline, title: result.title };
+	if (result.ok)
+		session = { timeline: result.timeline, title: result.title, source: from };
 	else error = result.message;
 }
+
+// Text handed over by another route, such as a Share Link opened at /s.
+const handed = takeHandoff();
+if (handed) void open({ kind: "text", text: handed.text }, handed.source);
 
 function onSubmit(event: SubmitEvent) {
 	event.preventDefault();
@@ -65,7 +75,7 @@ function onPick(event: Event) {
 </svelte:head>
 
 {#if session && mode}
-	<h1 class="sr-only">{session.title ?? m.reader_reading()}</h1>
+	<h1 class="sr-only" data-source={session.source}>{session.title ?? m.reader_reading()}</h1>
 	<div class="px-gutter pt-s-2">
 		<button type="button" class="segment border-2 border-ink" onclick={() => (session = undefined)}>
 			{m.reader_new_text()}
