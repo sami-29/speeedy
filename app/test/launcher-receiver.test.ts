@@ -9,6 +9,7 @@ import {
 	isTrustedOrigin,
 	type LauncherWindow,
 	startLauncherReceiver,
+	trustOf,
 } from "../src/lib/launcher/receiver.ts";
 
 const EXTENSION = `chrome-extension://${DEV_EXTENSION_ID}`;
@@ -67,17 +68,24 @@ afterEach(() => {
 	for (const receiver of running.splice(0)) receiver.stop();
 });
 
-function start(withOpener = true) {
+function start(
+	withOpener = true,
+	answer: () => Promise<boolean> = async () => true,
+) {
 	const env = fakeWindow(withOpener);
 	const save = vi.fn(async (_page: LauncherPage) => {});
+	const confirm = vi.fn(async (_page: LauncherPage) => answer());
 	const receiver = startLauncherReceiver({
 		window: env.window,
 		trusted: TRUSTED,
 		save,
+		confirm,
 	});
 	running.push(receiver);
-	return { env, save };
+	return { env, save, confirm };
 }
+
+const FIREFOX = "moz-extension://2f0c8e5a-6d6e-4d5e-9a49-7b2d6a2f0c11";
 
 describe("isTrustedOrigin", () => {
 	it("trusts the listed Chromium extension and nothing that only looks like it", () => {
@@ -126,6 +134,28 @@ describe("isTrustedOrigin", () => {
 	});
 });
 
+describe("trustOf", () => {
+	it("saves straight away only for an extension whose ID is pinned", () => {
+		expect(trustOf(EXTENSION, TRUSTED)).toBe("auto");
+	});
+
+	it("asks the reader first when only the Firefox pattern matched", () => {
+		expect(trustOf(FIREFOX, TRUSTED)).toBe("confirm");
+	});
+
+	it("asks the reader first for a Chromium ID listed as ask", () => {
+		const other = `chrome-extension://${"b".repeat(32)}`;
+		expect(trustOf(other, [`ask:${other}`])).toBe("confirm");
+		expect(trustOf(EXTENSION, [`ask:${other}`])).toBeNull();
+	});
+
+	it("matches nothing else", () => {
+		expect(trustOf("https://evil.example", TRUSTED)).toBeNull();
+		expect(trustOf("null", TRUSTED)).toBeNull();
+		expect(trustOf(EXTENSION, [])).toBeNull();
+	});
+});
+
 describe("the handshake", () => {
 	it("tells its opener it is ready, without naming a target it cannot know", () => {
 		const { env } = start();
@@ -161,11 +191,11 @@ describe("a page from the extension", () => {
 		);
 	});
 
-	it("is accepted from a Firefox extension", async () => {
-		const { env, save } = start();
-		const origin = "moz-extension://2f0c8e5a-6d6e-4d5e-9a49-7b2d6a2f0c11";
-		env.send({ data: validPage(), origin, source: env.opener });
+	it("is saved without asking when the extension's ID is pinned", async () => {
+		const { env, save, confirm } = start();
+		env.send({ data: validPage(), origin: EXTENSION, source: env.opener });
 		await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+		expect(confirm).not.toHaveBeenCalled();
 	});
 
 	it("takes only the first page of a load, so a flood saves one document", async () => {
@@ -315,5 +345,87 @@ describe("hostile payloads from a trusted sender", () => {
 		env.send({ data: { nope: 1 }, origin: EXTENSION, source: env.opener });
 		env.send({ data: validPage(), origin: EXTENSION, source: env.opener });
 		await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+	});
+});
+
+describe("a page from a Firefox extension, whose sender cannot be pinned", () => {
+	it("is shown to the reader first and saved only once they keep it", async () => {
+		let answer: (keep: boolean) => void = () => {};
+		const { env, save, confirm } = start(
+			true,
+			() => new Promise<boolean>((resolve) => (answer = resolve)),
+		);
+		env.send({ data: validPage(), origin: FIREFOX, source: env.opener });
+		await vi.waitFor(() => expect(confirm).toHaveBeenCalledWith(validPage()));
+		expect(save).not.toHaveBeenCalled();
+		expect(env.toOpener).toHaveLength(1);
+		answer(true);
+		await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+		await vi.waitFor(() =>
+			expect(env.toOpener.at(-1)).toEqual({
+				message: { type: "speeedy:ack", version: 1, ok: true },
+				targetOrigin: FIREFOX,
+			}),
+		);
+	});
+
+	it("is dropped and refused when the reader discards it, and the next page may still come", async () => {
+		const answers = [false, true];
+		const { env, save, confirm } = start(
+			true,
+			async () => answers.shift() ?? false,
+		);
+		env.send({
+			data: validPage({ title: "No" }),
+			origin: FIREFOX,
+			source: env.opener,
+		});
+		await vi.waitFor(() =>
+			expect(env.toOpener.at(-1)).toEqual({
+				message: { type: "speeedy:ack", version: 1, ok: false },
+				targetOrigin: FIREFOX,
+			}),
+		);
+		expect(save).not.toHaveBeenCalled();
+		env.send({
+			data: validPage({ title: "Yes" }),
+			origin: FIREFOX,
+			source: env.opener,
+		});
+		await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+		expect(confirm).toHaveBeenCalledTimes(2);
+	});
+
+	it("ignores further pages while the reader is deciding", async () => {
+		const { env, confirm } = start(true, () => new Promise<boolean>(() => {}));
+		for (let i = 0; i < 4; i++) {
+			env.send({ data: validPage(), origin: FIREFOX, source: env.opener });
+		}
+		await vi.waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		expect(confirm).toHaveBeenCalledTimes(1);
+	});
+
+	it("never asks about a page that fails validation", async () => {
+		const { env, confirm } = start();
+		env.send({ data: { nope: 1 }, origin: FIREFOX, source: env.opener });
+		await vi.waitFor(() => expect(env.toOpener).toHaveLength(2));
+		expect(confirm).not.toHaveBeenCalled();
+	});
+
+	it("is refused when there is no way to ask the reader", async () => {
+		const env = fakeWindow();
+		const save = vi.fn(async () => {});
+		running.push(
+			startLauncherReceiver({ window: env.window, trusted: TRUSTED, save }),
+		);
+		env.send({ data: validPage(), origin: FIREFOX, source: env.opener });
+		await vi.waitFor(() =>
+			expect(env.toOpener.at(-1)).toEqual({
+				message: { type: "speeedy:ack", version: 1, ok: false },
+				targetOrigin: FIREFOX,
+			}),
+		);
+		expect(save).not.toHaveBeenCalled();
 	});
 });

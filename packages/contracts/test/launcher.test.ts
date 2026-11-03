@@ -258,6 +258,75 @@ describe("the Document", () => {
 			),
 		).toBe("ok");
 	});
+
+	const withLink = (href: string) =>
+		page({
+			document: {
+				version: 1,
+				blocks: [
+					paragraph("hello", [{ kind: "link", start: 0, end: 5, href }]),
+				],
+			},
+		});
+	const storedHref = (value: unknown) => {
+		const result = validateLauncherPage(value);
+		if (!result.ok) return result.reason;
+		const block = result.page.document.blocks[0];
+		return block && "spans" in block
+			? (block.spans[0] as { href: string }).href
+			: "";
+	};
+
+	it("strips whitespace and controls from the whole link before judging it", () => {
+		for (const href of [
+			`${" ".repeat(200)}javascript:alert(1)`,
+			`${"\t\n".repeat(150)}javascript:alert(1)`,
+			`${"\u200b".repeat(300)}javascript:alert(1)`,
+			"java\tscript:alert(1)",
+			"java\u2060script:alert(1)",
+			" \u0001 data:text/html,x",
+		]) {
+			expect(reason(withLink(href)), JSON.stringify(href.slice(-30))).toBe(
+				"bad-document",
+			);
+		}
+	});
+
+	it("takes only absolute http, https, mailto and tel links", () => {
+		for (const href of [
+			"/path",
+			"#section",
+			"?q=1",
+			"//other.example/x",
+			"x.html",
+		]) {
+			expect(reason(withLink(href)), href).toBe("bad-document");
+		}
+		for (const href of [
+			"https://a.example/x",
+			"http://a.example/",
+			"mailto:me@a.example",
+			"tel:+4912345",
+		]) {
+			expect(reason(withLink(href)), href).toBe("ok");
+		}
+	});
+
+	it("keeps the cleaned link, not the one it was sent as", () => {
+		expect(storedHref(withLink("  https://a.example/ x\t"))).toBe(
+			"https://a.example/x",
+		);
+	});
+
+	it("refuses a link over the cap, and counts links toward the text cap", () => {
+		const long = `https://a.example/${"p".repeat(LAUNCHER_LIMITS.href)}`;
+		expect(reason(withLink(long))).toBe("too-big");
+		const href = `https://a.example/${"p".repeat(2000)}`;
+		const blocks = Array.from({ length: 3000 }, () =>
+			paragraph("x", [{ kind: "link", start: 0, end: 1, href }]),
+		);
+		expect(reason(page({ document: { version: 1, blocks } }))).toBe("too-big");
+	});
 });
 
 describe("ready and ack messages", () => {

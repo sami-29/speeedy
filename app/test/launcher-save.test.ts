@@ -1,10 +1,7 @@
 import "fake-indexeddb/auto";
-import { DEV_EXTENSION_ID, type LauncherPage } from "@speeedy/contracts";
+import type { LauncherPage } from "@speeedy/contracts";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-	DEFAULT_TRUSTED_ORIGINS,
-	parseTrustedOrigins,
-} from "../src/lib/launcher/config.ts";
+import { parseTrustedOrigins } from "../src/lib/launcher/config.ts";
 import { saveLauncherPage } from "../src/lib/launcher/save.ts";
 import {
 	createLibraryStore,
@@ -116,11 +113,18 @@ describe("parseTrustedOrigins", () => {
 		).toEqual([]);
 	});
 
-	it("falls back to the development extension when no list is configured", () => {
-		expect(parseTrustedOrigins(undefined)).toEqual(DEFAULT_TRUSTED_ORIGINS);
-		expect(DEFAULT_TRUSTED_ORIGINS).toContain(
-			`chrome-extension://${DEV_EXTENSION_ID}`,
-		);
+	it("trusts nobody when nothing is configured, so a build with the variable unset fails closed", () => {
+		expect(parseTrustedOrigins(undefined)).toEqual([]);
+	});
+
+	it("reads an ask entry for a Chromium ID and nothing else after ask:", () => {
+		const id = "c".repeat(32);
+		expect(parseTrustedOrigins(`ask:chrome-extension://${id}`)).toEqual([
+			`ask:chrome-extension://${id}`,
+		]);
+		expect(
+			parseTrustedOrigins("ask:https://evil.example,ask:moz-extension://*"),
+		).toEqual([]);
 	});
 
 	it("trusts nobody when the list is configured empty", () => {

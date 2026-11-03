@@ -164,3 +164,63 @@ describe("extractPage limits", () => {
 		expect(result.page.title.length).toBeLessThanOrEqual(300);
 	});
 });
+
+describe("extractPage keeps the page's data out of the Library", () => {
+	const bare = (body: string, head = "") =>
+		load(
+			`<!doctype html><html lang="en"><head><title>Dashboard</title>${head}</head><body>${body}</body></html>`,
+		);
+
+	it("never reads inline script, style, noscript or template text when it falls back", async () => {
+		const dom = bare(
+			`<script id="__NEXT_DATA__" type="application/json">{"user":"MARKER-SCRIPT"}</script>
+<style>.x::after { content: "MARKER-STYLE"; }</style>
+<noscript>MARKER-NOSCRIPT</noscript>
+<template><p>MARKER-TEMPLATE</p></template>
+<div>Alle Systeme laufen. Letzte Prüfung vor zwei Minuten, alles in Ordnung.</div>`,
+		);
+		const result = await extractPage({ dom, url: "https://status.example/" });
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		const text = allText(result.page.document.blocks);
+		expect(text).toContain("Alle Systeme laufen");
+		expect(text).not.toMatch(/MARKER/);
+	});
+
+	it("says there is nothing to read when the only text is inside a script", async () => {
+		const dom = bare(
+			`<script id="__NEXT_DATA__" type="application/json">{"user":"MARKER-SCRIPT"}</script>`,
+		);
+		const result = await extractPage({ dom, url: "https://app.example/" });
+		expect(result).toEqual({ ok: false, reason: "empty" });
+	});
+
+	it("drops the fragment from the address and keeps the query", async () => {
+		const result = await extractPage({
+			dom: load(fixture("article.html")),
+			url: `${ARTICLE_URL}#comments-3`,
+		});
+		expect(result.ok && result.page.url).toBe(ARTICLE_URL);
+	});
+
+	it("turns a link the app would refuse into plain text instead of failing the page", async () => {
+		const html = fixture("article.html").replace(
+			"Read more at",
+			'See <a href="#fn1">note 1</a>, <a href="/relative/path">this</a> and <a href="javascript:alert(1)">that</a>. Read more at',
+		);
+		const result = await extractPage({ dom: load(html), url: ARTICLE_URL });
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		const hrefs = result.page.document.blocks.flatMap((block) =>
+			"spans" in block
+				? block.spans.flatMap((span) =>
+						span.kind === "link" ? [span.href] : [],
+					)
+				: [],
+		);
+		expect(hrefs.every((href) => /^(https?:|mailto:|tel:)/.test(href))).toBe(
+			true,
+		);
+		expect(allText(result.page.document.blocks)).toContain("note 1");
+	});
+});

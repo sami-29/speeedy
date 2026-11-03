@@ -21,6 +21,8 @@ export const LAUNCHER_LIMITS = {
 	characters: 5_000_000,
 	/** Total inline spans over all blocks. */
 	spans: 200_000,
+	/** One link target, after whitespace and controls are stripped. */
+	href: 2048,
 } as const;
 
 export type LauncherLimits = { [K in keyof typeof LAUNCHER_LIMITS]: number };

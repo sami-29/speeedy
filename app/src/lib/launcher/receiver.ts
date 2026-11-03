@@ -60,15 +60,27 @@ export function isTrustedOrigin(
 	);
 }
 
+export type Trust = "auto" | "confirm";
+
+export function trustOf(
+	_origin: string,
+	_trusted: readonly string[],
+): Trust | null {
+	return null;
+}
+
 export function startLauncherReceiver(options: {
 	window: LauncherWindow;
 	trusted: readonly string[];
 	/** Keep the page. A throw is answered as a refusal. */
 	save: (page: LauncherPage) => Promise<void>;
+	/** Ask the reader whether to keep a page from a sender that cannot be pinned. */
+	confirm?: (page: LauncherPage) => Promise<boolean>;
 	/** Runs after the page was kept and acknowledged, for example to open the reader. */
 	saved?: () => void;
 }): { stop(): void } {
 	const { window, trusted, save, saved } = options;
+	void options.confirm;
 	let taken = false;
 
 	const onMessage = (event: IncomingMessage) => {

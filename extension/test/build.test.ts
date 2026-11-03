@@ -44,6 +44,11 @@ describe.each(TARGETS)("the %s build", (target) => {
 		}
 	});
 
+	it("ships the Readability licence, which asks for its text to travel with the code", () => {
+		expect(read(target, "Readability-LICENSE.md")).toContain("Apache License");
+		expect(read(target, "OFL.txt")).toContain("SIL OPEN FONT LICENSE");
+	});
+
 	it("has a manifest with the three permissions and nothing more", () => {
 		const manifest = JSON.parse(read(target, "manifest.json"));
 		expect([...manifest.permissions].sort()).toEqual([
