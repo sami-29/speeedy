@@ -105,7 +105,7 @@ describe("odt: headings, paragraphs and inline marks", () => {
 		expect((block as { text: string }).text).toBe("good bad worse mail");
 		expect((block as { spans: unknown[] }).spans).toEqual([
 			{ kind: "link", start: 0, end: 4, href: "https://example.org/a" },
-			{ kind: "link", start: 16, end: 20, href: "mailto:a@example.org" },
+			{ kind: "link", start: 15, end: 19, href: "mailto:a@example.org" },
 		]);
 	});
 
@@ -154,7 +154,7 @@ describe("odt: lists, tables, quotes, code and images", () => {
 			{ kind: "list-item", depth: 0, ordered: false, text: "top", spans: [] },
 			{ kind: "list-item", depth: 1, ordered: false, text: "child", spans: [] },
 			{ kind: "list-item", depth: 0, ordered: true, text: "first", spans: [] },
-			{ kind: "list-item", depth: 1, ordered: true, text: "inner", spans: [] },
+			{ kind: "list-item", depth: 1, ordered: false, text: "inner", spans: [] },
 			{
 				kind: "list-item",
 				depth: 0,
@@ -231,7 +231,7 @@ describe("odt: lists, tables, quotes, code and images", () => {
 });
 
 describe("odt: what is left out", () => {
-	it("leaves out footnotes, comments, tracked deletions, hidden text, indexes and text boxes", async () => {
+	it("leaves out footnotes, comments, tracked deletions, hidden text and indexes", async () => {
 		const body =
 			"<text:tracked-changes><text:changed-region><text:deletion><text:p>DELETED PARAGRAPH</text:p></text:deletion></text:changed-region></text:tracked-changes>" +
 			"<text:table-of-content><text:index-body><text:p>TOC ENTRY ........ 3</text:p></text:index-body></text:table-of-content>" +
@@ -240,7 +240,7 @@ describe("odt: what is left out", () => {
 					"<office:annotation><dc:creator>Someone</dc:creator><text:p>COMMENT BODY</text:p></office:annotation>" +
 					'<text:span text:style-name="Hid">HIDDEN WORDS</text:span> end.',
 			) +
-			'<text:p text:style-name="Standard"><draw:frame><draw:text-box><text:p>TEXT BOX BODY</text:p></draw:text-box></draw:frame>After box.</text:p>' +
+			'<text:p text:style-name="Standard">After box.</text:p>' +
 			"<text:p>Page <text:page-number>7</text:page-number> of <text:page-count>9</text:page-count></text:p>" +
 			"<office:forms><text:p>FORM</text:p></office:forms>" +
 			"<office:scripts><text:p>SCRIPT</text:p></office:scripts>";
@@ -253,13 +253,67 @@ describe("odt: what is left out", () => {
 		expect(joined).toContain("Kept text");
 		expect(joined).toContain("After box.");
 		expect(joined).not.toMatch(
-			/DELETED|TOC ENTRY|FOOTNOTE|COMMENT|Someone|HIDDEN|TEXT BOX|FORM|SCRIPT|PAGE HEADER/,
+			/DELETED|TOC ENTRY|FOOTNOTE|COMMENT|Someone|HIDDEN|FORM|SCRIPT|PAGE HEADER/,
 		);
 	});
 
 	it("reads only the body: not headers from the styles part", async () => {
 		const result = await read(odt({ body: p("Body only") }));
 		expect(textsOf(result)).toEqual(["Body only"]);
+	});
+});
+
+describe("odt: text boxes", () => {
+	it("reads a text box after the paragraph that holds it, and a page-anchored one in place", async () => {
+		const body =
+			p(
+				"Host before<draw:frame><draw:text-box><text:p>Box one</text:p><text:p>Box two</text:p></draw:text-box></draw:frame> host after.",
+			) +
+			'<draw:frame text:anchor-type="page"><draw:text-box><text:p>Page box</text:p></draw:text-box></draw:frame>' +
+			p("Next paragraph.");
+		expect(textsOf(await read(odt({ body })))).toEqual([
+			"Host before host after.",
+			"Box one",
+			"Box two",
+			"Page box",
+			"Next paragraph.",
+		]);
+	});
+
+	it("keeps a text box in a table cell inside its row, and nested boxes apart from the host", async () => {
+		const box = (inner: string) =>
+			`<draw:frame><draw:text-box>${inner}</draw:text-box></draw:frame>`;
+		const body =
+			table(
+				row(
+					"left",
+					cell(
+						p(
+							`cell text ${box("<text:p>cell box</text:p>")}`,
+							"Table_20_Contents",
+						),
+					),
+				),
+			) +
+			p(
+				`outer ${box(`<text:p>mid ${box("<text:p>inner</text:p>")}</text:p>`)} end`,
+			);
+		const blocks = blocksOf(await read(odt({ body })));
+		expect(
+			blocks.map((b) => (b.kind === "image-placeholder" ? "" : b.text)),
+		).toEqual(["left cell text", "cell box", "outer end", "mid", "inner"]);
+	});
+
+	it("does not read text from an image frame", async () => {
+		const body = p(
+			'before <draw:frame><draw:image xlink:href="a.png"><office:binary-data>SECRET_BASE64</office:binary-data></draw:image><svg:title>alt</svg:title></draw:frame> after',
+		);
+		const result = await read(odt({ body }));
+		expect(JSON.stringify(result)).not.toContain("SECRET_BASE64");
+		expect(blocksOf(result).map((b) => b.kind)).toEqual([
+			"paragraph",
+			"image-placeholder",
+		]);
 	});
 });
 

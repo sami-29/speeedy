@@ -10,6 +10,7 @@ import { epubToBlocks } from "./epub";
 import { htmlToBlocks } from "./html";
 import { detectLanguage, normalizeLanguageTag } from "./language";
 import { type MarkdownMeta, markdownToBlocks } from "./markdown";
+import { odtToBlocks } from "./odt";
 import { plainTextToBlocks } from "./plain";
 import {
 	BlockSink,
@@ -64,7 +65,6 @@ const NOT_YET_EXTENSIONS = new Set([
 	"pdf",
 	"docx",
 	"doc",
-	"odt",
 	"rtf",
 	"xhtml",
 	"mhtml",
@@ -274,6 +274,16 @@ async function parseBook(
 	fileTitle: string | null,
 ): Promise<ParseOutcome> {
 	const sink = new BlockSink(hints.maxBlocks);
+	if (extension === "odt") {
+		const meta = await odtToBlocks(bytes, sink);
+		return finish(sink, {
+			title: meta.title ?? fileTitle,
+			format: "odt",
+			encoding: null,
+			hinted: hints.language,
+			metadataLanguage: null,
+		});
+	}
 	const meta = await epubToBlocks(bytes, sink, {
 		fromZip: extension === "zip",
 	});
@@ -322,7 +332,7 @@ export async function parse(
 		}
 		const segment = lastSegment(fileName);
 		const extension = extensionOf(segment);
-		if (extension === "epub" || extension === "zip") {
+		if (extension === "epub" || extension === "zip" || extension === "odt") {
 			return await parseBook(
 				view,
 				extension,

@@ -41,6 +41,7 @@ export type SourceFormat =
 	| "csv"
 	| "html"
 	| "epub"
+	| "odt"
 	| "pasted";
 
 export type LanguageSource =
