@@ -1,0 +1,21 @@
+{
+	"outcome": "document",
+	"format": "docx",
+	"title": "Deniz Feneri",
+	"encoding": null,
+	"language": "tr",
+	"blocks": 4,
+	"kinds": [
+		"heading",
+		"paragraph",
+		"heading",
+		"paragraph"
+	],
+	"spans": 2,
+	"first": "Deniz Feneri\nHer akşam fener bekçisi",
+	"last": "an gelen mektupları sabaha kadar okurdu.",
+	"words": [
+		46,
+		50
+	]
+}

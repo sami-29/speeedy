@@ -1,0 +1,21 @@
+{
+	"outcome": "document",
+	"format": "docx",
+	"title": "حارس المنارة",
+	"encoding": null,
+	"language": "ar",
+	"blocks": 4,
+	"kinds": [
+		"heading",
+		"paragraph",
+		"heading",
+		"paragraph"
+	],
+	"spans": 2,
+	"first": "حارس المنارة\nكل مساء كان الحارس",
+	"last": "أ الرسائل القادمة من القاهرة حتى الصباح.",
+	"words": [
+		50,
+		54
+	]
+}
