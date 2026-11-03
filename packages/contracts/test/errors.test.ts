@@ -276,6 +276,7 @@ describe("checkException", () => {
 			"/_app/immutable/nodes/0.B-qekoYf.js",
 			"/_app/immutable/nodes/12.AbCd1234.js",
 			"/_app/immutable/nodes/123.AbCd1234.js",
+			"/_app/immutable/workers/worker-Clb-aXNV.js",
 		]) {
 			assert.equal(
 				checkException({ ...good, frames: [{ ...frame, file }] }).ok,

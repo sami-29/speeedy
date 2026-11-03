@@ -31,6 +31,7 @@ describe("unexpectedBundleFiles", () => {
 			"_app/immutable/entry/payload.DSmR2FwN.js",
 			"_app/immutable/nodes/0.B-qekoYf.js",
 			"_app/immutable/nodes/10.Bkr0SAZf.js",
+			"_app/immutable/workers/worker-Clb-aXNV.js",
 			"_app/immutable/assets/0.AbCd1234.css",
 			"_app/version.json",
 			"index.html",
