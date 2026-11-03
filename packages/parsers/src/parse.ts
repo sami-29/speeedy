@@ -18,6 +18,7 @@ import {
 	type DetectedLanguage,
 	MAX_BLOCKS,
 	MAX_BYTES,
+	MAX_MILLIS,
 	ParseFailure,
 	type ParseHints,
 	type ParseOutcome,
@@ -63,7 +64,6 @@ const BINARY_EXTENSIONS = new Set([
  * name, so a saved web page is never read as if its tags were the text.
  */
 const NOT_YET_EXTENSIONS = new Set([
-	"pdf",
 	"doc",
 	"rtf",
 	"xhtml",
@@ -76,7 +76,6 @@ const NOT_YET_EXTENSIONS = new Set([
 ]);
 
 const MAGIC: [string, number[]][] = [
-	["a PDF", [0x25, 0x50, 0x44, 0x46, 0x2d]],
 	["a ZIP archive", [0x50, 0x4b, 0x03, 0x04]],
 	["a ZIP archive", [0x50, 0x4b, 0x05, 0x06]],
 	["a PNG image", [0x89, 0x50, 0x4e, 0x47]],
@@ -92,6 +91,7 @@ type Hints = {
 	language: string | null;
 	maxBytes: number;
 	maxBlocks: number;
+	maxMillis: number;
 };
 
 /** Read hints defensively: anything of the wrong type is ignored, never an error. */
@@ -101,6 +101,7 @@ function readHints(raw: unknown): Hints {
 		language: null,
 		maxBytes: MAX_BYTES,
 		maxBlocks: MAX_BLOCKS,
+		maxMillis: MAX_MILLIS,
 	};
 	if (typeof raw !== "object" || raw === null) return hints;
 	const source = raw as Partial<Record<keyof ParseHints, unknown>>;
@@ -108,6 +109,7 @@ function readHints(raw: unknown): Hints {
 	hints.language = normalizeLanguageTag(source.language);
 	hints.maxBytes = lowerLimit(source.maxBytes, MAX_BYTES);
 	hints.maxBlocks = lowerLimit(source.maxBlocks, MAX_BLOCKS);
+	hints.maxMillis = lowerLimit(source.maxMillis, MAX_MILLIS);
 	return hints;
 }
 
@@ -156,6 +158,27 @@ function titleFromFileName(segment: string): string | null {
 	const stem = extension ? segment.slice(0, segment.lastIndexOf(".")) : segment;
 	const title = clip(tidyLine(stem.slice(0, 1000)), TITLE_MAX);
 	return title === "" ? null : title;
+}
+
+/**
+ * Does the file open with the PDF header? A PDF starts with `%PDF-` and the format allows up to
+ * 1 KB of junk before it, but only a file named `.pdf` gets that allowance: a Markdown or text
+ * file that mentions `%PDF-` near the top is text. Any other name needs the header at byte 0.
+ */
+function hasPdfHeader(bytes: Uint8Array, extension: string): boolean {
+	const end = extension === "pdf" ? Math.min(bytes.length - 4, 1024) : 1;
+	for (let i = 0; i < end; i++) {
+		if (
+			bytes[i] === 0x25 &&
+			bytes[i + 1] === 0x50 &&
+			bytes[i + 2] === 0x44 &&
+			bytes[i + 3] === 0x46 &&
+			bytes[i + 4] === 0x2d
+		) {
+			return true;
+		}
+	}
+	return false;
 }
 
 function hasMagic(bytes: Uint8Array): string | null {
@@ -267,6 +290,27 @@ function parseTextFormat(
 	});
 }
 
+async function parsePdfFile(
+	view: Uint8Array,
+	hints: Hints,
+	fileTitle: string | null,
+): Promise<ParseOutcome> {
+	// pdf.js is large, so it and the PDF code load only when a PDF is opened.
+	const { pdfToBlocks } = await import("./pdf/blocks");
+	const sink = new BlockSink(hints.maxBlocks);
+	const { title } = await pdfToBlocks(view, sink, {
+		timeBudgetMs: hints.maxMillis,
+	});
+	return finish(sink, {
+		title: title ?? fileTitle,
+		format: "pdf",
+		encoding: null,
+		hinted: hints.language,
+		// A PDF's declared language is often the word processor's default, so the text decides.
+		metadataLanguage: null,
+	});
+}
+
 async function parseDocx(
 	bytes: Uint8Array,
 	hints: Hints,
@@ -364,6 +408,9 @@ export async function parse(
 				"unsupported",
 				`Speeedy cannot open .${extension} files yet. Paste the text instead.`,
 			);
+		}
+		if (extension === "pdf" || hasPdfHeader(view, extension)) {
+			return await parsePdfFile(view, options, titleFromFileName(segment));
 		}
 		const magic = hasMagic(view);
 		if (magic) {

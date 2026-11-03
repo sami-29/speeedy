@@ -262,15 +262,37 @@ function checkLanguage(language: string): void {
 	}
 }
 
+const isDate = (value: unknown): value is string => {
+	if (typeof value !== "string" || !LOCAL_DATE.test(value)) return false;
+	const parsed = new Date(`${value}T00:00:00Z`);
+	return (
+		!Number.isNaN(parsed.getTime()) &&
+		parsed.toISOString().slice(0, 10) === value
+	);
+};
+
 function checkDate(date: string): void {
-	const parsed = LOCAL_DATE.test(date) ? new Date(`${date}T00:00:00Z`) : null;
-	if (
-		!parsed ||
-		Number.isNaN(parsed.getTime()) ||
-		parsed.toISOString().slice(0, 10) !== date
-	) {
+	if (!isDate(date)) {
 		throw new LibraryError("invalid-argument", `"${date}" is not a date`);
 	}
+}
+
+const isCount = (value: unknown): value is number =>
+	isNumber(value) && value >= 0;
+
+/** A Session that could have happened. Anything less is refused on the way in and skipped on the way out. */
+function isSession(value: unknown): value is StoredSession {
+	if (!isRecord(value)) return false;
+	return (
+		typeof value.id === "string" &&
+		isDate(value.date) &&
+		isNumber(value.startedAt) &&
+		isCount(value.activeMs) &&
+		Number.isInteger(value.wordsRead) &&
+		isCount(value.wordsRead) &&
+		isCount(value.wpm) &&
+		(value.documentId === null || typeof value.documentId === "string")
+	);
 }
 
 const recency = (meta: DocumentMeta) => meta.lastReadAt ?? meta.createdAt;
@@ -596,6 +618,9 @@ export function createLibraryStore(
 
 		async addSession(session) {
 			const stored: StoredSession = { ...session, id: newId() };
+			if (!isSession(stored)) {
+				throw new LibraryError("invalid-argument", "Not a Session.");
+			}
 			const db = await database();
 			await db.put("sessions", stored);
 			return stored;
@@ -603,7 +628,8 @@ export function createLibraryStore(
 
 		async sessions() {
 			const db = await database();
-			return db.getAllFromIndex("sessions", "byStartedAt");
+			const all = await db.getAllFromIndex("sessions", "byStartedAt");
+			return all.filter(isSession);
 		},
 
 		async addTrainingResult(result) {

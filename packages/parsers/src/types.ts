@@ -32,6 +32,8 @@ export type ParseHints = {
 	maxBytes?: number;
 	/** Lower the block-count ceiling. It can never raise the built-in one. */
 	maxBlocks?: number;
+	/** Lower the time a PDF may take, in milliseconds. It can never raise the built-in one. */
+	maxMillis?: number;
 };
 
 /** The formats the shell parses itself. Later tickets add the rest. */
@@ -43,7 +45,8 @@ export type SourceFormat =
 	| "docx"
 	| "epub"
 	| "odt"
-	| "pasted";
+	| "pasted"
+	| "pdf";
 
 export type LanguageSource =
 	| "hint"
@@ -78,6 +81,8 @@ export type ParseOutcome = ParseSuccess | ParseError;
 /** Input ceilings. 100 MB matches the per-document ceiling in the plans table. */
 export const MAX_BYTES = 100_000_000;
 export const MAX_BLOCKS = 1_000_000;
+/** The longest a PDF may take to read: three minutes. */
+export const MAX_MILLIS = 180_000;
 
 /** Thrown inside the parsers and turned into a ParseError at the edge. Never escapes `parse`. */
 export class ParseFailure extends Error {

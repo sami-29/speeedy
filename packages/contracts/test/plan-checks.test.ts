@@ -28,7 +28,15 @@ const ALLOWED = new Set([
 	join("packages", "contracts", "test", "plan-checks.test.ts"),
 	join("worker", "test", "plan.test.ts"),
 ]);
-const SKIPPED_DIRS = new Set(["node_modules", "dist", ".git", ".wrangler"]);
+// Build output is third-party code too: the minified pdf.js has an `isFreeText` helper.
+const SKIPPED_DIRS = new Set([
+	"node_modules",
+	"dist",
+	".git",
+	".wrangler",
+	".svelte-kit",
+	"build",
+]);
 const SOURCE = /\.(?:ts|tsx|js|jsx|mjs|svelte|html)$/;
 
 function* sourceFiles(dir: string): Generator<string> {

@@ -79,11 +79,13 @@ export interface ExceptionProperties {
  * base64url that Vite puts in a name, so no free word fits anywhere in the path:
  *   chunks/<hash>.js   entry/(app|start|payload).<hash>.js   nodes/<1-3 digits>.<hash>.js   workers/worker-<hash>.js
  *   workers/kokoro.worker-<hash>.js (the on-device voice, named by its source file)
+ * and the PDF reader's files, which the parser worker loads on demand:
+ *   workers/chunks/<hash>.js   workers/assets/pdf.worker.min-<hash>.mjs   assets/pdf.worker.min.<hash>.mjs
  * `app/scripts/bundle-paths.ts` checks every script in the built site against this, so a
  * Vite or SvelteKit naming change fails the build instead of turning every frame external.
  */
 const BUNDLE_PATH =
-	/^\/_app\/immutable\/(?:chunks\/[A-Za-z0-9_-]{8}|entry\/(?:app|start|payload)\.[A-Za-z0-9_-]{8}|nodes\/[0-9]{1,3}\.[A-Za-z0-9_-]{8}|workers\/(?:kokoro\.)?worker-[A-Za-z0-9_-]{8})\.js$/;
+	/^\/_app\/immutable\/(?:(?:chunks\/[A-Za-z0-9_-]{8}|entry\/(?:app|start|payload)\.[A-Za-z0-9_-]{8}|nodes\/[0-9]{1,3}\.[A-Za-z0-9_-]{8}|workers\/(?:kokoro\.)?worker-[A-Za-z0-9_-]{8}|workers\/chunks\/[A-Za-z0-9_-]{8})\.js|workers\/assets\/pdf\.worker\.min-[A-Za-z0-9_-]{8}\.mjs|assets\/pdf\.worker\.min\.[A-Za-z0-9_-]{8}\.mjs)$/;
 /** One to four JavaScript identifiers joined by dots, each up to 40 characters. */
 const FUNCTION_PATH =
 	/^[A-Za-z_$][A-Za-z0-9_$]{0,39}(?:\.[A-Za-z_$][A-Za-z0-9_$]{0,39}){0,3}$/;

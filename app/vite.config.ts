@@ -8,6 +8,11 @@ import { staticHeaders } from "./scripts/static-headers.ts";
 import { handlePrerenderError } from "./src/lib/seo/planned.ts";
 
 export default defineConfig({
+	// Module workers, for two reasons. The parser worker loads pdf.js on demand, and only an ES
+	// module worker can split that into chunks of its own; the default format would fold all of
+	// pdf.js into the worker file, which every visit downloads. The voice worker bundles
+	// onnxruntime-web, which starts its WASM threads from its own `import.meta.url`.
+	worker: { format: "es" },
 	build: {
 		// Source maps are built only when `scripts/upload-sourcemaps.ts` will upload and then
 		// delete them, so a local or pull-request build never publishes one.
@@ -38,8 +43,5 @@ export default defineConfig({
 		// `static/_headers` on the dev and preview servers too, so e2e sees production headers.
 		staticHeaders("./static/_headers"),
 	],
-	// The voice worker bundles onnxruntime-web, which starts its WASM threads from its own
-	// `import.meta.url`: that needs module workers.
-	worker: { format: "es" },
 	optimizeDeps: { exclude: ["onnxruntime-web"] },
 });

@@ -33,6 +33,10 @@ describe("unexpectedBundleFiles", () => {
 			"_app/immutable/nodes/10.Bkr0SAZf.js",
 			"_app/immutable/workers/worker-Clb-aXNV.js",
 			"_app/immutable/workers/kokoro.worker-EVt8lQSS.js",
+			"_app/immutable/workers/chunks/C2a4ZsyS.js",
+			"_app/immutable/workers/chunks/C7x-RYpg.js",
+			"_app/immutable/workers/assets/pdf.worker.min-Dkey6ZUl.mjs",
+			"_app/immutable/assets/pdf.worker.min.Dkey6ZUl.mjs",
 			"_app/immutable/assets/0.AbCd1234.css",
 			"_app/version.json",
 			"index.html",
@@ -51,6 +55,28 @@ describe("unexpectedBundleFiles", () => {
 			"/_app/immutable/chunks/AbCd123.js",
 			"/_app/immutable/entry/other.AbCd1234.js",
 			"/_app/immutable/workers/parse.worker-AbCd1234.js",
+		]);
+	});
+
+	it("rejects a word smuggled into a PDF worker file name", () => {
+		const dir = site([
+			"_app/immutable/workers/assets/pdf.worker.min-Dkey6ZUl.mjs",
+			"_app/immutable/workers/assets/pdf.worker.min-the_cat.mjs",
+			"_app/immutable/workers/assets/the_cat.pdf.worker.min-Dkey6ZUl.mjs",
+			"_app/immutable/workers/assets/pdf.worker.min-Dkey6ZUl.the_cat.mjs",
+			"_app/immutable/assets/pdf.worker.min.the_cat.mjs",
+			"_app/immutable/assets/pdf.worker.min.Dkey6ZUl.the_cat.mjs",
+			"_app/immutable/workers/chunks/the_cat.AbCd1234.js",
+			"_app/immutable/workers/chunks/AbCd1234/the_cat.js",
+		]);
+		expect(unexpectedBundleFiles(dir).sort()).toEqual([
+			"/_app/immutable/assets/pdf.worker.min.Dkey6ZUl.the_cat.mjs",
+			"/_app/immutable/assets/pdf.worker.min.the_cat.mjs",
+			"/_app/immutable/workers/assets/pdf.worker.min-Dkey6ZUl.the_cat.mjs",
+			"/_app/immutable/workers/assets/pdf.worker.min-the_cat.mjs",
+			"/_app/immutable/workers/assets/the_cat.pdf.worker.min-Dkey6ZUl.mjs",
+			"/_app/immutable/workers/chunks/AbCd1234/the_cat.js",
+			"/_app/immutable/workers/chunks/the_cat.AbCd1234.js",
 		]);
 	});
 
