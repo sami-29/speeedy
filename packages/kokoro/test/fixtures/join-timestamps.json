@@ -1,0 +1,179 @@
+[
+	{
+		"tokens": [
+			{
+				"phonemes": "həlˈO",
+				"whitespace": false
+			},
+			{
+				"phonemes": ",",
+				"whitespace": true
+			},
+			{
+				"phonemes": "wˈɜɹld",
+				"whitespace": false
+			},
+			{
+				"phonemes": "!",
+				"whitespace": false
+			}
+		],
+		"durations": [14, 3, 7, 11, 1, 2, 9, 2, 6, 10, 1, 9, 4, 1, 2, 7],
+		"expected": [
+			{
+				"start": 0.275,
+				"end": 0.875
+			},
+			{
+				"start": 0.875,
+				"end": 1.125
+			},
+			{
+				"start": 1.125,
+				"end": 1.925
+			},
+			{
+				"start": 1.925,
+				"end": 1.975
+			}
+		]
+	},
+	{
+		"tokens": [
+			{
+				"phonemes": "“",
+				"whitespace": false
+			},
+			{
+				"phonemes": "stˈɑp",
+				"whitespace": false
+			},
+			{
+				"phonemes": ",",
+				"whitespace": false
+			},
+			{
+				"phonemes": "”",
+				"whitespace": true
+			},
+			{
+				"phonemes": "ʃi",
+				"whitespace": true
+			},
+			{
+				"phonemes": "sˈɛd",
+				"whitespace": false
+			},
+			{
+				"phonemes": ".",
+				"whitespace": false
+			}
+		],
+		"durations": [
+			18, 4, 2, 9, 7, 1, 10, 2, 4, 11, 11, 10, 1, 10, 10, 7, 1, 4, 1
+		],
+		"expected": [
+			{
+				"start": 0.375,
+				"end": 0.475
+			},
+			{
+				"start": 0.475,
+				"end": 1.2
+			},
+			{
+				"start": 1.2,
+				"end": 1.25
+			},
+			{
+				"start": 1.25,
+				"end": 1.4875
+			},
+			{
+				"start": 1.4875,
+				"end": 2.1625
+			},
+			{
+				"start": 2.1625,
+				"end": 2.875
+			},
+			{
+				"start": 2.875,
+				"end": 2.975
+			}
+		]
+	},
+	{
+		"tokens": [
+			{
+				"phonemes": "ðə",
+				"whitespace": true
+			},
+			{
+				"phonemes": "kˈæt",
+				"whitespace": true
+			},
+			{
+				"phonemes": "sˈæt",
+				"whitespace": false
+			}
+		],
+		"durations": [7, 5, 7, 3, 9, 2, 10, 5, 9, 11, 3, 2, 10, 10],
+		"expected": [
+			{
+				"start": 0.1,
+				"end": 0.4375
+			},
+			{
+				"start": 0.4375,
+				"end": 1.2375
+			},
+			{
+				"start": 1.2375,
+				"end": 2.0
+			}
+		]
+	},
+	{
+		"tokens": [
+			{
+				"phonemes": "ˌɪt",
+				"whitespace": true
+			},
+			{
+				"phonemes": "kˈɔsts",
+				"whitespace": true
+			},
+			{
+				"phonemes": "fˈIv dˈɑləɹz",
+				"whitespace": false
+			},
+			{
+				"phonemes": ".",
+				"whitespace": false
+			}
+		],
+		"durations": [
+			17, 2, 9, 12, 2, 10, 1, 10, 4, 8, 11, 9, 7, 6, 8, 10, 8, 6, 5, 4, 3, 12,
+			4, 2, 10, 5
+		],
+		"expected": [
+			{
+				"start": 0.35,
+				"end": 0.95
+			},
+			{
+				"start": 0.95,
+				"end": 2.1875
+			},
+			{
+				"start": 2.1875,
+				"end": 4.175
+			},
+			{
+				"start": 4.175,
+				"end": 4.425
+			}
+		]
+	}
+]

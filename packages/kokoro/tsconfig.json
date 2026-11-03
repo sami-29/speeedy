@@ -1,0 +1,10 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["ES2022", "WebWorker"],
+		"types": ["node"],
+		"rewriteRelativeImportExtensions": true,
+		"noEmit": true
+	},
+	"include": ["src", "test", "bench"]
+}

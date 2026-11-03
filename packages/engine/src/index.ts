@@ -73,7 +73,7 @@ export {
 	type TimelineSession,
 	type TimelineSessionOptions,
 } from "./timeline-session";
-
+export { type Token, tokenize } from "./tokenizer";
 export type {
 	EngineSettings,
 	Frame,

@@ -277,6 +277,7 @@ describe("checkException", () => {
 			"/_app/immutable/nodes/12.AbCd1234.js",
 			"/_app/immutable/nodes/123.AbCd1234.js",
 			"/_app/immutable/workers/worker-Clb-aXNV.js",
+			"/_app/immutable/workers/kokoro.worker-EVt8lQSS.js",
 			"/_app/immutable/workers/chunks/C2a4ZsyS.js",
 			"/_app/immutable/workers/chunks/C7x-RYpg.js",
 			"/_app/immutable/workers/assets/pdf.worker.min-Dkey6ZUl.mjs",
@@ -394,6 +395,22 @@ describe("checkException", () => {
 		[
 			"a worker bundle with a free name",
 			withFrame({ file: "/_app/immutable/workers/the_cat-AbCd1234.js" }),
+		],
+		[
+			"a free word in place of the voice worker's name",
+			withFrame({ file: "/_app/immutable/workers/the_cat.worker-AbCd1234.js" }),
+		],
+		[
+			"a free word after the voice worker's name",
+			withFrame({
+				file: "/_app/immutable/workers/kokoro.worker.the_cat-AbCd1234.js",
+			}),
+		],
+		[
+			"a free word in place of the voice worker's hash",
+			withFrame({
+				file: "/_app/immutable/workers/kokoro.worker-the_cat_sat.js",
+			}),
 		],
 		[
 			"an asset bundle with a free name",
