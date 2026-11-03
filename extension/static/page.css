@@ -1,0 +1,102 @@
+/* Shared by the relay and options pages. Tokens come from DESIGN.md; the font is the app's
+   self-hosted Archivo, copied into the package at build time. */
+@font-face {
+	font-family: "Archivo";
+	src: url("archivo-wdth.woff2") format("woff2");
+	font-weight: 100 900;
+	font-stretch: 62% 125%;
+	font-display: swap;
+}
+
+:root {
+	--paper: #eff1f1;
+	--ink: #111111;
+	--ink-2: #4a4a46;
+	--rule: #c3c8c9;
+	--red: #d12d16;
+	--red-ink: #b8240f;
+	--on-red: #fff6f2;
+	color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--paper: #111314;
+		--ink: #ecece6;
+		--ink-2: #b9b9b2;
+		--rule: #33383a;
+		--red: #ff5a3c;
+		--red-ink: #ff7a60;
+		--on-red: #1a0703;
+	}
+}
+
+* {
+	box-sizing: border-box;
+	border-radius: 0;
+}
+
+body {
+	margin: 0;
+	padding: clamp(16px, 3.4vw, 48px);
+	background: var(--paper);
+	color: var(--ink);
+	font-family: "Archivo", "Helvetica Neue", Arial, sans-serif;
+	font-size: 1.125rem;
+	line-height: 1.5;
+}
+
+main {
+	max-width: 36rem;
+}
+
+h1 {
+	margin: 0 0 24px;
+	font-size: 1.75rem;
+	font-weight: 820;
+	line-height: 1;
+	letter-spacing: -0.02em;
+	font-variation-settings: "wdth" 100;
+}
+
+p {
+	margin: 0 0 16px;
+}
+
+a {
+	color: var(--red-ink);
+	text-underline-offset: 0.2em;
+}
+
+a:focus-visible,
+button:focus-visible {
+	outline: 3px solid var(--red);
+	outline-offset: 3px;
+}
+
+button {
+	margin-top: 8px;
+	padding: 8px 24px;
+	border: 2px solid var(--ink);
+	background: var(--red);
+	color: var(--on-red);
+	font: inherit;
+	font-size: 0.9375rem;
+	font-weight: 650;
+	cursor: pointer;
+}
+
+ul {
+	margin: 24px 0 0;
+	padding: 16px 0 0;
+	border-top: 2px solid var(--rule);
+	list-style: none;
+}
+
+li {
+	margin-bottom: 8px;
+}
+
+.note {
+	color: var(--ink-2);
+}

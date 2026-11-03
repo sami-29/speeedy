@@ -15,7 +15,7 @@
 		"test:workspace": "node --test test/workspace.test.ts test/app-shell.test.ts",
 		"test:unit": "pnpm test:workspace && pnpm -r --if-present test:unit",
 		"test:worker": "pnpm --filter @speeedy/worker test",
-		"e2e": "pnpm -r --if-present e2e"
+		"e2e": "pnpm -r --workspace-concurrency=1 --if-present e2e"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.6.3",
