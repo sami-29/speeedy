@@ -1,11 +1,13 @@
 import type { DocumentSource } from "#lib/library/store.ts";
+import type { ReaderPreset } from "./settings.ts";
 
 /**
  * What one route leaves for /reader: pasted or shared text, or a file, and where it came
  * from. A Share Link sets `source: "share"` (the reader marks it and waits for Play); the
- * front door's paste or drop sets `source: "own"`.
+ * front door's paste or drop sets `source: "own"`. A search page may also ask for a preset:
+ * the ADHD page opens the reader at a steady 220 WPM.
  */
-export type Handoff = { source: DocumentSource } & (
+export type Handoff = { source: DocumentSource; preset?: ReaderPreset } & (
 	| { text: string }
 	| { file: File }
 );
