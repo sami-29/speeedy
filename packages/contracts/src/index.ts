@@ -2,6 +2,7 @@ export * from "./analytics.ts";
 export * from "./document";
 export * from "./events.ts";
 export * from "./flags.ts";
+export * from "./newsletter.ts";
 export * from "./plans";
 export * from "./position";
 export * from "./privacy.ts";
