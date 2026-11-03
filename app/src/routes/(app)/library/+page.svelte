@@ -14,6 +14,7 @@ import { documentTitle } from "#lib/library/title.ts";
 import { m } from "#lib/paraglide/messages.js";
 import { localizeHref } from "#lib/paraglide/runtime.js";
 import { createReaderLoader, type ReaderSource } from "#lib/reader/open.ts";
+import LibraryLine from "#lib/stats/LibraryLine.svelte";
 import { goto } from "$app/navigation";
 
 /** How long a delete can be undone. */
@@ -174,6 +175,7 @@ const languageChoices = (doc: DocumentMeta): string[] =>
 
 	<h2 class="title poster-head">{m.library_table_label()}</h2>
 	<div>
+		<LibraryLine />
 		<div role="status">
 			{#if pending}
 				<p class="label mb-s-2 flex flex-wrap items-center gap-s-2">

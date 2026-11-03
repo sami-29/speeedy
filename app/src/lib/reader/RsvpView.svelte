@@ -1,6 +1,8 @@
 <script lang="ts">
 import { createEngine, createTimerClock, type Engine } from "@speeedy/engine";
+import { library } from "#lib/library/instance.ts";
 import { m } from "#lib/paraglide/messages.js";
+import { recordSessions } from "#lib/stats/record.ts";
 import type { ModeProps } from "./modes.ts";
 
 let { timeline, wpm, startAt, onposition }: ModeProps = $props();
@@ -17,7 +19,13 @@ let engine: Engine | undefined;
 let playing = $state(false);
 
 $effect(() => {
-	const current = createEngine({ clock: createTimerClock(), timeline });
+	const clock = createTimerClock();
+	const current = createEngine({ clock, timeline });
+	const recording = recordSessions({
+		engine: current,
+		clock,
+		store: library(),
+	});
 	const stops = [
 		current.on("frameShown", ({ frame }) => {
 			if (before) before.textContent = frame.orp.before;
@@ -43,6 +51,7 @@ $effect(() => {
 	toggle?.focus();
 	return () => {
 		current.pause();
+		recording.end();
 		for (const stop of stops) stop();
 	};
 });

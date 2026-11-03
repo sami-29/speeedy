@@ -80,8 +80,9 @@ describe("recording Sessions", () => {
 			date: "2026-11-03",
 			startedAt: START,
 			documentId: "doc-1",
-			wordsRead: 450,
-			wpm: 300,
+			// The Frame at 0 s and the Frame at 90 s are both shown: 451 Frames in 90 s.
+			wordsRead: 451,
+			wpm: 301,
 		});
 		expect(all[0]?.activeMs).toBeGreaterThanOrEqual(89_990);
 		expect(all[0]?.activeMs).toBeLessThanOrEqual(90_010);
