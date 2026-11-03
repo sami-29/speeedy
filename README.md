@@ -280,3 +280,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions, code style, and P
 ## License
 
 [MIT](LICENSE) — free to use, modify, and distribute.
+
+The licence does not cover the Speeedy name or logo. Self-hosting is tolerated, not supported: there is no setup guide and no help running your own copy.

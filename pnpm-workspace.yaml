@@ -1,4 +1,19 @@
 packages:
+  - app
   - worker
+  - packages/*
+  - extension
+  - twa
+  - voice-server
+
+# Supply chain: wait seven days (in minutes) before installing a new release, save exact
+# versions, and let only these dependencies run build scripts (`allowBuilds` replaces the old
+# build-allowlist key in pnpm 11).
+minimumReleaseAge: 10080
+saveExact: true
+allowBuilds:
+  esbuild: true
+  workerd: true
+
 overrides:
   vite: ^8.0.3

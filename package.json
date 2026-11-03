@@ -1,54 +1,25 @@
 {
-  "name": "speeedy",
-  "private": false,
-  "version": "1.2.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "lint": "biome check src worker",
-    "lint:fix": "biome check --write src worker",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:worker": "pnpm --filter @speeedy/worker test",
-    "typecheck:worker": "pnpm --filter @speeedy/worker types && pnpm --filter @speeedy/worker typecheck",
-    "e2e": "playwright test",
-    "e2e:headed": "playwright test --headed",
-    "prepare": "husky"
-  },
-  "dependencies": {
-    "@tailwindcss/vite": "^4.2.2",
-    "html-to-image": "^1.11.13",
-    "idb": "^8.0.3",
-    "jszip": "^3.10.1",
-    "lit": "^3.3.2",
-    "lucide": "^1.7.0",
-    "mammoth": "^1.12.0",
-    "motion": "^12.38.0",
-    "pdfjs-dist": "^5.5.207",
-    "qrcode": "^1.5.4",
-    "tailwindcss": "^4.2.2"
-  },
-  "devDependencies": {
-    "@axe-core/playwright": "4.11.1",
-    "@biomejs/biome": "2.4.9",
-    "@playwright/test": "^1.58.2",
-    "@types/jszip": "^3.4.1",
-    "@types/qrcode": "^1.5.6",
-    "daisyui": "^5.5.19",
-    "husky": "^9.1.7",
-    "jsdom": "^29.0.1",
-    "lint-staged": "^16.4.0",
-    "sharp": "^0.35.2",
-    "typescript": "~6.0.2",
-    "vite": "^8.0.3",
-    "vite-plugin-pwa": "^1.2.0",
-    "vitest": "^4.1.2"
-  },
-  "lint-staged": {
-    "{src,worker}/**/*.ts": [
-      "biome check --write"
-    ]
-  }
+	"name": "speeedy",
+	"private": true,
+	"version": "2.0.0",
+	"type": "module",
+	"packageManager": "pnpm@12.11.2",
+	"engines": {
+		"node": ">=22.22.0"
+	},
+	"scripts": {
+		"build": "pnpm -r --if-present build",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
+		"typecheck": "tsc --noEmit && pnpm -r --if-present typecheck",
+		"test:workspace": "node --test test/workspace.test.ts",
+		"test:unit": "pnpm test:workspace && pnpm -r --if-present test:unit",
+		"test:worker": "pnpm --filter @speeedy/worker test",
+		"e2e": "pnpm -r --if-present e2e"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.6.3",
+		"@types/node": "22.20.5",
+		"typescript": "6.0.3"
+	}
 }

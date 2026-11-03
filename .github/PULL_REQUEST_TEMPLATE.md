@@ -12,8 +12,8 @@
 
 ## Checklist
 
-- [ ] `pnpm build` passes (no TypeScript errors)
-- [ ] `pnpm test` passes
+- [ ] `pnpm typecheck` and `pnpm build` pass
+- [ ] `pnpm test:unit` passes
 - [ ] `pnpm lint` passes
 - [ ] Changes are focused — one feature or fix per PR
 - [ ] [CHANGELOG.md](../CHANGELOG.md) updated if this is a user-facing change

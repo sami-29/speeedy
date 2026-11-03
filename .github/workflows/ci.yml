@@ -6,34 +6,69 @@ on:
   pull_request:
     branches: [main, "2.0"]
 
+# pnpm/action-setup reads the version from `packageManager` in package.json.
+# Node 22.22 is the floor: posthog-node, wrangler and pnpm 11+ all need it or newer.
 jobs:
-  check:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.30.3
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: pnpm test
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
       - run: pnpm build
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:unit
 
   worker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.30.3
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck:worker
+      - run: pnpm --filter @speeedy/worker typecheck
       - run: pnpm test:worker
+
+  # Placeholder until the app exists (#17/#18): `pnpm e2e` runs any package's `e2e`
+  # script and passes when none define one.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm e2e
