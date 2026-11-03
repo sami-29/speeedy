@@ -1,4 +1,5 @@
-import { ALLOWLIST, isValidValue } from "./allowlist";
+import { checkEvent } from "@speeedy/contracts";
+import { ALLOWLIST } from "./allowlist";
 
 export const MAX_EVENTS_PER_BATCH = 20;
 
@@ -40,25 +41,13 @@ export function validateBatch(body: unknown): Validation {
 		) {
 			return reject("bad_event");
 		}
-		const spec =
-			typeof item.event === "string" ? ALLOWLIST.get(item.event) : undefined;
-		if (!spec || typeof item.event !== "string") return reject("unknown_event");
-
-		const given = item.properties ?? {};
-		if (!isObject(given)) return reject("bad_properties");
-		const properties: CleanEvent["properties"] = {};
-		for (const [key, value] of Object.entries(given)) {
-			const propSpec = Object.hasOwn(spec.props, key)
-				? spec.props[key]
-				: undefined;
-			if (!propSpec) return reject("unknown_property");
-			if (!isValidValue(propSpec, value)) return reject("bad_property_value");
-			properties[key] = value as string | number | boolean;
-		}
+		if (typeof item.event !== "string") return reject("unknown_event");
+		const checked = checkEvent(ALLOWLIST, item.event, item.properties);
+		if (!checked.ok) return reject(checked.reason);
 		clean.push({
 			event: item.event,
-			schemaVersion: spec.schemaVersion,
-			properties,
+			schemaVersion: checked.schemaVersion,
+			properties: checked.properties,
 		});
 	}
 	return { ok: true, visit: body.visit, events: clean };
