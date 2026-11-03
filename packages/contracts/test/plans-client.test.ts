@@ -1,7 +1,12 @@
 // Seam: the app's typed client for the Worker's plan endpoint.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { readPlan, snapshotHasFeature, snapshotLimit } from "../src/plans.ts";
+import {
+	type FetchLike,
+	readPlan,
+	snapshotHasFeature,
+	snapshotLimit,
+} from "../src/plans.ts";
 
 const FREE = {
 	plan: "free",
@@ -21,13 +26,13 @@ const PLUS = {
 function fetchReturning(
 	body: unknown,
 	init: ResponseInit = {},
-): { fetch: typeof fetch; urls: string[] } {
+): { fetch: FetchLike; urls: string[] } {
 	const urls: string[] = [];
-	const fake = async (input: RequestInfo | URL) => {
-		urls.push(String(input));
+	const fake: FetchLike = async (input) => {
+		urls.push(input);
 		return Response.json(body, init);
 	};
-	return { fetch: fake as typeof fetch, urls };
+	return { fetch: fake, urls };
 }
 
 describe("readPlan", () => {
@@ -47,9 +52,9 @@ describe("readPlan", () => {
 	});
 
 	it("falls back to the free plan when the request fails", async () => {
-		const failing = (async () => {
+		const failing: FetchLike = async () => {
 			throw new TypeError("offline");
-		}) as typeof fetch;
+		};
 		assert.deepEqual(await readPlan(failing), FREE);
 	});
 
