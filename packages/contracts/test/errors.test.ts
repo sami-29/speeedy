@@ -266,6 +266,38 @@ describe("checkException", () => {
 		);
 	});
 
+	it("accepts every shape of file the build emits", () => {
+		for (const file of [
+			"/_app/immutable/chunks/AbCd1234.js",
+			"/_app/immutable/chunks/Bjy-W4x2.js",
+			"/_app/immutable/entry/app.AbCd1234.js",
+			"/_app/immutable/entry/start.AbCd1234.js",
+			"/_app/immutable/entry/payload.AbCd1234.js",
+			"/_app/immutable/nodes/0.B-qekoYf.js",
+			"/_app/immutable/nodes/12.AbCd1234.js",
+			"/_app/immutable/nodes/123.AbCd1234.js",
+		]) {
+			assert.equal(
+				checkException({ ...good, frames: [{ ...frame, file }] }).ok,
+				true,
+				file,
+			);
+		}
+	});
+
+	it("accepts a function of four segments of 40 characters", () => {
+		const segment = "a".repeat(19);
+		assert.equal(
+			checkException({
+				...good,
+				frames: [
+					{ ...frame, function: `${segment}.${segment}.${segment}.${segment}` },
+				],
+			}).ok,
+			true,
+		);
+	});
+
 	it("accepts every declared code", () => {
 		for (const code of ERROR_CODES) {
 			assert.equal(checkException({ ...good, code }).ok, true, code);
@@ -317,6 +349,65 @@ describe("checkException", () => {
 		[
 			"a file of hyphenated words",
 			withFrame({ file: "/_app/immutable/chunks/the-cat-sat-on-the-mat.js" }),
+		],
+		[
+			"the merger's underscore-and-word path",
+			withFrame({
+				file: "/_app/immutable/chunks/the_cat_sat_on_the_mat.elephant.js",
+			}),
+		],
+		[
+			"the merger's dotted-words path",
+			withFrame({
+				file: "/_app/immutable/chunks/the.cat.sat.on.the.mat.password.js",
+			}),
+		],
+		[
+			"a prefix word on a chunk",
+			withFrame({ file: "/_app/immutable/chunks/the_cat.AbCd1234.js" }),
+		],
+		[
+			"a prefix word on an entry",
+			withFrame({ file: "/_app/immutable/entry/the_cat.AbCd1234.js" }),
+		],
+		[
+			"a prefix word before an entry name",
+			withFrame({ file: "/_app/immutable/entry/the_cat.app.AbCd1234.js" }),
+		],
+		[
+			"a prefix word on a node",
+			withFrame({ file: "/_app/immutable/nodes/cat.AbCd1234.js" }),
+		],
+		[
+			"a node with a word after its number",
+			withFrame({ file: "/_app/immutable/nodes/2.cat.AbCd1234.js" }),
+		],
+		[
+			"a node number of four digits",
+			withFrame({ file: "/_app/immutable/nodes/1234.AbCd1234.js" }),
+		],
+		[
+			"a worker bundle with a free name",
+			withFrame({ file: "/_app/immutable/workers/the_cat-AbCd1234.js" }),
+		],
+		[
+			"an asset bundle with a free name",
+			withFrame({ file: "/_app/immutable/assets/the_cat.AbCd1234.js" }),
+		],
+		[
+			"a hash of the wrong length",
+			withFrame({ file: "/_app/immutable/chunks/AbCd123.js" }),
+		],
+		["a function of five segments", withFrame({ function: "a.b.c.d.e" })],
+		[
+			"a function segment over 40 characters",
+			withFrame({ function: "a".repeat(41) }),
+		],
+		[
+			"a function over 80 characters",
+			withFrame({
+				function: `${"a".repeat(30)}.${"b".repeat(30)}.${"c".repeat(30)}`,
+			}),
 		],
 		[
 			"a bundle path with words in its name",

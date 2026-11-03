@@ -16,7 +16,17 @@ const GOOD_FRAME = {
 /** Plain words, as document text would be: spaces, no hyphens, no digits. */
 export const CANARY_PHRASE = "Chapter one the cat sat";
 
-const CANARY_WORDS = ["Chapter", "the cat", "cat sat", "sat", CANARY_PHRASE];
+const CANARY_WORDS = [
+	"Chapter",
+	"the cat",
+	"cat sat",
+	"sat",
+	CANARY_PHRASE,
+	"the_cat",
+	"the.cat",
+	"elephant",
+	"password",
+];
 
 /** True if a payload carries the canary or any of the canary phrase's words. */
 export function leaksCanary(payload: string): boolean {
@@ -255,6 +265,36 @@ export function hostileErrors(): unknown[] {
 				`${CANARY_PHRASE}@${BUNDLE}:5:1`,
 				`${CANARY_PHRASE}/<@${BUNDLE}:6:1`,
 				`Object.${CANARY_PHRASE}@${BUNDLE}:7:1`,
+			].join("\n"),
+		),
+		// Prose smuggled into a bundle file name: free words before or after the hash, per folder.
+		withStack(
+			[
+				"Error: x",
+				...[
+					"chunks/the_cat_sat_on_the_mat.elephant.js",
+					"chunks/the.cat.sat.on.the.mat.password.js",
+					"chunks/the_cat.AbCd1234.js",
+					"entry/the_cat.AbCd1234.js",
+					"entry/the_cat.app.AbCd1234.js",
+					"entry/app.the_cat.js",
+					"nodes/the_cat.AbCd1234.js",
+					"nodes/2.the_cat.AbCd1234.js",
+					"nodes/2.elephant.js",
+					"workers/the_cat-AbCd1234.js",
+					"assets/the_cat.AbCd1234.js",
+				].map(
+					(file, i) =>
+						`    at f (https://speeedy.app/_app/immutable/${file}:${i + 1}:1)`,
+				),
+			].join("\n"),
+		),
+		// Function names too long to be ours.
+		withStack(
+			[
+				"Error: x",
+				`    at ${Array.from({ length: 12 }, () => "the_cat_sat_on_the_mat").join(".")} (${BUNDLE}:1:1)`,
+				`    at ${"the_cat_sat_on_the_mat_".repeat(5)}x (${BUNDLE}:2:1)`,
 			].join("\n"),
 		),
 		// A real computed-key method: the engine puts its key in the function name.
