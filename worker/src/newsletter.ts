@@ -8,6 +8,9 @@ const MAX_BODY_BYTES = 2048;
 const MAX_EMAIL_LENGTH = 254;
 /** One address, no spaces, one `@` and a dot in the domain. Buttondown does the strict check. */
 const EMAIL = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+const ALREADY_EXISTS = /already[\s_-]*(exist|subscri)|email_already_exist/i;
+/** The one answer to every accepted submission: check your inbox to confirm. */
+const ACCEPTED = { ok: true };
 const BUILDING_TAG = "what-im-building";
 const UPSTREAM_TIMEOUT_MS = 8000;
 
@@ -46,13 +49,25 @@ function check(body: unknown): Checked {
 	};
 }
 
+type Outcome = "created" | "exists" | "failed";
+
+/** Whether a 4xx body says the address is already on the list. Unverified wording, so loose. */
+async function saysAlreadyExists(response: Response): Promise<boolean> {
+	if (response.status < 400 || response.status >= 500) return false;
+	try {
+		return ALREADY_EXISTS.test(await response.text());
+	} catch {
+		return false;
+	}
+}
+
 /**
  * Asks Buttondown to add the subscriber. The request is made from scratch, so nothing from
  * the reader's request travels with it. Double opt-in stays on (Buttondown's default), and
  * `unactivated` plus the `add` collision header make a returning address confirm again.
  * The reader's IP is never sent.
  */
-async function subscribe(env: Env, signup: Signup): Promise<boolean> {
+async function subscribe(env: Env, signup: Signup): Promise<Outcome> {
 	try {
 		const response = await fetch(
 			`${env.BUTTONDOWN_HOST.replace(/\/+$/, "")}/v1/subscribers`,
@@ -72,9 +87,15 @@ async function subscribe(env: Env, signup: Signup): Promise<boolean> {
 				signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
 			},
 		);
-		return response.ok;
+		if (response.ok) return "created";
+		if (response.status === 409 || (await saysAlreadyExists(response))) {
+			return "exists";
+		}
+		// The status says what went wrong (a bad token, say). The body can hold the address.
+		console.error(`newsletter: Buttondown answered ${response.status}`);
+		return "failed";
 	} catch {
-		return false;
+		return "failed";
 	}
 }
 
@@ -118,14 +139,17 @@ export async function handleNewsletter(
 	const checked = check(body);
 	if (!checked.ok) return json(400, { error: "invalid_request" });
 	// A bot that filled the hidden field gets the answer a real reader gets.
-	if (checked.trapped) return json(202, { ok: true });
+	if (checked.trapped) return json(200, ACCEPTED);
 
-	if (!(await subscribe(env, checked.signup))) {
-		return json(502, { error: "unavailable" });
+	const outcome = await subscribe(env, checked.signup);
+	if (outcome === "failed") return json(502, { error: "unavailable" });
+	// An address already on the list gets the same answer as a new one, so the form cannot
+	// be used to probe who subscribes. It counts as no new signup, so it sends no event.
+	if (outcome === "created") {
+		createServerEvents(env, ctx).capture("newsletter_signup", {
+			topic: checked.signup.building ? "speeedy_building" : "speeedy",
+			page: checked.signup.page,
+		});
 	}
-	createServerEvents(env, ctx).capture("newsletter_signup", {
-		topic: checked.signup.building ? "speeedy_building" : "speeedy",
-		page: checked.signup.page,
-	});
-	return json(202, { ok: true });
+	return json(200, ACCEPTED);
 }

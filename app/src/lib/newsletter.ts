@@ -8,7 +8,7 @@ export const READING_ROUTES = ["/reader", "/training", "/s"] as const;
 
 /**
  * Pages that carry the full signup block themselves, so the layout leaves its compact
- * footer form off them. Each is a route that does not exist yet; its ticket adds the block.
+ * footer form off them. Each is a route that does not exist yet; #65 adds the block.
  */
 export const FULL_BLOCK_ROUTES = ["/support", "/about", "/changelog"] as const;
 
@@ -60,7 +60,7 @@ export async function sendSignup(
 			credentials: "omit",
 			referrerPolicy: "no-referrer",
 		});
-		if (response.status === 202) return "sent";
+		if (response.status === 200) return "sent";
 		return response.status === 429 ? "rate_limited" : "failed";
 	} catch {
 		return "failed";

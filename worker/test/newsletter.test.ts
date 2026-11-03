@@ -349,18 +349,11 @@ describe("POST /api/newsletter: every accepted submission looks the same", () =>
 			const sent = sentEvents();
 			if (label === "created" || label === "accepted") {
 				expect(sent, label).toHaveLength(1);
-				const allowed = new Set([
-					"$process_person_profile",
-					"$geoip_disable",
-					"$lib",
-					"$lib_version",
-					"page",
-					"schema_version",
-					"topic",
-				]);
-				for (const key of Object.keys(sent[0].properties)) {
-					expect(allowed.has(key), key).toBe(true);
-				}
+				// The SDK adds its own `$` properties; ours are exactly these three.
+				const ours = Object.keys(sent[0].properties)
+					.filter((key) => !key.startsWith("$"))
+					.sort();
+				expect(ours).toEqual(["page", "schema_version", "topic"]);
 				expect(JSON.stringify(sent)).not.toContain("example.com");
 			} else {
 				expect(sent, label).toHaveLength(0);
