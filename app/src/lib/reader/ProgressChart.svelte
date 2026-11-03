@@ -47,9 +47,16 @@ let moving = false;
 
 const top = $derived(chartTop(Math.max(0, ...bars.map((bar) => bar ?? 0))));
 
+let markAt = -1;
+
 function show(value: number, position: Position) {
 	share = value;
-	if (mark) mark.style.left = `${value * 100}%`;
+	// The mark moves one tenth of a percent at a time: finer is under a pixel.
+	const tenths = Math.round(value * 1000);
+	if (mark && tenths !== markAt) {
+		markAt = tenths;
+		mark.style.left = `${tenths / 10}%`;
+	}
 	percent = Math.round(value * 100);
 	chapter = chapterAt(chapters, position);
 }
