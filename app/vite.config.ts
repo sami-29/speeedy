@@ -5,7 +5,17 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import { sourcemapPlan } from "./scripts/sourcemaps-plan.ts";
 
+// Which extension origins may send a page to the Library, set per build. Unset, the app trusts
+// the development extension (see src/lib/launcher/config.ts); a release build lists the store IDs.
+const extensionOrigins = process.env.SPEEEDY_EXTENSION_ORIGINS;
+
 export default defineConfig({
+	define: {
+		__SPEEEDY_EXTENSION_ORIGINS__:
+			extensionOrigins === undefined
+				? "undefined"
+				: JSON.stringify(extensionOrigins),
+	},
 	build: {
 		// Source maps are built only when `scripts/upload-sourcemaps.ts` will upload and then
 		// delete them, so a local or pull-request build never publishes one.

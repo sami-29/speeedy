@@ -1,5 +1,8 @@
 <script lang="ts">
 import { onDestroy, onMount } from "svelte";
+import { TRUSTED_ORIGINS } from "#lib/launcher/config.ts";
+import { startLauncherReceiver } from "#lib/launcher/receiver.ts";
+import { saveLauncherPage } from "#lib/launcher/save.ts";
 import IntakePanel from "#lib/library/IntakePanel.svelte";
 import { library } from "#lib/library/instance.ts";
 import { LANGUAGES, languageName } from "#lib/library/languages.ts";
@@ -46,6 +49,18 @@ async function refresh() {
 
 onMount(() => {
 	void refresh();
+	// The launcher extension opens this page and sends it the page to keep.
+	const receiver = startLauncherReceiver({
+		window,
+		trusted: TRUSTED_ORIGINS,
+		save: async (page) => {
+			await saveLauncherPage(library(), page);
+		},
+		saved: () => {
+			void goto(localizeHref("/reader"));
+		},
+	});
+	return () => receiver.stop();
 });
 
 onDestroy(() => {

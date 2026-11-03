@@ -7,7 +7,7 @@
  * itself, and says why it refused in a fixed word that never echoes the content.
  */
 
-import type { Document } from "./document";
+import { type Document, validateDocument } from "./document";
 
 export const LAUNCHER_VERSION = 1;
 
@@ -69,16 +69,165 @@ export type LauncherAck = {
 	ok: boolean;
 };
 
-export function validateLauncherPage(_value: unknown): LauncherValidation {
-	return { ok: false, reason: "not-an-object" };
+const PAGE_KEYS = ["type", "version", "title", "url", "language", "document"];
+const LANGUAGE_TAG = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
+const LINK_SCHEMES = new Set(["http", "https", "mailto", "tel"]);
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+	if (typeof value !== "object" || value === null) return false;
+	const prototype = Object.getPrototypeOf(value);
+	return prototype === Object.prototype || prototype === null;
+};
+
+const fail = (reason: LauncherRejection): LauncherValidation => ({
+	ok: false,
+	reason,
+});
+
+/** The scheme a browser would read from a link target, which ignores spaces and controls. */
+function linkScheme(href: string): string | null {
+	let cleaned = "";
+	for (const char of href.length > 200 ? href.slice(0, 200) : href) {
+		const code = char.codePointAt(0) ?? 0;
+		if (code <= 32 || (code >= 127 && code <= 159)) continue;
+		if (code === 0x200b || code === 0xfeff || code === 0x2060) continue;
+		cleaned += char;
+	}
+	const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(cleaned.slice(0, 40));
+	return scheme?.[1]?.toLowerCase() ?? null;
 }
 
-export function isLauncherReady(_value: unknown): _value is LauncherReady {
+/**
+ * The cheap size checks, run before the Document is read deeply: a hostile message must not
+ * cost more to refuse than to send. `blocks` is an array whose length is already capped.
+ */
+function overCaps(blocks: unknown[]): boolean {
+	let characters = 0;
+	let spans = 0;
+	for (let i = 0; i < blocks.length; i++) {
+		const block = blocks[i];
+		if (!isRecord(block)) continue;
+		const text = block.kind === "image-placeholder" ? block.alt : block.text;
+		if (typeof text === "string") characters += text.length;
+		if (Array.isArray(block.spans)) spans += block.spans.length;
+		if (
+			characters > LAUNCHER_LIMITS.characters ||
+			spans > LAUNCHER_LIMITS.spans
+		) {
+			return true;
+		}
+	}
 	return false;
 }
 
-export function isLauncherAck(_value: unknown): _value is LauncherAck {
+function hasUnsafeLink(document: Document): boolean {
+	for (const block of document.blocks) {
+		if (block.kind === "image-placeholder") continue;
+		for (const span of block.spans) {
+			if (span.kind !== "link") continue;
+			const scheme = linkScheme(span.href);
+			if (scheme !== null && !LINK_SCHEMES.has(scheme)) return true;
+		}
+	}
 	return false;
+}
+
+/**
+ * Check an unknown value as a launcher page message. Never throws, and answers with a fixed
+ * reason that holds none of the message. Anything unexpected, including unknown fields, fails.
+ */
+export function validateLauncherPage(value: unknown): LauncherValidation {
+	try {
+		if (!isRecord(value)) return fail("not-an-object");
+		if (value.type !== "speeedy:page") return fail("wrong-type");
+		if (value.version !== LAUNCHER_VERSION) return fail("wrong-version");
+		const keys = Object.keys(value);
+		if (
+			keys.length !== PAGE_KEYS.length ||
+			!keys.every((key) => PAGE_KEYS.includes(key))
+		) {
+			return fail("wrong-shape");
+		}
+		const { title, url, language, document } = value;
+		if (
+			typeof title !== "string" ||
+			typeof url !== "string" ||
+			typeof language !== "string" ||
+			!isRecord(document)
+		) {
+			return fail("wrong-shape");
+		}
+		if (
+			title.length > LAUNCHER_LIMITS.title ||
+			url.length > LAUNCHER_LIMITS.url ||
+			language.length > LAUNCHER_LIMITS.language
+		) {
+			return fail("too-big");
+		}
+		let address: URL;
+		try {
+			address = new URL(url);
+		} catch {
+			return fail("bad-url");
+		}
+		if (address.protocol !== "http:" && address.protocol !== "https:") {
+			return fail("bad-url");
+		}
+		address.username = "";
+		address.password = "";
+		if (!LANGUAGE_TAG.test(language)) return fail("bad-language");
+
+		const blocks = document.blocks;
+		if (Array.isArray(blocks)) {
+			if (blocks.length > LAUNCHER_LIMITS.blocks) return fail("too-big");
+			if (overCaps(blocks)) return fail("too-big");
+		}
+		const checked = validateDocument(document);
+		if (!checked.ok) return fail("bad-document");
+		if (hasUnsafeLink(checked.document)) return fail("bad-document");
+
+		return {
+			ok: true,
+			page: {
+				type: "speeedy:page",
+				version: LAUNCHER_VERSION,
+				title,
+				url: address.href,
+				language,
+				document: checked.document,
+			},
+		};
+	} catch {
+		return fail("wrong-shape");
+	}
+}
+
+const isReadyOrAck = (
+	value: unknown,
+	type: string,
+): value is Record<string, unknown> =>
+	isRecord(value) && value.type === type && value.version === LAUNCHER_VERSION;
+
+export function isLauncherReady(value: unknown): value is LauncherReady {
+	try {
+		return (
+			isReadyOrAck(value, "speeedy:ready") && Object.keys(value).length === 2
+		);
+	} catch {
+		return false;
+	}
+}
+
+export function isLauncherAck(value: unknown): value is LauncherAck {
+	try {
+		return (
+			isReadyOrAck(value, "speeedy:ack") &&
+			typeof value.ok === "boolean" &&
+			Object.keys(value).length === 3
+		);
+	} catch {
+		return false;
+	}
 }
 
 export const launcherReady = (): LauncherReady => ({
