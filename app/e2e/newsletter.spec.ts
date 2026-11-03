@@ -49,7 +49,7 @@ test.describe("where the form appears", () => {
 test.describe("the form", () => {
 	test("says how often it writes and that nothing tracks", async ({ page }) => {
 		await page.goto("/");
-		const text = (await form(page).innerText()).toLowerCase();
+		const text = ((await form(page).textContent()) ?? "").toLowerCase();
 		expect(text).toContain("about once a month, never more");
 		expect(text).toContain("no tracking pixels, no tracked links");
 		expect(text).toContain("confirm");
@@ -93,7 +93,9 @@ test.describe("the form", () => {
 		await page.goto("/library");
 
 		await form(page).getByLabel("Email address").fill(EMAIL);
-		await form(page).getByRole("checkbox", { name: /What I.m building/ }).check();
+		await form(page)
+			.getByRole("checkbox", { name: /What I.m building/ })
+			.check();
 		await form(page).getByRole("button", { name: "Subscribe" }).click();
 
 		await expect(form(page).getByRole("status")).toBeVisible();

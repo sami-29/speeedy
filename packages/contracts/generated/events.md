@@ -47,3 +47,14 @@ Sent by: the server. Schema version 1.
 | Property | Value | Required |
 | --- | --- | --- |
 | `interval` | one of `monthly`, `annual` | yes |
+
+## `newsletter_signup`
+
+A reader asked to join the newsletter and the signup was passed on for confirmation. Carries the topic and the page of the form only, never the address.
+
+Sent by: the server. Schema version 1.
+
+| Property | Value | Required |
+| --- | --- | --- |
+| `topic` | one of `speeedy`, `speeedy_building` | yes |
+| `page` | one of `home`, `library`, `stats`, `account`, `support`, `about`, `changelog`, `other` | yes |

@@ -24,5 +24,16 @@
 	"app_training_title": "Training.",
 	"app_shared_title": "Shared text.",
 	"app_account_title": "Account.",
+	"newsletter_label": "Newsletter",
+	"newsletter_heading": "A note from the author.",
+	"newsletter_email": "Email address",
+	"newsletter_building": "What I'm building: also send me notes on the author's other projects",
+	"newsletter_submit": "Subscribe",
+	"newsletter_sending": "Sending",
+	"newsletter_promise": "About once a month, never more. You confirm by email first. No tracking pixels, no tracked links. One click unsubscribes.",
+	"newsletter_done": "Check your inbox and confirm your address. Nothing is sent until you do.",
+	"newsletter_rate_limited": "Too many tries from your connection. Try again in a minute.",
+	"newsletter_failed": "That did not go through. Try again in a minute.",
+	"newsletter_address": "[Mailing address placeholder: the owner fills this in before launch]",
 	"app_shell_note": "This screen is a client-only shell. It loads in your browser and nothing here is indexed."
 }
