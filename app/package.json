@@ -23,9 +23,11 @@
 	"dependencies": {
 		"@speeedy/contracts": "workspace:*",
 		"@speeedy/engine": "workspace:*",
+		"@speeedy/kokoro": "workspace:*",
 		"@speeedy/parsers": "workspace:*",
 		"@speeedy/sync": "workspace:*",
-		"idb": "8.0.4"
+		"idb": "8.0.4",
+		"onnxruntime-web": "1.31.1"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "4.14.0",

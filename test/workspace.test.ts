@@ -16,6 +16,7 @@ const packageDirs = {
 	app: "@speeedy/app",
 	worker: "@speeedy/worker",
 	"packages/engine": "@speeedy/engine",
+	"packages/kokoro": "@speeedy/kokoro",
 	"packages/parsers": "@speeedy/parsers",
 	"packages/contracts": "@speeedy/contracts",
 	"packages/sync": "@speeedy/sync",
@@ -80,6 +81,7 @@ describe("workspace packages", () => {
 		assert.deepEqual(readdirSync(join(root, "packages")).sort(), [
 			"contracts",
 			"engine",
+			"kokoro",
 			"parsers",
 			"sync",
 		]);

@@ -32,6 +32,7 @@ describe("unexpectedBundleFiles", () => {
 			"_app/immutable/nodes/0.B-qekoYf.js",
 			"_app/immutable/nodes/10.Bkr0SAZf.js",
 			"_app/immutable/workers/worker-Clb-aXNV.js",
+			"_app/immutable/workers/kokoro.worker-EVt8lQSS.js",
 			"_app/immutable/workers/chunks/C2a4ZsyS.js",
 			"_app/immutable/workers/chunks/C7x-RYpg.js",
 			"_app/immutable/workers/assets/pdf.worker.min-Dkey6ZUl.mjs",

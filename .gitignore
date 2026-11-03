@@ -53,3 +53,6 @@ app/.svelte-kit
 app/src/lib/paraglide
 app/playwright-report
 app/project.inlang/cache
+
+# Kokoro model, voice and lexicon downloads (fetched at runtime, never committed)
+packages/kokoro/.cache
