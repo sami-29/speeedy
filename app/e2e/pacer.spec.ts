@@ -384,6 +384,38 @@ test.describe("the highlight", () => {
 	});
 });
 
+test.describe("a very long block", () => {
+	// 6 000 words in one paragraph: only the stretch around the reader is split into words.
+	const LONG = Array.from({ length: 6000 }, (_, i) => `w${i + 1}`).join(" ");
+
+	test("keeps the node count bounded and the highlight right across seeks", async ({
+		page,
+	}) => {
+		await startPasted(page, LONG);
+		await page.getByRole("button", { name: "Pause" }).click();
+		await modeButton(page, "Pacer").click();
+		await expect.poll(() => nowText(page)).toMatch(/^w\d+$/);
+		const nodes = () =>
+			pane(page).evaluate((el) => el.querySelectorAll("span").length);
+		expect(await nodes()).toBeLessThan(3000);
+		const progress = page.getByRole("slider", { name: "Reading progress" });
+		await progress.focus();
+		await page.keyboard.press("End");
+		await expect.poll(() => nowText(page)).toBe("w6000");
+		expect(await inView(page, NOW)).toBe(true);
+		expect(await nodes()).toBeLessThan(3000);
+		await page.keyboard.press("Home");
+		await expect.poll(() => nowText(page)).toBe("w1");
+		expect(await inView(page, NOW)).toBe(true);
+		// Back by sentences walks the highlight through a renewed window.
+		await page.keyboard.press("End");
+		await expect.poll(() => nowText(page)).toBe("w6000");
+		await page.evaluate(() => (document.activeElement as HTMLElement).blur());
+		await page.keyboard.press("Shift+ArrowLeft");
+		await expect.poll(() => nowText(page)).toBe("w1");
+	});
+});
+
 test.describe("keyboard", () => {
 	test("Space and K play and pause, the arrows rewind and change speed", async ({
 		page,
