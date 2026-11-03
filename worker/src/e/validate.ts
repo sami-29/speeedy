@@ -1,4 +1,10 @@
-import { checkEvent } from "@speeedy/contracts";
+import {
+	checkEvent,
+	checkException,
+	EXCEPTION_EVENT,
+	EXCEPTION_SCHEMA_VERSION,
+	toPostHogException,
+} from "@speeedy/contracts";
 import { ALLOWLIST } from "./allowlist";
 
 export const MAX_EVENTS_PER_BATCH = 20;
@@ -9,7 +15,7 @@ const VISIT_ID = /^[A-Za-z0-9-]{8,64}$/;
 export interface CleanEvent {
 	event: string;
 	schemaVersion: number;
-	properties: Record<string, string | number | boolean>;
+	properties: Record<string, unknown>;
 }
 
 export type Validation =
@@ -42,6 +48,17 @@ export function validateBatch(body: unknown): Validation {
 			return reject("bad_event");
 		}
 		if (typeof item.event !== "string") return reject("unknown_event");
+		if (item.event === EXCEPTION_EVENT) {
+			// An error report has its own fixed shape (frames and a code), not a registry entry.
+			const report = checkException(item.properties);
+			if (!report.ok) return reject(report.reason);
+			clean.push({
+				event: EXCEPTION_EVENT,
+				schemaVersion: EXCEPTION_SCHEMA_VERSION,
+				properties: toPostHogException(report.properties),
+			});
+			continue;
+		}
 		const checked = checkEvent(ALLOWLIST, item.event, item.properties);
 		if (!checked.ok) return reject(checked.reason);
 		clean.push({

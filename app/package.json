@@ -9,7 +9,7 @@
 	},
 	"scripts": {
 		"dev": "vite dev",
-		"build": "vite build",
+		"build": "vite build && node scripts/check-bundle-paths.ts && node scripts/upload-sourcemaps.ts",
 		"preview": "vite preview",
 		"prepare": "pnpm paraglide && svelte-kit sync",
 		"lint": "node scripts/lint-runes.ts",
@@ -31,6 +31,7 @@
 		"@inlang/paraglide-js": "2.29.2",
 		"@inlang/plugin-message-format": "4.5.5",
 		"@playwright/test": "1.64.1",
+		"@posthog/cli": "0.18.12",
 		"@sveltejs/adapter-static": "4.0.0",
 		"@sveltejs/kit": "3.1.0",
 		"@sveltejs/vite-plugin-svelte": "7.3.1",

@@ -1,4 +1,11 @@
 import {
+	buildException,
+	checkException,
+	type ErrorCode,
+	EXCEPTION_EVENT,
+	EXCEPTION_LIMITS,
+} from "./errors.ts";
+import {
 	type ClientEventName,
 	checkEvent,
 	clientEvents,
@@ -33,13 +40,19 @@ export interface Analytics {
 	track<N extends ClientEventName>(event: N, props: EventProps<N>): boolean;
 	/** Queues a pageview for a location. Only the route pattern is kept. */
 	trackPageview(location: string): boolean;
+	/**
+	 * Queues an error report: the code and the error's stack frames, never its message.
+	 * Returns false, and sends nothing, for a repeat of an error already sent this Visit or
+	 * once the Visit has sent its limit.
+	 */
+	trackError(error: unknown, code: ErrorCode): boolean;
 	/** Sends what is queued now. Never throws. */
 	flush(): Promise<void>;
 }
 
 interface Queued {
 	event: string;
-	properties: Record<string, string | number | boolean>;
+	properties: Record<string, unknown>;
 }
 
 /**
@@ -83,6 +96,14 @@ export function createAnalytics(options: AnalyticsOptions = {}): Analytics {
 		}
 	}
 
+	function push(item: Queued): void {
+		queue.push(item);
+		if (!scheduled) {
+			scheduled = true;
+			schedule(() => void flush());
+		}
+	}
+
 	function enqueue(event: string, props: unknown): boolean {
 		const merged =
 			typeof props === "object" && props !== null && !Array.isArray(props)
@@ -90,11 +111,25 @@ export function createAnalytics(options: AnalyticsOptions = {}): Analytics {
 				: props;
 		const checked = checkEvent(allowed, event, merged);
 		if (!checked.ok) return false;
-		queue.push({ event, properties: checked.properties });
-		if (!scheduled) {
-			scheduled = true;
-			schedule(() => void flush());
-		}
+		push({ event, properties: checked.properties });
+		return true;
+	}
+
+	const sentErrors = new Set<string>();
+
+	function enqueueError(error: unknown, code: ErrorCode): boolean {
+		if (sentErrors.size >= EXCEPTION_LIMITS.perVisit) return false;
+		const built = buildException(error, code);
+		const checked = checkException(built.properties);
+		if (!checked.ok) return false;
+		// The same code at the same top frame is the same error: one report is enough.
+		const [top] = checked.properties.frames;
+		const key = top
+			? `${code}|${top.file}|${top.line}|${top.col}|${top.function}`
+			: `${code}|`;
+		if (sentErrors.has(key)) return false;
+		sentErrors.add(key);
+		push({ event: EXCEPTION_EVENT, properties: { ...checked.properties } });
 		return true;
 	}
 
@@ -105,6 +140,7 @@ export function createAnalytics(options: AnalyticsOptions = {}): Analytics {
 			const view = pageviewFor(location);
 			return enqueue(view.event, view.properties);
 		},
+		trackError: enqueueError,
 		flush,
 	};
 }

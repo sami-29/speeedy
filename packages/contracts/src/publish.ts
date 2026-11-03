@@ -1,3 +1,4 @@
+import { renderExceptionMarkdown } from "./errors.ts";
 import type { EventDef, EventRegistry, PropSpec } from "./events.ts";
 
 export interface PropRow {
@@ -88,5 +89,6 @@ export function renderEventListMarkdown(registry: EventRegistry): string {
 		}
 		lines.push("");
 	}
+	lines.push(renderExceptionMarkdown());
 	return lines.join("\n");
 }
