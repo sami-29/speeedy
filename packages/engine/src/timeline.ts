@@ -1,7 +1,18 @@
-import type { Document } from "@speeedy/contracts";
+import {
+	comparePositions,
+	type Document,
+	type Position,
+} from "@speeedy/contracts";
 import { computeOrp } from "./orp";
+import { endsSentence, type PacingContext, pacingMultiplier } from "./pacing";
 import { contextOf, tokenize } from "./tokenizer";
-import type { EngineSettings, Frame, Timeline, TimelineOptions } from "./types";
+import type {
+	EngineSettings,
+	Frame,
+	FrameContext,
+	Timeline,
+	TimelineOptions,
+} from "./types";
 
 export const DEFAULT_SETTINGS: EngineSettings = {
 	wpm: 300,
@@ -9,51 +20,179 @@ export const DEFAULT_SETTINGS: EngineSettings = {
 	paragraphPauseMultiplier: 1.8,
 	commaAsPause: false,
 	contextPauseOnClose: true,
+	smartSpeed: false,
+	chunkSize: 1,
+	rampSpanWords: 0,
+	rampStart: 0.5,
+	sprintEveryWords: 0,
+	sprintWords: 0,
+	sprintSpeedup: 1.5,
 };
 
 const MIN_WPM = 1;
 const MAX_WPM = 3000;
-/** Extra time on the Frame that closes a bracket or quotation. */
-const ASIDE_CLOSE_MULTIPLIER = 1.15;
+const MAX_CHUNK_SIZE = 10;
 
 const finiteOr = (value: unknown, fallback: number): number =>
 	typeof value === "number" && !Number.isNaN(value) ? value : fallback;
 
-/** Closing marks that may follow the punctuation that ends a sentence: `."` `?)` `!»`. */
-const CLOSING_MARKS = /[)\]}"'”’»›]+$/u;
+const clamp = (value: number, min: number, max: number): number =>
+	Math.min(Math.max(value, min), max);
+
+/** Fill in defaults and pull every setting into a range the rules can work with. */
+export function resolveSettings(
+	settings: Partial<EngineSettings> = {},
+): EngineSettings {
+	const sprintEveryWords = Math.max(
+		Math.floor(finiteOr(settings.sprintEveryWords, 0)),
+		0,
+	);
+	return {
+		wpm: clamp(finiteOr(settings.wpm, DEFAULT_SETTINGS.wpm), MIN_WPM, MAX_WPM),
+		sentencePauseMultiplier: Math.max(
+			finiteOr(
+				settings.sentencePauseMultiplier,
+				DEFAULT_SETTINGS.sentencePauseMultiplier,
+			),
+			0,
+		),
+		paragraphPauseMultiplier: finiteOr(
+			settings.paragraphPauseMultiplier,
+			DEFAULT_SETTINGS.paragraphPauseMultiplier,
+		),
+		commaAsPause: settings.commaAsPause ?? DEFAULT_SETTINGS.commaAsPause,
+		contextPauseOnClose:
+			settings.contextPauseOnClose ?? DEFAULT_SETTINGS.contextPauseOnClose,
+		smartSpeed: settings.smartSpeed ?? DEFAULT_SETTINGS.smartSpeed,
+		chunkSize: clamp(
+			Math.floor(finiteOr(settings.chunkSize, 1)),
+			1,
+			MAX_CHUNK_SIZE,
+		),
+		rampSpanWords: Math.max(Math.floor(finiteOr(settings.rampSpanWords, 0)), 0),
+		rampStart: clamp(
+			finiteOr(settings.rampStart, DEFAULT_SETTINGS.rampStart),
+			0.1,
+			1,
+		),
+		sprintEveryWords,
+		sprintWords: clamp(
+			Math.floor(finiteOr(settings.sprintWords, 0)),
+			0,
+			sprintEveryWords,
+		),
+		sprintSpeedup: clamp(
+			finiteOr(settings.sprintSpeedup, DEFAULT_SETTINGS.sprintSpeedup),
+			0.25,
+			8,
+		),
+	};
+}
+
+const DOCUMENT_START: Position = { block: 0, offset: 0 };
 
 /**
- * How much longer than a plain word a Frame stays up, by its last punctuation. Closing
- * quotes and brackets are looked through, so `stop."` ends a sentence.
+ * Build Frames from `startBlock` on, appended to the Frames already in `frames`.
+ * `startOffset` is where in that block to begin. `wordsSinceAnchor` is how many words
+ * `frames` already holds from the anchor onward.
  */
-function pauseMultiplier(text: string, commaAsPause: boolean): number {
-	const last = Array.from(text.replace(CLOSING_MARKS, "")).pop();
-	switch (last) {
-		case ".":
-		case "!":
-		case "?":
-		case "…":
-		case "。":
-		case "！":
-		case "？":
-		case "؟":
-			return 2;
-		case ",":
-		case ";":
-		case "，":
-		case "；":
-			return commaAsPause ? 2 : 1.4;
-		case ":":
-		case "：":
-			return 1.4;
-		default:
-			return 1;
+function buildFrom(
+	document: Document,
+	settings: EngineSettings,
+	options: TimelineOptions,
+	frames: Frame[],
+	startBlock: number,
+	startOffset: number,
+	wordsSinceAnchor: number,
+): Timeline {
+	const anchor = options.anchor ?? DOCUMENT_START;
+	const baseMs = 60_000 / settings.wpm;
+	const pacing: PacingContext = { settings, wordsSinceAnchor: -1 };
+	if (options.language !== undefined) pacing.language = options.language;
+	const previous = frames[frames.length - 1];
+	let totalMs = previous ? previous.startMs + previous.durationMs : 0;
+	let counted = wordsSinceAnchor;
+
+	for (
+		let blockIndex = startBlock;
+		blockIndex < document.blocks.length;
+		blockIndex++
+	) {
+		const block = document.blocks[blockIndex];
+		if (!block || block.kind === "image-placeholder") continue;
+		const tokens = tokenize(block.text, options.language);
+		const contexts = contextOf(tokens);
+		let i = 0;
+		if (blockIndex === startBlock) {
+			i = tokens.findIndex((token) => token.start >= startOffset);
+			if (i < 0) continue;
+		}
+
+		while (i < tokens.length) {
+			let j = i;
+			while (j < tokens.length && j - i < settings.chunkSize) {
+				j++;
+				if (endsSentence(tokens[j - 1]?.text ?? "")) break;
+			}
+			const first = tokens[i];
+			const last = tokens[j - 1];
+			const firstContext = contexts[i];
+			const lastContext = contexts[j - 1];
+			if (!first || !last || !firstContext || !lastContext) break;
+
+			const words = j - i;
+			const text =
+				words === 1
+					? first.text
+					: tokens
+							.slice(i, j)
+							.map((token) => token.text)
+							.join(" ");
+			const context: FrameContext = {
+				paragraphStart: i === 0 && frames.length > 0,
+				inQuotes: firstContext.inQuotes,
+				inParens: firstContext.inParens,
+				inBrackets: firstContext.inBrackets,
+				closesAside: lastContext.closesAside,
+			};
+			const position: Position = { block: blockIndex, offset: first.start };
+
+			const reached = comparePositions(position, anchor) >= 0;
+			pacing.wordsSinceAnchor = reached ? counted : -1;
+			const multiplier = pacingMultiplier({ text, words, context }, pacing);
+			const durationMs = Math.round(baseMs * words * multiplier * 1000) / 1000;
+			if (reached) counted += words;
+
+			const firstOrp = computeOrp(first.text);
+			const orp =
+				words === 1
+					? firstOrp
+					: {
+							...firstOrp,
+							after: firstOrp.after + text.slice(first.text.length),
+						};
+			frames.push({
+				text,
+				words,
+				position,
+				end: { block: blockIndex, offset: last.end },
+				orp,
+				orpIndex: orp.before.length,
+				startMs: totalMs,
+				durationMs,
+				context,
+			});
+			totalMs += durationMs;
+			i = j;
+		}
 	}
+
+	return { frames, totalMs };
 }
 
 /**
- * Turn a Document into a Timeline of Frames, one per word. Pure and DOM-free, so it runs
- * in a Web Worker; the result is plain data.
+ * Turn a Document into a Timeline of Frames, one per chunk of words. Pure and DOM-free, so
+ * it runs in a Web Worker; the result is plain data.
  *
  * Image placeholders have no Frames: their alt text is not read.
  */
@@ -62,60 +201,42 @@ export function buildTimeline(
 	settings: Partial<EngineSettings> = {},
 	options: TimelineOptions = {},
 ): Timeline {
-	const wpm = Math.min(
-		Math.max(finiteOr(settings.wpm, DEFAULT_SETTINGS.wpm), MIN_WPM),
-		MAX_WPM,
+	return buildFrom(document, resolveSettings(settings), options, [], 0, 0, 0);
+}
+
+/**
+ * Rebuild a Timeline from the Frame at `fromIndex` onward, for new settings. The Frames
+ * before it are kept as they are, so the Frame at `fromIndex` starts at the same Position
+ * and the same time, and a reader's place does not move.
+ */
+export function rebuildTimeline(
+	document: Document,
+	timeline: Timeline,
+	fromIndex: number,
+	settings: Partial<EngineSettings> = {},
+	options: TimelineOptions = {},
+): Timeline {
+	const index = Math.max(fromIndex, 0);
+	const at = timeline.frames[index];
+	if (!at) {
+		return { frames: timeline.frames.slice(), totalMs: timeline.totalMs };
+	}
+
+	const anchor = options.anchor ?? DOCUMENT_START;
+	let wordsSinceAnchor = 0;
+	for (let k = index - 1; k >= 0; k--) {
+		const frame = timeline.frames[k];
+		if (!frame || comparePositions(frame.position, anchor) < 0) break;
+		wordsSinceAnchor += frame.words;
+	}
+
+	return buildFrom(
+		document,
+		resolveSettings(settings),
+		options,
+		timeline.frames.slice(0, index),
+		at.position.block,
+		at.position.offset,
+		wordsSinceAnchor,
 	);
-	const sentencePause = Math.max(
-		finiteOr(
-			settings.sentencePauseMultiplier,
-			DEFAULT_SETTINGS.sentencePauseMultiplier,
-		),
-		0,
-	);
-	const paragraphPause = finiteOr(
-		settings.paragraphPauseMultiplier,
-		DEFAULT_SETTINGS.paragraphPauseMultiplier,
-	);
-	const commaAsPause = settings.commaAsPause ?? DEFAULT_SETTINGS.commaAsPause;
-	const asidePause =
-		settings.contextPauseOnClose ?? DEFAULT_SETTINGS.contextPauseOnClose;
-	const baseMs = 60_000 / wpm;
-
-	const frames: Frame[] = [];
-	let totalMs = 0;
-
-	document.blocks.forEach((block, blockIndex) => {
-		if (block.kind === "image-placeholder") return;
-		const tokens = tokenize(block.text, options.language);
-		const contexts = contextOf(tokens);
-		const firstBlockWithWords = frames.length === 0;
-
-		tokens.forEach((token, i) => {
-			const context = contexts[i];
-			if (!context) return;
-			const paragraphStart = i === 0 && !firstBlockWithWords;
-			let duration =
-				baseMs *
-				(1 + (pauseMultiplier(token.text, commaAsPause) - 1) * sentencePause);
-			if (paragraphStart && paragraphPause > 1) duration *= paragraphPause;
-			if (asidePause && context.closesAside) duration *= ASIDE_CLOSE_MULTIPLIER;
-			duration = Math.round(duration * 1000) / 1000;
-
-			const orp = computeOrp(token.text);
-			frames.push({
-				text: token.text,
-				position: { block: blockIndex, offset: token.start },
-				end: { block: blockIndex, offset: token.end },
-				orp,
-				orpIndex: orp.before.length,
-				startMs: totalMs,
-				durationMs: duration,
-				context: { paragraphStart, ...context },
-			});
-			totalMs += duration;
-		});
-	});
-
-	return { frames, totalMs };
 }

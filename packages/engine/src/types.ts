@@ -14,7 +14,7 @@ export type FrameContext = {
 	inQuotes: boolean;
 	inParens: boolean;
 	inBrackets: boolean;
-	/** The Frame ends a parenthesis, bracket or quotation. */
+	/** The Frame ends a parenthesis, bracket or quotation. For a chunk, its last word does. */
 	closesAside: boolean;
 };
 
@@ -23,8 +23,10 @@ export type FrameContext = {
  * `structuredClone` or `postMessage`.
  */
 export type Frame = {
-	/** The word with its attached punctuation. */
+	/** The words of the Frame, each with its attached punctuation, joined by single spaces. */
 	text: string;
+	/** How many words the Frame shows: 1 unless the chunk size groups several. */
+	words: number;
 	/** Where the Frame starts in the Document. */
 	position: Position;
 	/** Where the Frame ends: the same block, just past the last character. */
@@ -54,9 +56,28 @@ export type EngineSettings = {
 	commaAsPause: boolean;
 	/** A short extra pause on the Frame that closes a bracket or quotation. */
 	contextPauseOnClose: boolean;
+	/** Quicken short and common words and slow long ones. */
+	smartSpeed: boolean;
+	/** Words per Frame, 1 to 10. A chunk never crosses a sentence end or a block. */
+	chunkSize: number;
+	/** Words the speed ramp takes to reach full speed. 0 turns the ramp off. */
+	rampSpanWords: number;
+	/** The ramp's starting speed, as a fraction of `wpm` (0.5 starts at half speed). */
+	rampStart: number;
+	/** A sprint repeats every this many words. 0 turns sprints off. */
+	sprintEveryWords: number;
+	/** The last this many words of each sprint period are read faster. */
+	sprintWords: number;
+	/** How many times faster the sprint words are read. */
+	sprintSpeedup: number;
 };
 
 export type TimelineOptions = {
 	/** BCP 47 language tag of the Document. Defaults to English. */
 	language?: string;
+	/**
+	 * Where the speed ramp and sprints start counting: the Position where the reader last
+	 * pressed play. Frames before it are unaffected. Defaults to the start of the Document.
+	 */
+	anchor?: Position;
 };

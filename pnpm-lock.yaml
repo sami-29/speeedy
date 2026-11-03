@@ -222,6 +222,16 @@ importers:
         version: 6.0.3
 
   app:
+    dependencies:
+      '@speeedy/contracts':
+        specifier: workspace:*
+        version: link:../packages/contracts
+      '@speeedy/engine':
+        specifier: workspace:*
+        version: link:../packages/engine
+      '@speeedy/parsers':
+        specifier: workspace:*
+        version: link:../packages/parsers
     devDependencies:
       '@axe-core/playwright':
         specifier: 4.14.0
