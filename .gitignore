@@ -35,3 +35,8 @@ test-results/
 
 # Kilo AI tooling
 .kilo/
+
+# Cloudflare Worker local secrets and state (secrets never go in git)
+.dev.vars*
+.env*
+.wrangler/

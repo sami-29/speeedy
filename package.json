@@ -48,10 +48,5 @@
     "src/**/*.ts": [
       "biome check --write"
     ]
-  },
-  "pnpm": {
-    "overrides": {
-      "vite": "^8.0.3"
-    }
   }
 }

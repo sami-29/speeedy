@@ -1,0 +1,19 @@
+{
+  "name": "@speeedy/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "types": "wrangler types",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.4.8",
+    "@msw/cloudflare": "0.2.0",
+    "msw": "3.0.3",
+    "typescript": "6.0.2",
+    "vitest": "4.1.2",
+    "wrangler": "4.153.0"
+  }
+}
