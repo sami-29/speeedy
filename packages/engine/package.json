@@ -10,7 +10,8 @@
 	"scripts": {
 		"build": "tsc -p tsconfig.build.json",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
-		"test:unit": "vitest run"
+		"test:unit": "vitest run",
+		"bench": "vitest bench --run"
 	},
 	"dependencies": {
 		"@speeedy/contracts": "workspace:*"
