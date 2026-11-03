@@ -1,0 +1,25 @@
+{
+	"outcome": "document",
+	"format": "html",
+	"title": "The Short Book",
+	"encoding": "utf-8",
+	"language": "en",
+	"blocks": 11,
+	"first": "The Short Book\nChapter I\nChapter II\nChap",
+	"last": "pped.\nChapter II\nA short quotation.\nFin.",
+	"words": [38, 42],
+	"kinds": [
+		"heading",
+		"paragraph",
+		"paragraph",
+		"heading",
+		"paragraph",
+		"paragraph",
+		"paragraph",
+		"paragraph",
+		"heading",
+		"quote",
+		"paragraph"
+	],
+	"spans": 2
+}

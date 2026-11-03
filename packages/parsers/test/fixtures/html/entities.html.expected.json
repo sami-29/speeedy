@@ -1,0 +1,21 @@
+{
+	"outcome": "document",
+	"format": "html",
+	"title": "Entities & spacing",
+	"encoding": "utf-8",
+	"language": "en",
+	"blocks": 7,
+	"first": "Entities & spacing\nNamed: Tom & Jerry — ",
+	"last": "ty AT&T &\nAlt:\nTom & Jerry — the \"movie\"",
+	"words": [47, 51],
+	"kinds": [
+		"heading",
+		"paragraph",
+		"paragraph",
+		"paragraph",
+		"paragraph",
+		"paragraph",
+		"image-placeholder"
+	],
+	"spans": 0
+}
