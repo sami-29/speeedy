@@ -6,6 +6,8 @@ import type { Component } from "svelte";
 export type ModeProps = {
 	timeline: Timeline;
 	wpm: number;
+	/** Start playing at once. False shows the first word and waits for Play (shared text). */
+	autoplay?: boolean;
 	/** Where to start reading. Without it the mode starts at the first Frame. */
 	startAt?: Position;
 	/** Told where the reader is: on each Frame, and `final` on a pause or the end. */
