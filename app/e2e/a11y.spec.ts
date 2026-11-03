@@ -3,6 +3,11 @@ import { expect, test } from "@playwright/test";
 
 const routes = [
 	"/",
+	"/pdf-speed-reader",
+	"/epub-speed-reader",
+	"/adhd-reading-tool",
+	"/text-to-speech-reader",
+	"/spreeder-alternative",
 	"/reader",
 	"/library",
 	"/stats",
