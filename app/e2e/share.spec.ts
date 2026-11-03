@@ -263,6 +263,8 @@ test.describe("privacy canary", () => {
 		await reader.goto(link);
 		await expect(reader).toHaveURL(/\/reader$/);
 		await expect(reader.getByTestId("word")).toHaveText(/\S/);
+		// Shared text waits for Play; play it so reading itself is captured too.
+		await reader.getByRole("button", { name: "Play" }).click();
 		await reader.getByRole("button", { name: "Pause" }).click();
 		await expect
 			.poll(() => events.map((e) => e.properties.route), { timeout: 10_000 })

@@ -2,7 +2,7 @@
 import { m } from "#lib/paraglide/messages.js";
 import { localizeHref } from "#lib/paraglide/runtime.js";
 import { handOff } from "#lib/reader/handoff.ts";
-import { decodeShareHash } from "#lib/share/codec.ts";
+import { decodeShareHash, isShareHash } from "#lib/share/codec.ts";
 import ShareLinkCreator from "#lib/share/ShareLinkCreator.svelte";
 import { goto, replaceState } from "$app/navigation";
 import { page } from "$app/state";
@@ -23,7 +23,8 @@ $effect(() => {
 	const hash = page.url.hash;
 	let stale = false;
 	if (rewritten !== "" && hash === rewritten) return;
-	if (hash === "" || hash === "#") {
+	// Only #1. and #/read/ are Share Links; the #main skip link must not touch the creator.
+	if (!isShareHash(hash)) {
 		status = "idle";
 		return;
 	}

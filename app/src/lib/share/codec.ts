@@ -166,16 +166,25 @@ async function decodeLegacy(encoded: string): Promise<DecodeResult> {
 }
 
 /**
- * Reads a location hash: a 2.0 Share Link (`#1.…`), a 1.x link (`#/read/<b64>`), nothing,
- * or an error. The text comes back as plain text and must only ever be rendered as text.
+ * Whether a location hash claims to be a Share Link: `#1.` or `#/read/`. Any other fragment,
+ * such as the layout's `#main` skip link, is not one and must be left alone.
+ */
+export function isShareHash(hash: string): boolean {
+	return hash.startsWith(`#${VERSION}`) || hash.startsWith(LEGACY_PREFIX);
+}
+
+/**
+ * Reads a location hash: a 2.0 Share Link (`#1.…`), a 1.x link (`#/read/<b64>`), nothing
+ * (any fragment with neither prefix), or an error. The text comes back as plain text and
+ * must only ever be rendered as text.
  */
 export async function decodeShareHash(hash: string): Promise<DecodeResult> {
 	try {
-		if (hash === "" || hash === "#") return { kind: "none" };
+		if (!isShareHash(hash)) return { kind: "none" };
 		if (hash.startsWith(LEGACY_PREFIX)) {
 			return await decodeLegacy(hash.slice(LEGACY_PREFIX.length));
 		}
-		return await decodePayload(hash.replace(/^#/, ""));
+		return await decodePayload(hash.slice(1));
 	} catch {
 		return MALFORMED;
 	}

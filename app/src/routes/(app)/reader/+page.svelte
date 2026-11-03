@@ -80,9 +80,17 @@ function onPick(event: Event) {
 		<button type="button" class="segment border-2 border-ink" onclick={() => (session = undefined)}>
 			{m.reader_new_text()}
 		</button>
+		{#if session.source === "share"}
+			<!-- Anyone can craft a Share Link, so its text is marked as not ours and waits for Play. -->
+			<p class="caption mt-s-2 text-ink-2" data-testid="shared-notice">{m.reader_shared_notice()}</p>
+		{/if}
 	</div>
 	{#await mode.view() then view}
-		<view.default timeline={session.timeline} wpm={READER_SETTINGS.wpm} />
+		<view.default
+			timeline={session.timeline}
+			wpm={READER_SETTINGS.wpm}
+			autoplay={session.source !== "share"}
+		/>
 	{/await}
 {:else}
 	<section

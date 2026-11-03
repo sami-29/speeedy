@@ -36,6 +36,7 @@
 	"reader_pause": "Pause",
 	"reader_wpm": "{wpm} WPM",
 	"reader_new_text": "New text",
+	"reader_shared_notice": "Shared text from a link. Speeedy didn't write it.",
 	"reader_stage_label": "Reading position",
 	"share_title": "Share Link.",
 	"share_lead": "Turn text into a link others can speed read. The text travels inside the link, after the #. Browsers never send that part to a server, so Speeedy never sees it.",
