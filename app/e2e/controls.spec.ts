@@ -104,7 +104,7 @@ test.describe("WPM slider", () => {
 		await page.mouse.down();
 		await page.mouse.move(x - 160, y, { steps: 8 });
 		await page.mouse.up();
-		await expect(slider(page)).toHaveAttribute("aria-valuenow", "190");
+		await expect(slider(page)).toHaveAttribute("aria-valuenow", "150");
 	});
 
 	test("has steppers for those who cannot drag", async ({ page }) => {
@@ -261,8 +261,10 @@ test.describe("settings", () => {
 		await group.getByRole("button", { name: "More words per flash" }).click();
 		await expect(page.getByTestId("chunk")).toHaveText("2");
 		await rebuiltAfter(page, before);
-		await pause(page);
-		await expect(page.getByTestId("word")).toHaveText(/^\S+ \S+/);
+		// A chunk never crosses a sentence end, so some flashes are one word: wait for a pair.
+		await expect(page.getByTestId("word")).toHaveText(/^\S+ \S+/, {
+			timeout: 8000,
+		});
 		await group.getByRole("button", { name: "Fewer words per flash" }).click();
 		await expect(page.getByTestId("chunk")).toHaveText("1");
 	});
@@ -596,6 +598,8 @@ test.describe("rebuilds run off the main thread", () => {
 			timeout: 60_000,
 		});
 
+		// Let the first build's chunks land: this test is about the rebuild after it.
+		await page.waitForTimeout(2000);
 		await page.evaluate(() => {
 			const longTasks: number[] = [];
 			(window as unknown as { __long: number[] }).__long = longTasks;

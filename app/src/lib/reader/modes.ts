@@ -1,11 +1,11 @@
 import { createRegistry } from "@speeedy/contracts";
-import type { Timeline } from "@speeedy/engine";
+import type { Engine } from "@speeedy/engine";
 import type { Component } from "svelte";
 
 /** What every Reading Mode view receives from the reader shell. */
 export type ModeProps = {
-	timeline: Timeline;
-	wpm: number;
+	/** The Engine the shell controls. The view shows its Frames and starts playing it. */
+	engine: Engine;
 };
 
 /** A mode's view is loaded on demand, so the registry carries no component code. */
@@ -19,7 +19,13 @@ readerModes.register({
 	id: "rsvp",
 	analyticsValue: "rsvp",
 	view: () => import("./RsvpView.svelte"),
-	pacingRules: ["base-wpm", "punctuation-pauses"],
+	pacingRules: ["base-wpm", "smart-speed", "punctuation-pauses", "ramp"],
 	clock: "timer",
-	settingsUsed: ["wpm"],
+	settingsUsed: [
+		"wpm",
+		"chunkSize",
+		"smartSpeed",
+		"punctuationPauses",
+		"speedRamp",
+	],
 });

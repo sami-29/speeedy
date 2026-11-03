@@ -1,29 +1,55 @@
 <script lang="ts">
-import type { Timeline } from "@speeedy/engine";
 import { onDestroy } from "svelte";
 import { m } from "#lib/paraglide/messages.js";
-import { readerModes } from "#lib/reader/modes.ts";
 import { createReaderLoader, type ReaderSource } from "#lib/reader/open.ts";
-import { READER_SETTINGS } from "#lib/reader/settings.ts";
+import ReaderShell from "#lib/reader/ReaderShell.svelte";
+import { type Reading, startReading } from "#lib/reader/reading.ts";
+import {
+	DEFAULT_READER_SETTINGS,
+	type ReaderSettings,
+} from "#lib/reader/settings.ts";
 
 const loader = createReaderLoader();
-onDestroy(() => loader.dispose());
-
-const mode = readerModes.get("rsvp");
+onDestroy(() => {
+	session?.reading.dispose();
+	loader.dispose();
+});
 
 let text = $state("");
 let error = $state("");
 let opening = $state(false);
 let dragging = $state(false);
-let session = $state.raw<{ timeline: Timeline; title: string | null }>();
+// The reader's settings last for the visit, across texts.
+let settings = $state<ReaderSettings>({ ...DEFAULT_READER_SETTINGS });
+let failed = $state(false);
+let session = $state.raw<{ reading: Reading; title: string | null }>();
 
 async function open(source: ReaderSource) {
 	error = "";
 	opening = true;
-	const result = await loader.open(source);
+	const result = await loader.open(source, settings);
 	opening = false;
-	if (result.ok) session = { timeline: result.timeline, title: result.title };
-	else error = result.message;
+	if (!result.ok) {
+		error = result.message;
+		return;
+	}
+	failed = false;
+	session = {
+		title: result.title,
+		reading: startReading({
+			timeline: result.timeline,
+			settings,
+			client: result.client,
+			onError: () => {
+				failed = true;
+			},
+		}),
+	};
+}
+
+function closeSession() {
+	session?.reading.dispose();
+	session = undefined;
 }
 
 function onSubmit(event: SubmitEvent) {
@@ -64,16 +90,16 @@ function onPick(event: Event) {
 	<title>{m.nav_reader()} - {m.site_name()}</title>
 </svelte:head>
 
-{#if session && mode}
-	<h1 class="sr-only">{session.title ?? m.reader_reading()}</h1>
-	<div class="px-gutter pt-s-2">
-		<button type="button" class="segment border-2 border-ink" onclick={() => (session = undefined)}>
-			{m.reader_new_text()}
-		</button>
-	</div>
-	{#await mode.view() then view}
-		<view.default timeline={session.timeline} wpm={READER_SETTINGS.wpm} />
-	{/await}
+{#if session}
+	{#key session.reading}
+		<ReaderShell
+			reading={session.reading}
+			title={session.title}
+			bind:settings
+			{failed}
+			onNewText={closeSession}
+		/>
+	{/key}
 {:else}
 	<section
 		class="poster pt-s-6"

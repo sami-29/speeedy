@@ -262,6 +262,42 @@
 	}
 }
 
+/* 40px square stepper beside a number: a 2px ink stroke that inverts on hover. */
+@utility stepper {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: none;
+	width: 40px;
+	height: 40px;
+	border: 2px solid var(--color-ink);
+	font-size: 1.25rem;
+	font-weight: 800;
+	line-height: 1;
+	cursor: pointer;
+
+	&:hover:not(:disabled) {
+		background: var(--color-ink);
+		color: var(--color-paper);
+	}
+
+	&:disabled {
+		border-color: var(--color-ink-3);
+		color: var(--color-ink-3);
+		cursor: default;
+	}
+}
+
+/* While the reader plays, the header drops to 35% like the rest of the reading chrome.
+   The reader sets `data-reading` on the root; hover and keyboard focus bring it back. */
+header {
+	transition: opacity 200ms var(--ease-out);
+}
+
+:root[data-reading="playing"] header:not(:hover):not(:has(:focus-visible)) {
+	opacity: 0.35;
+}
+
 /* Reduced motion has to beat every utility and component rule, hence !important. */
 @media (prefers-reduced-motion: reduce) {
 	*,

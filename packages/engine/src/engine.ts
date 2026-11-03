@@ -42,6 +42,14 @@ export type Engine = {
 	 */
 	updateSettings(patch: Partial<EngineSettings>): void;
 	/**
+	 * Install a Timeline built elsewhere, such as in a Web Worker, for the same Document.
+	 * The Cursor stays on its Position (on the Frame that holds it), a playing Engine keeps
+	 * playing from the same place inside that Frame, and nothing is emitted except
+	 * `frameShown` if the current Frame changed. `settings` are the settings the Timeline
+	 * was built with.
+	 */
+	replaceTimeline(timeline: Timeline, settings?: Partial<EngineSettings>): void;
+	/**
 	 * Rewind to the start of the current sentence, paragraph or chapter, or to the start of
 	 * the previous one when the Cursor is already on a start. Emits `seek`.
 	 */
@@ -303,6 +311,41 @@ export function createEngine(options: EngineOptions): Engine {
 			if (
 				after &&
 				(after.text !== before?.text ||
+					comparePositions(after.end, before?.end ?? after.end) !== 0)
+			) {
+				show();
+			}
+		},
+		replaceTimeline(next, nextSettings) {
+			const before = currentFrame();
+			const elapsed =
+				playing && before
+					? Math.max(
+							timeOrigin + (clock.now() - clockOrigin) - before.startMs,
+							0,
+						)
+					: 0;
+			if (nextSettings)
+				settings = resolveSettings({ ...settings, ...nextSettings });
+			timeline = next;
+			frames = next.frames;
+			startsCache.clear();
+			index = before ? frameAtPosition(frames, before.position) : 0;
+			const after = currentFrame();
+			if (playing) {
+				clockOrigin = clock.now();
+				timeOrigin = after
+					? after.startMs +
+						Math.min(elapsed, Math.max(after.durationMs - 0.001, 0))
+					: 0;
+			}
+			if (
+				after &&
+				(after.text !== before?.text ||
+					comparePositions(
+						after.position,
+						before?.position ?? after.position,
+					) !== 0 ||
 					comparePositions(after.end, before?.end ?? after.end) !== 0)
 			) {
 				show();

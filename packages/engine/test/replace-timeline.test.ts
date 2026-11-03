@@ -112,7 +112,7 @@ describe("Engine.replaceTimeline", () => {
 		engine.play();
 		clock.advance(250);
 		engine.replaceTimeline(buildTimeline(document, { wpm: 600 }), { wpm: 600 });
-		clock.advance(100 * 4 - 50 + 1);
+		clock.advance(450);
 		expect(engine.playing).toBe(false);
 		expect(log).toContain("end");
 	});

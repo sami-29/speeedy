@@ -45,6 +45,13 @@ export {
 	recentWpms,
 } from "./stats";
 export { buildTimeline, DEFAULT_SETTINGS, rebuildTimeline } from "./timeline";
+export {
+	createTimelineSession,
+	type TimelineReply,
+	type TimelineRequest,
+	type TimelineSession,
+	type TimelineSessionOptions,
+} from "./timeline-session";
 export type {
 	EngineSettings,
 	Frame,
