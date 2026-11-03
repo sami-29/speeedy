@@ -383,20 +383,22 @@ export function createLibraryStore(
 				await tx.done;
 				return { meta: existing, duplicate: true };
 			}
+			const source = input.source ?? "own";
 			const meta: DocumentMeta = {
 				id: newId(),
 				title,
 				language: input.language,
 				languageOverride: null,
 				contentHash,
-				source: input.source ?? "own",
+				source,
 				sourceUrl: input.sourceUrl ?? null,
 				position: { block: 0, offset: 0 },
 				positionChangedAt: now(),
 				progress: 0,
 				createdAt: now(),
 				lastReadAt: null,
-				deviceOnly: false,
+				// A stranger wrote a Share Link's text: Sync leaves it alone until the reader says so.
+				deviceOnly: source === "share",
 				sync: { pending: false, remoteId: null },
 			};
 			await tx.objectStore("documents").put(meta);

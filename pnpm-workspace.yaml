@@ -12,6 +12,7 @@ packages:
 minimumReleaseAge: 10080
 saveExact: true
 allowBuilds:
+  "@posthog/cli": true
   esbuild: true
   workerd: true
   # onnxruntime-web pulls it in; its postinstall only prints a version notice.

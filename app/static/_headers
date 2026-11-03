@@ -6,6 +6,8 @@ https://*.speeedy.pages.dev/*
 
 # App routes are client-only and noindex. Robots.txt must not block them: crawlers have to
 # fetch the page to see this header and the matching <meta name="robots">.
+# /s also sends no Referer: a Share Link's text lives in the fragment, which browsers already
+# strip from referrers, so this is a second guard.
 /reader
   X-Robots-Tag: noindex
 /library
@@ -16,6 +18,7 @@ https://*.speeedy.pages.dev/*
   X-Robots-Tag: noindex
 /s
   X-Robots-Tag: noindex
+  Referrer-Policy: no-referrer
 /account/*
   X-Robots-Tag: noindex
 

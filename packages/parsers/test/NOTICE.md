@@ -14,3 +14,19 @@ Some files under `fixtures/html/` are saved copies of public web pages, kept byt
 | `gutenberg-modest-proposal.html` | https://www.gutenberg.org/ebooks/1080 | A Modest Proposal by Jonathan Swift. Public domain in the USA. The Project Gutenberg licence text in the file is left in place. |
 
 Every other file under `fixtures/` was written for this repository.
+
+## DOCX fixtures
+
+Every file under `fixtures/docx/` was made for this repository with LibreOffice 24.2.7.2 (MPL-2.0 tool; its output carries no licence of the tool). The text is original. `structure.docx`, `turkish.docx`, `cyrillic.docx`, `arabic-rtl.docx` and `hebrew-rtl.docx` were converted from small hand-written HTML pages with `soffice --headless --convert-to docx`; in `structure.docx` the picture link target was shortened to `pic.png` and no image file is included. `password-protected.docx` was written by LibreOffice through its API with a document password, so it is a real ECMA-376 encrypted package (an OLE compound file holding `EncryptedPackage`); its text is "Sealed" and a one-line sentence, and the password is not needed or kept. Hostile ZIP and XML cases are built in test code (`zip.ts`, `docx-builder.ts`), not stored as files.
+
+## EPUB and ODT fixtures
+
+Every file under `fixtures/epub/` and `fixtures/odt/` was made for this repository; the text is original and no third-party book is included.
+
+- `fixtures/epub/sample.epub` is the 1,426-byte test book from Speeedy 1.x, written by hand (title "Test Book", one paragraph).
+- `calibre-epub3.epub`, `calibre-epub2.epub` and `multilingual.epub` were made with Calibre 8.12 (`ebook-convert`, `--no-default-epub-cover`) from small hand-written HTML pages. `calibre-*` hold a three-chapter story about a lamp-keeper; `multilingual.epub` holds Turkish, Russian, Arabic and Hebrew sentences.
+- `drm-aes-chapters.epub`, `font-obfuscation.epub` and `not-an-epub.zip` are synthetic, written by test code (`epub-builder.ts`, `zip.ts`). `drm-aes-chapters.epub` only imitates the shape of a DRM book: its `encryption.xml` names AES-128-CBC for the chapters and a `rights.xml` is present, but nothing in it is encrypted and no real DRM was obtained or removed. `font-obfuscation.epub` lists two dummy "font" files (plain text bytes) under the IDPF and Adobe font-obfuscation algorithms, which is not encryption of the text.
+- `fixtures/odt/structure.odt`, `turkish.odt`, `cyrillic.odt`, `arabic-rtl.odt` and `hebrew-rtl.odt` were converted from small hand-written HTML pages with LibreOffice 24.2.7.2 (`soffice --headless --convert-to odt:writer8`). The embedded thumbnail is LibreOffice's rendering of the same text. In `structure.odt` the picture is a link to a file that is not included.
+- `password-protected.odt` was written by LibreOffice through its API with a document password, so it is a real ODF encrypted package (every part except `mimetype` and the manifest is encrypted). Its text is "Sealed" and one sentence; the password is not needed or kept.
+
+Hostile ZIP, XML and OPF cases are built in test code, not stored as files.

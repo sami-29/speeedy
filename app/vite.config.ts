@@ -3,9 +3,16 @@ import adapter from "@sveltejs/adapter-static";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
+import { sourcemapPlan } from "./scripts/sourcemaps-plan.ts";
 import { staticHeaders } from "./scripts/static-headers.ts";
+import { handlePrerenderError } from "./src/lib/seo/planned.ts";
 
 export default defineConfig({
+	build: {
+		// Source maps are built only when `scripts/upload-sourcemaps.ts` will upload and then
+		// delete them, so a local or pull-request build never publishes one.
+		sourcemap: sourcemapPlan(process.env).buildSourcemap,
+	},
 	plugins: [
 		tailwindcss(),
 		// The locale lives in the URL (English has no prefix, a future locale gets `/<lang>/`)
@@ -21,6 +28,8 @@ export default defineConfig({
 			// Public routes prerender. App routes are prerendered as empty client-only shells
 			// (see src/routes/(app)); the fallback serves `/account/*`, which has no fixed list.
 			adapter: adapter({ fallback: "200.html" }),
+			// A link to a public page that a later ticket builds must not stop the build.
+			prerender: { handleHttpError: handlePrerenderError },
 			// Runes mode for our own code only. A global `runes: true` would also force
 			// node_modules, so it is set per file here and checked by `pnpm lint`.
 			dynamicCompileOptions: ({ filename }) =>

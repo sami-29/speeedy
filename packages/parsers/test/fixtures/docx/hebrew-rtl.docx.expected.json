@@ -1,0 +1,21 @@
+{
+	"outcome": "document",
+	"format": "docx",
+	"title": "שומר המגדלור",
+	"encoding": null,
+	"language": "he",
+	"blocks": 4,
+	"kinds": [
+		"heading",
+		"paragraph",
+		"heading",
+		"paragraph"
+	],
+	"spans": 2,
+	"first": "שומר המגדלור\nבכל ערב עלה השומר",
+	"last": "את המכתבים שהגיעו מירושלים קרא עד הבוקר.",
+	"words": [
+		43,
+		47
+	]
+}
