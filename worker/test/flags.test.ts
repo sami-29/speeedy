@@ -122,8 +122,14 @@ describe("a device against the Worker", () => {
 	});
 
 	/** Every request the device makes goes through here and is written down in full. */
-	async function toWorker(url: string, init?: RequestInit): Promise<Response> {
-		const request = new Request(new URL(url, "https://speeedy.app"), init);
+	async function toWorker(
+		url: string | URL | Request,
+		init?: RequestInit,
+	): Promise<Response> {
+		const request = new Request(
+			new URL(String(url), "https://speeedy.app"),
+			init,
+		);
 		seen.push(
 			JSON.stringify({
 				url: request.url,
