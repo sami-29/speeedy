@@ -1,6 +1,8 @@
 import {
 	type Analytics,
+	type ClientEventName,
 	createAnalytics,
+	type EventProps,
 	type Flags,
 	injectedFlagConfig,
 	loadFlags,
@@ -30,4 +32,12 @@ export const appFlags = (): Promise<Flags> => start().then((t) => t.flags);
 /** Queues a `$pageview` for a path. Only the route pattern leaves the page. */
 export function trackPageview(pathname: string): void {
 	void start().then((t) => t.analytics.trackPageview(pathname));
+}
+
+/** Queues a registered event. Properties are enums and bounded numbers, checked by the registry. */
+export function trackEvent<N extends ClientEventName>(
+	event: N,
+	props: EventProps<N>,
+): void {
+	void start().then((t) => t.analytics.track(event, props));
 }

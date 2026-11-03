@@ -7,6 +7,7 @@
  * cases are all derived from `EVENTS`, so a new event cannot leak data by accident.
  */
 
+import { GOAL_MINUTES_BUCKETS, STREAK_DAYS_BUCKETS } from "./daily-goal.ts";
 import {
 	experimentProps,
 	FLAGS,
@@ -107,6 +108,17 @@ const DECLARED_EVENTS = {
 					"other",
 				],
 			},
+		},
+	},
+	daily_goal_met: {
+		origin: "client",
+		kind: "product",
+		schemaVersion: 1,
+		description:
+			"A reader's reading for the day reached their Daily Goal. Carries the goal and the Streak as buckets only, never exact numbers, a date or any text.",
+		props: {
+			goal_minutes: { kind: "enum", values: GOAL_MINUTES_BUCKETS },
+			streak_days: { kind: "enum", values: STREAK_DAYS_BUCKETS },
 		},
 	},
 	checkout_started: {

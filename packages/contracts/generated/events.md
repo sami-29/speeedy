@@ -38,6 +38,18 @@ Sent by: the app. Schema version 1.
 | `reads` | one of `articles`, `books`, `papers`, `documents`, `fiction`, `news`, `other` | no |
 | `exp_pipeline_check` | one of `off`, `on` | no |
 
+## `daily_goal_met`
+
+A reader's reading for the day reached their Daily Goal. Carries the goal and the Streak as buckets only, never exact numbers, a date or any text.
+
+Sent by: the app. Schema version 1.
+
+| Property | Value | Required |
+| --- | --- | --- |
+| `goal_minutes` | one of `1-5`, `6-10`, `11-20`, `21-30`, `31-60`, `61-plus` | yes |
+| `streak_days` | one of `1`, `2-3`, `4-7`, `8-14`, `15-30`, `31-plus` | yes |
+| `exp_pipeline_check` | one of `off`, `on` | no |
+
 ## `checkout_started`
 
 The Worker opened a hosted checkout for the Plus plan. Carries the billing interval only.
