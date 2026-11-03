@@ -46,3 +46,9 @@ worker/worker-configuration.d.ts
 
 # build output of workspace packages
 packages/*/dist
+
+# app build output and generated files
+app/build
+app/.svelte-kit
+app/src/lib/paraglide
+app/playwright-report

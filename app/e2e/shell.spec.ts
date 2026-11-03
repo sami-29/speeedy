@@ -21,19 +21,27 @@ test.describe("landing /", () => {
 
 	test("carries the Swiss Reading Poster tokens", async ({ page }) => {
 		await page.goto("/");
+		// Tailwind minifies hex values (#111111 becomes #111), so resolve each token to rgb.
 		const tokens = await page.evaluate(() => {
-			const style = getComputedStyle(document.documentElement);
+			const resolve = (name: string) => {
+				const probe = document.createElement("i");
+				probe.style.color = `var(${name})`;
+				document.body.append(probe);
+				const color = getComputedStyle(probe).color;
+				probe.remove();
+				return color;
+			};
 			return {
-				paper: style.getPropertyValue("--color-paper").trim(),
-				red: style.getPropertyValue("--color-red").trim(),
-				ink: style.getPropertyValue("--color-ink").trim(),
+				paper: resolve("--color-paper"),
+				red: resolve("--color-red"),
+				ink: resolve("--color-ink"),
 				bodyBackground: getComputedStyle(document.body).backgroundColor,
 				bodyColor: getComputedStyle(document.body).color,
 			};
 		});
-		expect(tokens.paper).toBe("#eff1f1");
-		expect(tokens.red).toBe("#d12d16");
-		expect(tokens.ink).toBe("#111111");
+		expect(tokens.paper).toBe("rgb(239, 241, 241)");
+		expect(tokens.red).toBe("rgb(209, 45, 22)");
+		expect(tokens.ink).toBe("rgb(17, 17, 17)");
 		expect(tokens.bodyBackground).toBe("rgb(239, 241, 241)");
 		expect(tokens.bodyColor).toBe("rgb(17, 17, 17)");
 	});
@@ -58,9 +66,9 @@ test.describe("landing /", () => {
 		page.on("request", (r) => requests.push(r.url()));
 		await page.goto("/");
 		await page.evaluate(() => document.fonts.ready);
-		expect(
-			await page.evaluate(() => document.fonts.check("1em Archivo")),
-		).toBe(true);
+		expect(await page.evaluate(() => document.fonts.check("1em Archivo"))).toBe(
+			true,
+		);
 		expect(requests.some((u) => u.endsWith("/fonts/archivo-wdth.woff2"))).toBe(
 			true,
 		);
@@ -70,9 +78,8 @@ test.describe("landing /", () => {
 		const variations = await page.evaluate(() => ({
 			headline: getComputedStyle(document.querySelector("h1") as Element)
 				.fontVariationSettings,
-			numeral: getComputedStyle(
-				document.querySelector(".numeral") as Element,
-			).fontVariationSettings,
+			numeral: getComputedStyle(document.querySelector(".numeral") as Element)
+				.fontVariationSettings,
 		}));
 		expect(variations.headline).toContain('"wdth" 82');
 		expect(variations.numeral).toContain('"wdth" 112');
@@ -82,12 +89,14 @@ test.describe("landing /", () => {
 		await page.emulateMedia({ reducedMotion: "no-preference" });
 		await page.goto("/");
 		const animated = await page.evaluate(
-			() => getComputedStyle(document.querySelector("h1") as Element).animationName,
+			() =>
+				getComputedStyle(document.querySelector("h1") as Element).animationName,
 		);
 		expect(animated).not.toBe("none");
 		await page.emulateMedia({ reducedMotion: "reduce" });
 		const still = await page.evaluate(
-			() => getComputedStyle(document.querySelector("h1") as Element).animationName,
+			() =>
+				getComputedStyle(document.querySelector("h1") as Element).animationName,
 		);
 		expect(still).toBe("none");
 	});
@@ -101,7 +110,9 @@ test.describe("landing /", () => {
 			await page.evaluate(() => document.documentElement.dataset.theme),
 		).not.toBe("night");
 		expect(
-			await page.evaluate(() => getComputedStyle(document.body).backgroundColor),
+			await page.evaluate(
+				() => getComputedStyle(document.body).backgroundColor,
+			),
 		).toBe("rgb(239, 241, 241)");
 	});
 

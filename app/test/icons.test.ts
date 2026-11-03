@@ -28,11 +28,23 @@ describe("icon set", () => {
 	});
 
 	it("gives the Android foreground and monochrome layers a transparent background", async () => {
-		expect((await pixel("brand/generated/android/adaptive-foreground-432.png", 2, 2))[3]).toBe(0);
-		expect((await pixel("brand/generated/android/adaptive-monochrome-432.png", 2, 2))[3]).toBe(0);
+		expect(
+			(
+				await pixel("brand/generated/android/adaptive-foreground-432.png", 2, 2)
+			)[3],
+		).toBe(0);
+		expect(
+			(
+				await pixel("brand/generated/android/adaptive-monochrome-432.png", 2, 2)
+			)[3],
+		).toBe(0);
 	});
 
 	it("fills the Android background layer", async () => {
-		expect((await pixel("brand/generated/android/adaptive-background-432.png", 2, 2))[3]).toBe(255);
+		expect(
+			(
+				await pixel("brand/generated/android/adaptive-background-432.png", 2, 2)
+			)[3],
+		).toBe(255);
 	});
 });

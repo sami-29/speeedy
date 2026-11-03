@@ -207,10 +207,7 @@ describe("mark masters and raster set", () => {
 	it("has a reproducible generator script wired to a package script", () => {
 		assert.ok(has("app/scripts/generate-icons.ts"));
 		assert.match(pkg().scripts.icons ?? "", /generate-icons/);
-		assert.match(
-			pkg().scripts["icons:check"] ?? "",
-			/generate-icons.*--check/,
-		);
+		assert.match(pkg().scripts["icons:check"] ?? "", /generate-icons.*--check/);
 	});
 
 	const sizes: Record<string, number[]> = {

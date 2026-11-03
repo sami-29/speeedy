@@ -17,7 +17,7 @@ describe("runes lint", () => {
 		"reactive statements": `<script>let a = 1; let b; $: b = a * 2;</script><p>{b}</p>`,
 		"on: event directives": `<script>let n = 0;</script><button on:click={() => n++}>{n}</button>`,
 		"slot elements": `<div><slot /></div>`,
-		"createEventDispatcher": `<script>import { createEventDispatcher } from 'svelte'; const d = createEventDispatcher();</script><p>x</p>`,
+		createEventDispatcher: `<script>import { createEventDispatcher } from 'svelte'; const d = createEventDispatcher();</script><p>x</p>`,
 		"svelte:component": `<script>let C;</script><svelte:component this={C} />`,
 	};
 	for (const [name, source] of Object.entries(svelte4)) {
