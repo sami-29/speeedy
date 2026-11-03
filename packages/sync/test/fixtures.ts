@@ -139,7 +139,9 @@ export function applyWrites(
 				break;
 			case "rekey-document":
 				docs((all) =>
-					all.map((doc) => (doc.id === write.from ? { ...doc, id: write.to } : doc)),
+					all.map((doc) =>
+						doc.id === write.from ? { ...doc, id: write.to } : doc,
+					),
 				);
 				break;
 			case "remove-document":

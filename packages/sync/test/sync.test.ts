@@ -576,12 +576,19 @@ describe("First sync", () => {
 		const result = synced({
 			device: device({ generation: null }),
 			server: server({
-				documents: [serverDoc("old", read(1, 1_000)), serverDoc("new", read(1, 5_000))],
+				documents: [
+					serverDoc("old", read(1, 1_000)),
+					serverDoc("new", read(1, 5_000)),
+				],
 				sessions: [session("s", { documentId: "old" })],
 				settings: { libraryLineHidden: { value: true, changedAt: 3 } },
 			}),
 		});
-		expect(writesOf(result, "add-document").map((each) => each.document.id).sort()).toEqual(["new", "old"]);
+		expect(
+			writesOf(result, "add-document")
+				.map((each) => each.document.id)
+				.sort(),
+		).toEqual(["new", "old"]);
 		expect(result.downloads).toEqual(["new", "old"]);
 		expect(result.device.sessions).toEqual([
 			session("s", { documentId: "old" }),

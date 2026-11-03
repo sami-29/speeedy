@@ -9,6 +9,7 @@
  */
 
 import {
+	type Block,
 	blockText,
 	clampPosition,
 	type Document,
@@ -17,6 +18,7 @@ import {
 	validateDocument,
 } from "@speeedy/contracts";
 import type { SessionRecord } from "@speeedy/engine";
+import { pickLatest } from "@speeedy/sync";
 import { type DBSchema, type IDBPDatabase, openDB } from "idb";
 
 /** Bump with a new `upgrade` step whenever a table changes shape. */
@@ -27,20 +29,32 @@ export const LIBRARY_DB_NAME = "speeedy-library";
 /** Where a document came from. Session analytics report it as an enum. */
 export type DocumentSource = "own" | "demo" | "share";
 
+/**
+ * A document's record. Each field the reader can change has its own change time, so Sync
+ * merges each one by last-write-wins (`@speeedy/sync`); a time of 0 means never changed.
+ */
 export type DocumentMeta = {
 	id: string;
 	title: string;
+	titleChangedAt: number;
 	/** The language the parser detected: a BCP 47 tag, `und` when unknown. */
 	language: string;
 	/** The reader's own choice, which wins over `language`. */
 	languageOverride: string | null;
-	/** SHA-256 of the text, used to deduplicate. */
+	languageOverrideChangedAt: number;
+	/**
+	 * SHA-256 of the text and its structure (each block's kind, heading level and list
+	 * depth), used to deduplicate here and to merge same-text documents across devices.
+	 */
 	contentHash: string;
 	source: DocumentSource;
 	/** Where the page came from. It never leaves this device. */
 	sourceUrl: string | null;
 	position: Position;
-	/** When `position` last changed, for Sync's last-write-wins. */
+	/**
+	 * When `position` was last read, on whichever device read it. 0 until it is first read,
+	 * so a fresh copy never beats a real read elsewhere.
+	 */
 	positionChangedAt: number;
 	/** The share of the text before `position`, 0 to 1. */
 	progress: number;
@@ -48,6 +62,7 @@ export type DocumentMeta = {
 	lastReadAt: number | null;
 	/** Kept off Sync on the reader's say-so. */
 	deviceOnly: boolean;
+	deviceOnlyChangedAt: number;
 	sync: { pending: boolean; remoteId: string | null };
 };
 
@@ -167,6 +182,14 @@ export type LibraryStore = {
 	): Promise<DocumentMeta>;
 	savePosition(id: string, position: Position, progress: number): Promise<void>;
 	setDeviceOnly(id: string, deviceOnly: boolean): Promise<DocumentMeta>;
+	/**
+	 * Take a Position Sync brought from another device, with that device's read time, when it
+	 * is the later one. True when it was taken.
+	 */
+	applyRemotePosition(
+		id: string,
+		remote: Pick<DocumentMeta, "position" | "progress" | "positionChangedAt">,
+	): Promise<boolean>;
 	deleteDocument(id: string): Promise<RemovedDocument>;
 	/** Undo a delete. False when the same text has been added again since. */
 	restoreDocument(removed: RemovedDocument): Promise<boolean>;
@@ -224,9 +247,11 @@ function isMeta(value: unknown): value is DocumentMeta {
 	return (
 		typeof value.id === "string" &&
 		typeof value.title === "string" &&
+		isNumber(value.titleChangedAt) &&
 		typeof value.language === "string" &&
 		(value.languageOverride === null ||
 			typeof value.languageOverride === "string") &&
+		isNumber(value.languageOverrideChangedAt) &&
 		typeof value.contentHash === "string" &&
 		(value.source === "own" ||
 			value.source === "demo" ||
@@ -238,12 +263,29 @@ function isMeta(value: unknown): value is DocumentMeta {
 		isNumber(value.createdAt) &&
 		(value.lastReadAt === null || isNumber(value.lastReadAt)) &&
 		typeof value.deviceOnly === "boolean" &&
+		isNumber(value.deviceOnlyChangedAt) &&
 		isRecord(value.sync)
 	);
 }
 
+/**
+ * What the content hash covers: each block's kind, heading level, list depth and order, and
+ * text. Emphasis and image sizes are left out, so a re-parse that only restyles the same
+ * text still matches.
+ */
+function hashedStructure(block: Block): unknown[] {
+	switch (block.kind) {
+		case "heading":
+			return [block.kind, block.level, block.text];
+		case "list-item":
+			return [block.kind, block.depth, block.ordered, block.text];
+		default:
+			return [block.kind, blockText(block)];
+	}
+}
+
 async function hashDocument(document: Document): Promise<string> {
-	const text = document.blocks.map(blockText).join("\n\n");
+	const text = JSON.stringify(document.blocks.map(hashedStructure));
 	const digest = await crypto.subtle.digest(
 		"SHA-256",
 		new TextEncoder().encode(text),
@@ -377,7 +419,8 @@ export function createLibraryStore(
 			throw new LibraryError("not-found", "No such document.");
 		}
 		const next = change(meta);
-		await tx.store.put(next);
+		// A change that keeps the record as it is writes nothing.
+		if (next !== meta) await tx.store.put(next);
 		await tx.done;
 		return next;
 	};
@@ -409,18 +452,21 @@ export function createLibraryStore(
 			const meta: DocumentMeta = {
 				id: newId(),
 				title,
+				titleChangedAt: 0,
 				language: input.language,
 				languageOverride: null,
+				languageOverrideChangedAt: 0,
 				contentHash,
 				source,
 				sourceUrl: input.sourceUrl ?? null,
 				position: { block: 0, offset: 0 },
-				positionChangedAt: now(),
+				positionChangedAt: 0,
 				progress: 0,
 				createdAt: now(),
 				lastReadAt: null,
 				// A stranger wrote a Share Link's text: Sync leaves it alone until the reader says so.
 				deviceOnly: source === "share",
+				deviceOnlyChangedAt: 0,
 				sync: { pending: false, remoteId: null },
 			};
 			await tx.objectStore("documents").put(meta);
@@ -475,12 +521,22 @@ export function createLibraryStore(
 			if (trimmed === "") {
 				throw new LibraryError("invalid-title", "A document needs a title.");
 			}
-			return update(id, (meta) => ({ ...meta, title: trimmed }));
+			const at = now();
+			return update(id, (meta) => ({
+				...meta,
+				title: trimmed,
+				titleChangedAt: at,
+			}));
 		},
 
 		async setLanguageOverride(id, language) {
 			if (language !== null) checkLanguage(language);
-			return update(id, (meta) => ({ ...meta, languageOverride: language }));
+			const at = now();
+			return update(id, (meta) => ({
+				...meta,
+				languageOverride: language,
+				languageOverrideChangedAt: at,
+			}));
 		},
 
 		async savePosition(id, position, progress) {
@@ -498,7 +554,46 @@ export function createLibraryStore(
 		},
 
 		async setDeviceOnly(id, deviceOnly) {
-			return update(id, (meta) => ({ ...meta, deviceOnly }));
+			const at = now();
+			return update(id, (meta) => ({
+				...meta,
+				deviceOnly,
+				deviceOnlyChangedAt: at,
+			}));
+		},
+
+		async applyRemotePosition(id, remote) {
+			const { position, progress, positionChangedAt } = remote;
+			if (
+				!isPosition(position) ||
+				!isNumber(progress) ||
+				progress < 0 ||
+				progress > 1 ||
+				!isNumber(positionChangedAt)
+			) {
+				throw new LibraryError("invalid-argument", "Not a Position.");
+			}
+			const theirs = { position, progress };
+			let taken = false;
+			await update(id, (meta) => {
+				const kept = pickLatest(
+					{
+						value: { position: meta.position, progress: meta.progress },
+						at: meta.positionChangedAt,
+					},
+					{ value: theirs, at: positionChangedAt },
+				);
+				if (kept.value !== theirs) return meta;
+				taken = true;
+				return {
+					...meta,
+					position,
+					progress,
+					positionChangedAt,
+					lastReadAt: Math.max(meta.lastReadAt ?? 0, positionChangedAt),
+				};
+			});
+			return taken;
 		},
 
 		async deleteDocument(id) {

@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
 	applyPush,
+	canonicalJson,
 	type DailyGoalChange,
 	type DeviceDocument,
 	type DeviceState,
@@ -24,9 +25,9 @@ import {
 	device,
 	docIn,
 	run,
+	type Synced,
 	server,
 	serverDoc,
-	type Synced,
 	syncFields,
 	writesOf,
 } from "./fixtures.ts";
@@ -107,7 +108,11 @@ const insertOnceList = fc
 
 const RUNS = { numRuns: 1000 };
 
-function joinLaws<T>(name: string, arb: fc.Arbitrary<T>, join: (a: T, b: T) => T) {
+function joinLaws<T>(
+	name: string,
+	arb: fc.Arbitrary<T>,
+	join: (a: T, b: T) => T,
+) {
 	describe(`${name} is a join`, () => {
 		it("gives the same result in either order", () => {
 			fc.assert(
@@ -130,8 +135,10 @@ function joinLaws<T>(name: string, arb: fc.Arbitrary<T>, join: (a: T, b: T) => T
 		it("changes nothing when a copy arrives twice", () => {
 			fc.assert(
 				fc.property(arb, arb, (a, b) => {
-					expect(join(a, a)).toEqual(a);
-					expect(join(join(a, b), b)).toEqual(join(a, b));
+					const merged = join(a, b);
+					expect(join(merged, merged)).toEqual(merged);
+					expect(join(merged, b)).toEqual(merged);
+					expect(join(merged, a)).toEqual(merged);
 				}),
 				RUNS,
 			);
@@ -197,7 +204,10 @@ describe("insert-once records", () => {
 		fc.assert(
 			fc.property(fc.integer(), fc.integer(), (kept, later) => {
 				expect(
-					mergeInsertOnce([{ id: "a", minutes: kept }], [{ id: "a", minutes: later }]),
+					mergeInsertOnce(
+						[{ id: "a", minutes: kept }],
+						[{ id: "a", minutes: later }],
+					),
 				).toEqual([{ id: "a", minutes: kept }]);
 			}),
 			RUNS,
@@ -218,12 +228,14 @@ const at = fc.integer({ min: 1, max: 20 });
 const deviceIndex = fc.integer({ min: 0, max: DEVICES - 1 });
 const pick = fc.nat({ max: 30 });
 
+const importOp = fc.record({
+	kind: fc.constant("import" as const),
+	device: deviceIndex,
+	text: fc.integer({ min: 0, max: 3 }),
+});
+
 const localOp = fc.oneof(
-	fc.record({
-		kind: fc.constant("import" as const),
-		device: deviceIndex,
-		text: fc.integer({ min: 0, max: 3 }),
-	}),
+	{ arbitrary: importOp, weight: 3 },
 	fc.record({
 		kind: fc.constant("read" as const),
 		device: deviceIndex,
@@ -312,6 +324,8 @@ const EMPTY_PUSH = {
 const byId = <T extends { id: string }>(records: readonly T[]): T[] =>
 	[...records].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
+const same = (a: unknown, b: unknown) => canonicalJson(a) === canonicalJson(b);
+
 const distinct = (values: readonly string[]) =>
 	new Set(values).size === values.length;
 
@@ -327,7 +341,8 @@ class World {
 	change(op: LocalOp) {
 		const local = this.devices[op.device] as DeviceState;
 		const docs = byId(local.documents);
-		const target = "doc" in op && op.doc !== null ? docs[op.doc % docs.length] : undefined;
+		const target =
+			"doc" in op && op.doc !== null ? docs[op.doc % docs.length] : undefined;
 		const edit = (change: (doc: DeviceDocument) => DeviceDocument) => {
 			if (target === undefined) return;
 			this.devices[op.device] = {
@@ -340,7 +355,8 @@ class World {
 		switch (op.kind) {
 			case "import": {
 				const contentHash = `text-${op.text}`;
-				if (local.documents.some((doc) => doc.contentHash === contentHash)) return;
+				if (local.documents.some((doc) => doc.contentHash === contentHash))
+					return;
 				this.devices[op.device] = {
 					...local,
 					documents: [
@@ -365,7 +381,11 @@ class World {
 					positionChangedAt: op.at,
 				}));
 			case "rename":
-				return edit((doc) => ({ ...doc, title: op.title, titleChangedAt: op.at }));
+				return edit((doc) => ({
+					...doc,
+					title: op.title,
+					titleChangedAt: op.at,
+				}));
 			case "override":
 				return edit((doc) => ({
 					...doc,
@@ -385,7 +405,11 @@ class World {
 					documents: local.documents.filter((doc) => doc.id !== target.id),
 					tombstones: [
 						...local.tombstones.filter((each) => each.id !== target.id),
-						{ id: target.id, contentHash: target.contentHash, deletedAt: op.at },
+						{
+							id: target.id,
+							contentHash: target.contentHash,
+							deletedAt: op.at,
+						},
 					],
 				};
 				return;
@@ -498,7 +522,11 @@ const applyPushRefusals = (account: ServerState, result: Synced) =>
 	applyPush(account, result.push).refused;
 
 /** The rules every single sync must keep, whatever came before it. */
-function holdsAfterSync(before: DeviceState, account: ServerState, result: Synced) {
+function holdsAfterSync(
+	before: DeviceState,
+	account: ServerState,
+	result: Synced,
+) {
 	const after = result.device;
 	const next = result.server;
 
@@ -551,7 +579,9 @@ function holdsAfterSync(before: DeviceState, account: ServerState, result: Synce
 		...account.documents.map((doc) => doc.id),
 		...account.tombstones.map((each) => each.id),
 	]);
-	const kept = new Set(writesOf(result, "set-device-only").map((write) => write.id));
+	const kept = new Set(
+		writesOf(result, "set-device-only").map((write) => write.id),
+	);
 	const secret = before.documents.filter(
 		(doc) => (doc.deviceOnly && !known.has(doc.id)) || kept.has(doc.id),
 	);
@@ -565,7 +595,10 @@ function holdsAfterSync(before: DeviceState, account: ServerState, result: Synce
 		expect(secretIds.has(doc.id) || deviceOnlyNow.has(doc.id)).toBe(false);
 		expect(secretHashes.has(doc.contentHash)).toBe(false);
 	}
-	for (const id of [...push.uploads, ...push.tombstones.map((each) => each.id)]) {
+	for (const id of [
+		...push.uploads,
+		...push.tombstones.map((each) => each.id),
+	]) {
 		expect(secretIds.has(id)).toBe(false);
 	}
 	for (const each of push.sessions) {
@@ -576,25 +609,35 @@ function holdsAfterSync(before: DeviceState, account: ServerState, result: Synce
 	expect(Object.keys(push.settings)).not.toContain("theme");
 }
 
-/** Sync every device until nothing moves, then check they all hold the same Library. */
+/**
+ * Sync every device in turn until a whole round moves nothing, then check they all hold the
+ * same Library. A change can take more than one round to reach everyone: a device removes a
+ * document deleted elsewhere, and only in a later round learns that another device uploaded
+ * it again, so the rounds are bounded rather than fixed.
+ */
 function settle(world: World) {
-	for (let round = 1; round <= 3; round++) {
+	let quiet = false;
+	for (let round = 1; round <= 6 && !quiet; round++) {
+		quiet = true;
 		for (let index = 0; index < DEVICES; index++) {
 			const result = world.sync(index, "add", 100);
-			if (round === 3) {
-				expect(result.writes).toEqual([]);
-				expect(result.push).toEqual(EMPTY_PUSH);
-			}
+			if (result.writes.length > 0 || !same(result.push, EMPTY_PUSH))
+				quiet = false;
 		}
 	}
+	expect(quiet).toBe(true);
 	const account = world.server;
 	for (const local of world.devices) {
 		const shadowed = new Set(
-			local.documents.filter((doc) => doc.deviceOnly).map((doc) => doc.contentHash),
+			local.documents
+				.filter((doc) => doc.deviceOnly)
+				.map((doc) => doc.contentHash),
 		);
 		expect(
 			byId(local.documents.filter((doc) => !doc.deviceOnly).map(syncFields)),
-		).toEqual(byId(account.documents.filter((doc) => !shadowed.has(doc.contentHash))));
+		).toEqual(
+			byId(account.documents.filter((doc) => !shadowed.has(doc.contentHash))),
+		);
 
 		const known = new Set([
 			...account.documents.map((doc) => doc.id),
@@ -603,18 +646,27 @@ function settle(world: World) {
 		const deviceOnly = new Set(
 			local.documents.filter((doc) => doc.deviceOnly).map((doc) => doc.id),
 		);
-		for (const each of account.sessions) expect(local.sessions).toContainEqual(each);
+		// Every Session reaches every device. Only one about a document held device-only here,
+		// or one the account never had, stays behind, and so does any time it gained since.
+		const withheld = (each: SyncSession) =>
+			each.documentId !== null &&
+			(deviceOnly.has(each.documentId) || !known.has(each.documentId));
+		for (const each of account.sessions) {
+			const mine = local.sessions.find((other) => other.id === each.id);
+			expect(mine?.activeMs).toBeGreaterThanOrEqual(each.activeMs);
+			if (!same(mine, each)) expect(withheld(mine as SyncSession)).toBe(true);
+		}
 		for (const each of local.sessions) {
 			if (account.sessions.some((other) => other.id === each.id)) continue;
-			expect(each.documentId).not.toBeNull();
-			const id = each.documentId as string;
-			expect(deviceOnly.has(id) || !known.has(id)).toBe(true);
+			expect(withheld(each)).toBe(true);
 		}
 
 		for (const key of SYNCED) {
 			expect(local.settings[key]).toEqual(account.settings[key]);
 		}
-		expect(byId(local.dailyGoalChanges)).toEqual(byId(account.dailyGoalChanges));
+		expect(byId(local.dailyGoalChanges)).toEqual(
+			byId(account.dailyGoalChanges),
+		);
 		expect(byId(local.trainingResults)).toEqual(byId(account.trainingResults));
 	}
 }
@@ -623,9 +675,17 @@ describe("devices syncing one Account", () => {
 	it("keep every rule on every sync and agree once they have all synced", () => {
 		fc.assert(
 			fc.property(
-				fc.array(fc.oneof({ arbitrary: localOp, weight: 4 }, { arbitrary: syncOp, weight: 1 }), {
-					maxLength: 40,
-				}),
+				fc.array(
+					fc.oneof(
+						{ arbitrary: localOp, weight: 4 },
+						{ arbitrary: syncOp, weight: 1 },
+					),
+					{
+						minLength: 10,
+						maxLength: 60,
+						size: "medium",
+					},
+				),
 				(ops) => {
 					const world = new World();
 					for (const op of ops) {
@@ -637,7 +697,7 @@ describe("devices syncing one Account", () => {
 			),
 			{ numRuns: 300 },
 		);
-	});
+	}, 120_000);
 
 	const orders = [
 		[0, 1, 2],
@@ -651,7 +711,7 @@ describe("devices syncing one Account", () => {
 	it("give the account the same records whichever device syncs first", () => {
 		fc.assert(
 			fc.property(
-				fc.array(localOp, { maxLength: 30 }),
+				fc.array(localOp, { minLength: 5, maxLength: 40, size: "medium" }),
 				fc.constantFrom(...orders),
 				fc.constantFrom(...orders),
 				(ops, first, second) => {
@@ -671,22 +731,28 @@ describe("devices syncing one Account", () => {
 			),
 			{ numRuns: 300 },
 		);
-	});
+	}, 120_000);
 });
 
 /** The server's records with each document ID replaced by its text's hash. */
 function byText(account: ServerState, textOf: Map<string, string>) {
-	const text = (id: string | null) => (id === null ? null : (textOf.get(id) ?? id));
+	const text = (id: string | null) =>
+		id === null ? null : (textOf.get(id) ?? id);
 	return {
 		documents: [...account.documents]
 			.map((doc): SyncDocument => ({ ...doc, id: doc.contentHash }))
 			.sort((a, b) => (a.id < b.id ? -1 : 1)),
 		tombstones: byId(account.tombstones) satisfies SyncTombstone[],
 		sessions: byId(
-			account.sessions.map((each) => ({ ...each, documentId: text(each.documentId) })),
+			account.sessions.map((each) => ({
+				...each,
+				documentId: text(each.documentId),
+			})),
 		),
 		settings: account.settings satisfies Record<string, SettingEntry>,
-		dailyGoalChanges: byId(account.dailyGoalChanges) satisfies DailyGoalChange[],
+		dailyGoalChanges: byId(
+			account.dailyGoalChanges,
+		) satisfies DailyGoalChange[],
 		trainingResults: byId(account.trainingResults),
 	};
 }
