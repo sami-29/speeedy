@@ -1,0 +1,274 @@
+@import "tailwindcss";
+
+/* Archivo variable, self-hosted (SIL OFL 1.1, see static/fonts/OFL.txt). One file covers
+   weight 100-900 and width 62-125%, so headlines go condensed and numerals go wide. */
+@font-face {
+	font-family: "Archivo";
+	src: url("/fonts/archivo-wdth.woff2") format("woff2");
+	font-weight: 100 900;
+	font-stretch: 62% 125%;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* Swiss Reading Poster tokens from DESIGN.md. `static` keeps every variable in the output
+   even when no utility uses it, so themes and components can read them. The Tailwind default
+   palette, radii and shadows are cleared: there is no second hue and nothing floats. */
+@theme static {
+	--color-*: initial;
+	--color-paper: #eff1f1;
+	--color-paper-2: #e2e5e6;
+	--color-ink: #111111;
+	--color-ink-2: #4a4a46;
+	--color-ink-3: #5f605c;
+	--color-rule: #c3c8c9;
+	/* Vermilion marks the reading position, the primary action and focus. Nothing else. */
+	--color-red: #d12d16;
+	--color-red-ink: #b8240f;
+	--color-on-red: #fff6f2;
+
+	--color-night-paper: #111314;
+	--color-night-paper-2: #1b1e1f;
+	--color-night-ink: #ecece6;
+	--color-night-ink-2: #b9b9b2;
+	--color-night-ink-3: #8f8f88;
+	--color-night-rule: #33383a;
+	--color-night-red: #ff5a3c;
+	--color-night-red-ink: #ff7a60;
+	--color-night-on-red: #1a0703;
+
+	--font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+
+	--radius-*: initial;
+	--radius-none: 0px;
+	--shadow-*: initial;
+	--inset-shadow-*: initial;
+	--drop-shadow-*: initial;
+
+	--spacing-s-1: 8px;
+	--spacing-s-2: 16px;
+	--spacing-s-3: 24px;
+	--spacing-s-4: 40px;
+	--spacing-s-5: 64px;
+	--spacing-s-6: 104px;
+	--spacing-s-7: 168px;
+	--spacing-gutter: clamp(16px, 3.4vw, 48px);
+	--spacing-col-gap: clamp(12px, 1.7vw, 24px);
+	--spacing-axis: 35%;
+
+	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Night keeps the same colour names and swaps their values, so components never branch on
+   the theme. Paper is the default and the only theme on public pages. */
+:root[data-theme="night"] {
+	--color-paper: var(--color-night-paper);
+	--color-paper-2: var(--color-night-paper-2);
+	--color-ink: var(--color-night-ink);
+	--color-ink-2: var(--color-night-ink-2);
+	--color-ink-3: var(--color-night-ink-3);
+	--color-rule: var(--color-night-rule);
+	--color-red: var(--color-night-red);
+	--color-red-ink: var(--color-night-red-ink);
+	--color-on-red: var(--color-night-on-red);
+	color-scheme: dark;
+}
+
+@layer base {
+	html {
+		background: var(--color-paper);
+		color-scheme: light;
+		-webkit-text-size-adjust: 100%;
+	}
+
+	body {
+		background: var(--color-paper);
+		color: var(--color-ink);
+		font-family: var(--font-sans);
+		font-size: 1.125rem;
+		font-weight: 400;
+		line-height: 1.5;
+		font-feature-settings: "tnum";
+		min-height: 100vh;
+	}
+
+	::selection {
+		background: var(--color-red);
+		color: var(--color-on-red);
+	}
+
+	a {
+		text-decoration-thickness: 2px;
+		text-underline-offset: 0.2em;
+	}
+
+	a:hover {
+		color: var(--color-red-ink);
+	}
+
+	:focus-visible {
+		outline: 3px solid var(--color-red);
+		outline-offset: 3px;
+	}
+}
+
+/* Type roles. Width is a voice: condensed headlines, wide numerals, regular words. */
+@utility headline {
+	font-size: clamp(2.5rem, 1.5rem + 3.6vw, 5.5rem);
+	font-weight: 830;
+	line-height: 0.92;
+	letter-spacing: -0.025em;
+	word-spacing: 0.08em;
+	font-variation-settings: "wdth" 82;
+	text-wrap: balance;
+}
+
+@utility numeral {
+	font-size: clamp(6rem, 4rem + 6vw, 10.5rem);
+	font-weight: 820;
+	line-height: 0.78;
+	letter-spacing: -0.05em;
+	font-feature-settings: "tnum";
+	font-variation-settings: "wdth" 112;
+}
+
+@utility title {
+	font-size: 1.75rem;
+	font-weight: 820;
+	line-height: 1;
+	letter-spacing: -0.02em;
+}
+
+@utility lead {
+	font-size: clamp(1.25rem, 1.1rem + 0.5vw, 1.5rem);
+	font-weight: 500;
+	line-height: 1.35;
+	color: var(--color-ink-2);
+}
+
+@utility label {
+	font-size: 0.9375rem;
+	font-weight: 650;
+	line-height: 1.5;
+}
+
+@utility caption {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	line-height: 1.5;
+}
+
+/* Heavy rules replace cards and containers. */
+@utility rule-heavy {
+	border-top: 4px solid var(--color-ink);
+}
+
+@utility rule-2 {
+	border-top: 2px solid var(--color-ink);
+}
+
+/* The page composition: a 35% axis, headlines flush-right against it and content flush-left
+   from it. Under 860px the axis goes and everything stacks left-aligned. */
+@utility poster {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	row-gap: var(--spacing-s-3);
+	padding-inline: var(--spacing-gutter);
+
+	@media (min-width: 861px) {
+		grid-template-columns: calc(var(--spacing-axis) - var(--spacing-s-4)) minmax(
+				0,
+				880px
+			);
+		column-gap: calc(var(--spacing-s-4) * 2);
+	}
+}
+
+/* The head of a poster row sits flush-right against the axis on desktop. */
+@utility poster-head {
+	@media (min-width: 861px) {
+		text-align: right;
+	}
+}
+
+/* The 3px red reading axis, full page height, desktop only. */
+@utility poster-axis {
+	@media (min-width: 861px) {
+		position: relative;
+
+		&::before {
+			content: "";
+			position: absolute;
+			inset-block: 0;
+			left: var(--spacing-axis);
+			width: 3px;
+			background: var(--color-red);
+			pointer-events: none;
+		}
+	}
+}
+
+/* Sections slide up along the axis; RSVP words never fade or slide. Slide only, no opacity,
+   so contrast stays true while it plays. Disabled under reduced motion below. */
+@keyframes rise {
+	from {
+		transform: translateY(72px);
+	}
+	to {
+		transform: none;
+	}
+}
+
+@utility enter {
+	animation: rise 900ms var(--ease-out) both;
+}
+
+@utility button-primary {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 52px;
+	padding-inline: var(--spacing-s-3);
+	background: var(--color-red);
+	color: var(--color-on-red);
+	font-size: 1.25rem;
+	font-weight: 800;
+	letter-spacing: -0.01em;
+	text-decoration: none;
+	transition:
+		background-color 160ms var(--ease-out),
+		color 160ms var(--ease-out);
+
+	&:hover {
+		background: var(--color-ink);
+		color: var(--color-paper);
+	}
+}
+
+@utility segment {
+	min-height: 44px;
+	padding: var(--spacing-s-1) var(--spacing-s-2);
+	font-size: 0.9375rem;
+	font-weight: 750;
+	cursor: pointer;
+
+	&:hover {
+		background: var(--color-paper-2);
+	}
+
+	&[aria-pressed="true"] {
+		background: var(--color-ink);
+		color: var(--color-paper);
+	}
+}
+
+/* Reduced motion has to beat every utility and component rule, hence !important. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation: none !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}

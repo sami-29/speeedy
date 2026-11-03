@@ -1,0 +1,3 @@
+# /account/* (sign-in, delete, email change) has no fixed list of URLs, so it is not
+# prerendered. Serve the SvelteKit fallback page for it with a 200 (a rewrite, not a redirect).
+/account/* /200.html 200
