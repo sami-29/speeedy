@@ -3,10 +3,19 @@ import adapter from "@sveltejs/adapter-static";
 import { sveltekit } from "@sveltejs/kit/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
+import { trustedOriginsDefine } from "./scripts/extension-origins.ts";
 import { sourcemapPlan } from "./scripts/sourcemaps-plan.ts";
 import { handlePrerenderError } from "./src/lib/seo/planned.ts";
 
-export default defineConfig({
+// Which extension origins may send a page to the Library is fixed per build (see
+// scripts/extension-origins.ts): a production build trusts none unless SPEEEDY_EXTENSION_ORIGINS
+// lists them.
+export default defineConfig(({ command }) => ({
+	define: {
+		__SPEEEDY_EXTENSION_ORIGINS__: JSON.stringify(
+			trustedOriginsDefine(command, process.env),
+		),
+	},
 	// The parser worker loads pdf.js on demand. Only an ES module worker can split that into
 	// chunks of its own; the default format would fold all of pdf.js into the worker file, which
 	// every visit downloads.
@@ -39,4 +48,4 @@ export default defineConfig({
 				filename.includes("/node_modules/") ? undefined : { runes: true },
 		}),
 	],
-});
+}));
