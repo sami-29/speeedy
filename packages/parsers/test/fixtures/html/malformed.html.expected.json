@@ -1,0 +1,24 @@
+{
+	"outcome": "document",
+	"format": "html",
+	"title": "Malformed",
+	"encoding": "utf-8",
+	"language": "en",
+	"blocks": 10,
+	"first": "Unclosed heading\nFirst para with bold te",
+	"last": "ee cell four\nThe end of an unclosed span",
+	"words": [41, 45],
+	"kinds": [
+		"heading",
+		"paragraph",
+		"paragraph",
+		"list-item",
+		"list-item",
+		"heading",
+		"paragraph",
+		"table-text",
+		"table-text",
+		"paragraph"
+	],
+	"spans": 2
+}

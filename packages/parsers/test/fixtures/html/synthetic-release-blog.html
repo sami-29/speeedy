@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Announcing Fernleaf 2.4 and a year of the garden toolkit | Fernleaf Blog</title>
+<link rel="canonical" href="https://blog.example.org/2026/03/12/fernleaf-2-4/">
+<meta property="og:title" content="Announcing Fernleaf 2.4">
+<meta property="og:type" content="article">
+<link rel="stylesheet" href="/static/site.css">
+<script src="/static/analytics.js" async></script>
+<script>window.dataLayer = window.dataLayer || [];</script>
+<style>.cookie-banner { position: fixed; bottom: 0; }</style>
+</head>
+<body class="has-sidebar">
+<div class="cookie-banner" role="dialog"><p>We use cookies to remember your preferences and to measure how the blog is used.</p><button>Accept all</button></div>
+<header class="site-header"><a class="logo" href="/">Fernleaf</a>
+<nav><ul><li><a href="/">Home</a><li><a href="/docs">Documentation</a><li><a href="/blog">Blog</a><li><a href="/community">Community</a></ul></nav></header>
+<aside class="sidebar"><h2>Archive</h2><ul><li><a href="/2026/02/">February 2026</a><li><a href="/2026/01/">January 2026</a><li><a href="/2025/12/">December 2025</a></ul></aside>
+<div class="post">
+<figure class=hero><img src="/img/beds.jpg" alt="Raised vegetable beds in late summer" width=1200 height=630><figcaption>Raised beds in late summer. Photo: the Fernleaf team.</figcaption></figure>
+<h1>Announcing Fernleaf 2.4 and a year of the garden toolkit</h1>
+<p>Posted by <a href="/authors/mira">Mira Okafor</a> on 12 March 2026</p>
+<p>A year ago we shipped the first public release of Fernleaf, a small toolkit for planning vegetable beds. Today we are releasing version 2.4 with <a href="/docs/rotation">crop rotation</a> support and a faster planner.</p>
+<p>Thank you to everyone who filed bugs, wrote guides and shared their beds with the community. This release is for you, and we hope it makes next season a little easier.
+<h2>What is in 2.4</h2>
+<p>The planner now remembers what grew in each bed during the last three seasons. If you try to plant tomatoes where tomatoes grew last year, it will warn you and suggest a better bed.</p>
+<p>Planning a 200-bed allotment used to take several seconds. It now finishes in under half a second on a typical laptop, thanks to a rewrite of the scoring loop.
+<h2>Installing</h2>
+<p>Update with the package manager of your choice, or download the archive from the <a href="/download">download page</a>. The command below works on every platform we support.</p>
+<pre><code>$ fernleaf update --channel stable</code></pre>
+<h2>Stabilized functions</h2>
+<p>The following functions are now stable and no longer need the experimental flag:</p>
+<ul>
+<li><a href="/docs/api/Bed/rotate"><code>Bed::rotate</code></a>
+<li><a href="/docs/api/Bed/history"><code>Bed::history</code></a>
+<li><a href="/docs/api/Bed/clear_season"><code>Bed::clear_season</code></a>
+<li><a href="/docs/api/Planner/score_all"><code>Planner::score_all</code></a>
+<li><a href="/docs/api/Planner/warn_conflicts"><code>Planner::warn_conflicts</code></a>
+<li><a href="/docs/api/Planner/suggest_bed"><code>Planner::suggest_bed</code></a>
+<li><a href="/docs/api/Season/next"><code>Season::next</code></a>
+<li><a href="/docs/api/Season/previous"><code>Season::previous</code></a>
+<li><a href="/docs/api/Season/span"><code>Season::span</code></a>
+<li><a href="/docs/api/Crop/family"><code>Crop::family</code></a>
+<li><a href="/docs/api/Crop/companions"><code>Crop::companions</code></a>
+<li><a href="/docs/api/Crop/avoids"><code>Crop::avoids</code></a>
+<li><a href="/docs/api/Crop/days_to_harvest"><code>Crop::days_to_harvest</code></a>
+<li><a href="/docs/api/Plot/area"><code>Plot::area</code></a>
+<li><a href="/docs/api/Plot/split_at"><code>Plot::split_at</code></a>
+<li><a href="/docs/api/Plot/merge_with"><code>Plot::merge_with</code></a>
+<li><a href="/docs/api/Plot/into_beds"><code>Plot::into_beds</code></a>
+<li><a href="/docs/api/Garden/beds_mut"><code>Garden::beds_mut</code></a>
+<li><a href="/docs/api/Garden/export_csv"><code>Garden::export_csv</code></a>
+<li><a href="/docs/api/Garden/import_csv"><code>Garden::import_csv</code></a>
+</ul>
+<h2>A note on soil</h2>
+<blockquote><p>Good soil is not something you buy. It is something you feed, season after season, and then leave alone.</p></blockquote>
+<p>That sentence from an early user guide has stayed with the team, and it shaped how we think about the history feature: the garden remembers so you do not have to.</p>
+<pre><code>let bed = garden.bed("north-3");
+if bed.history().contains(Crop::Tomato) {
+    println!("rotate this one");
+}</code></pre>
+<h2>Contributors</h2>
+<p>Version 2.4 was made possible by forty-one contributors. You can find every name in the <a href="/thanks/2.4">thanks page</a>, and the full list of changes is in the changelog.</p>
+<p>See you in the beds.</p>
+</div>
+<div class="share"><a href="https://social.example/share?u=1">Share on Social</a> <a href="/rss.xml">Subscribe</a></div>
+<section class="comments" id="comments"><h2>Comments</h2>
+<div class="comment"><p><a href="/u/jo">Jo</a> says: Lovely release, the rotation warning already saved my beans.</p></div>
+<div class="comment"><p><a href="/u/pat">Pat</a> says: Any plans for a greenhouse mode?</p></div>
+<form action="/comment" method="post"><label>Your comment <textarea name="c"></textarea></label><button>Post</button></form></section>
+<form class="newsletter" action="/subscribe"><label>Email <input name="email"></label><button>Sign up</button></form>
+<footer><p>&copy; 2026 The Fernleaf Project. Licensed CC0.</p><ul><li><a href="/privacy">Privacy</a><li><a href="/terms">Terms</a></ul></footer>
+</body>
+</html>
