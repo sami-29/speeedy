@@ -66,8 +66,7 @@ for (const page of PAGES) {
 			)?.[1];
 			expect(description).toBeTruthy();
 			expect((description ?? "").length).toBeLessThanOrEqual(160);
-			if (page.description)
-				expect(description).toBe(htmlEscape(page.description));
+			if (page.description) expect(description).toBe(page.description);
 			expect(html).toContain(
 				`<meta property="og:title" content="${htmlEscape(page.title)}"`,
 			);

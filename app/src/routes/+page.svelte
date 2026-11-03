@@ -2,20 +2,8 @@
 import PasteBox from "#lib/PasteBox.svelte";
 import { m } from "#lib/paraglide/messages.js";
 import { localizeHref } from "#lib/paraglide/runtime.js";
-import { handOff } from "#lib/reader/handoff.ts";
-import type { ReaderSource } from "#lib/reader/open.ts";
+import { startReader } from "#lib/reader/start.ts";
 import Seo from "#lib/Seo.svelte";
-import { goto } from "$app/navigation";
-
-// The text goes to /reader through memory, not through the URL.
-function start(source: ReaderSource) {
-	handOff(
-		source.kind === "text"
-			? { text: source.text, source: "own" }
-			: { file: source.file, source: "own" },
-	);
-	void goto(localizeHref("/reader"));
-}
 </script>
 
 <Seo title={m.home_title()} description={m.home_description()} path="/" />
@@ -25,7 +13,7 @@ function start(source: ReaderSource) {
 	<div>
 		<p class="lead max-w-[30ch]">{m.home_lead()}</p>
 		<div class="mt-s-4 max-w-[40rem]">
-			<PasteBox onstart={start} />
+			<PasteBox onstart={(source) => startReader(source)} />
 		</div>
 		<p class="mt-s-5">
 			<span class="numeral block">{m.hero_speed_value()}</span>
