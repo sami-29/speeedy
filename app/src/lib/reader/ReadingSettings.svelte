@@ -9,12 +9,15 @@ import {
 let {
 	settings,
 	onchange,
+	used,
 }: {
 	settings: ReaderSettings;
 	onchange: (change: Partial<ReaderSettings>) => void;
+	/** The settings the open mode reads. Rows for the others are left out. */
+	used: readonly string[];
 } = $props();
 
-const switches = $derived([
+const all = $derived([
 	{
 		id: "smartSpeed" as const,
 		label: m.reader_smart(),
@@ -34,9 +37,13 @@ const switches = $derived([
 		checked: settings.speedRamp,
 	},
 ]);
+const switches = $derived(all.filter((item) => used.includes(item.id)));
+const chunk = $derived(used.includes("chunkSize"));
 </script>
 
+{#if chunk || switches.length > 0}
 <div role="group" aria-label={m.reader_settings_label()} class="settings">
+	{#if chunk}
 	<div class="row">
 		<span id="chunk-label" class="label">{m.reader_chunk_label()}</span>
 		<span class="steps">
@@ -59,6 +66,7 @@ const switches = $derived([
 			>
 		</span>
 	</div>
+	{/if}
 	{#each switches as item (item.id)}
 		<div class="row">
 			<label class="check label" for="setting-{item.id}">{item.label}</label>
@@ -76,6 +84,7 @@ const switches = $derived([
 		</div>
 	{/each}
 </div>
+{/if}
 
 <style>
 	.settings {

@@ -59,6 +59,50 @@ export function startIndexes(
 	return starts;
 }
 
+/** The Frames of one sentence: the first and last, as indexes. */
+export type SentenceBounds = { from: number; to: number };
+
+const endsSentence = (frame: Frame): boolean => SENTENCE_END.test(frame.text);
+
+/**
+ * The sentence the Frame at `index` is in, by the same rule as `startIndexes`: a sentence
+ * runs from a block start or the Frame after a sentence end, to the next sentence end or the
+ * end of the block. An index outside the Timeline counts as its nearest Frame. It walks only
+ * the sentence, so it is quick on any Timeline.
+ */
+export function sentenceBounds(
+	frames: readonly Frame[],
+	index: number,
+): SentenceBounds {
+	if (frames.length === 0) return { from: 0, to: 0 };
+	const at = Math.min(Math.max(index, 0), frames.length - 1);
+	let from = at;
+	while (from > 0) {
+		const previous = frames[from - 1] as Frame;
+		const current = frames[from] as Frame;
+		if (
+			previous.position.block !== current.position.block ||
+			endsSentence(previous)
+		) {
+			break;
+		}
+		from--;
+	}
+	let to = at;
+	while (to < frames.length - 1) {
+		const current = frames[to] as Frame;
+		const next = frames[to + 1] as Frame;
+		if (
+			current.position.block !== next.position.block ||
+			endsSentence(current)
+		) {
+			break;
+		}
+		to++;
+	}
+	return { from, to };
+}
+
 /**
  * The Frame to land on when going back from `index`: the start of the unit the Cursor is
  * inside, or, if it already sits on a start, the start before it. Never before Frame 0.

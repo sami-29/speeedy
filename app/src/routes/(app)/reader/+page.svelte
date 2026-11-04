@@ -51,6 +51,8 @@ let session = $state.raw<{
 	chapters: Chapter[];
 	title: string | null;
 	source: DocumentSource;
+	/** The language tag the text is read in, `und` when unknown. */
+	language: string;
 }>();
 
 /** Reading starts from the Position the Library holds, unless that was the end. */
@@ -71,6 +73,7 @@ function show(
 	document: Document,
 	title: string | null,
 	source: DocumentSource,
+	language: string,
 	kept?: { id: string },
 	startAt?: Position,
 ) {
@@ -88,6 +91,7 @@ function show(
 	session = {
 		title,
 		source,
+		language,
 		document,
 		chapters,
 		reading: startReading({
@@ -148,12 +152,13 @@ async function open(
 			result.document,
 			meta.title,
 			meta.source,
+			effectiveLanguage(meta),
 			kept,
 			startAt,
 		);
 	} catch {
 		// The Library is out of reach (private window, storage blocked): read without keeping.
-		show(result, result.document, result.title, from);
+		show(result, result.document, result.title, from, result.language);
 	}
 	opening = false;
 }
@@ -174,7 +179,15 @@ async function restore() {
 			settings,
 		);
 		if (!built || session) return;
-		show(built, document, meta.title, meta.source, { id }, startAt);
+		show(
+			built,
+			document,
+			meta.title,
+			meta.source,
+			effectiveLanguage(meta),
+			{ id },
+			startAt,
+		);
 	} catch {
 		// Nothing to resume: the start panel stays.
 	}
@@ -271,6 +284,7 @@ function onPick(event: Event) {
 			chapters={session.chapters}
 			title={session.title}
 			source={session.source}
+			language={session.language}
 			bind:settings
 			{failed}
 			onNewText={leave}

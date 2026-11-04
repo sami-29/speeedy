@@ -14,6 +14,7 @@ import {
 	type FlagName,
 	type FlagRegistry,
 } from "./flags.ts";
+import { LISTEN_LANGUAGES } from "./listen.ts";
 import { NEWSLETTER_PAGES, NEWSLETTER_TOPICS } from "./newsletter.ts";
 
 export type PropSpec = { optional?: boolean } & (
@@ -121,6 +122,14 @@ const DECLARED_EVENTS = {
 			goal_minutes: { kind: "enum", values: GOAL_MINUTES_BUCKETS },
 			streak_days: { kind: "enum", values: STREAK_DAYS_BUCKETS },
 		},
+	},
+	listen_start: {
+		origin: "client",
+		kind: "product",
+		schemaVersion: 1,
+		description:
+			"A reader started Listen on a text. Carries the text's language as one of a fixed list (`other` for the rest) and nothing else: no voice, no title, no text.",
+		props: { document_language: { kind: "enum", values: LISTEN_LANGUAGES } },
 	},
 	checkout_started: {
 		origin: "server",

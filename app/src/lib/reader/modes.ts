@@ -3,7 +3,7 @@ import {
 	createRegistry,
 	type Document,
 } from "@speeedy/contracts";
-import type { Engine } from "@speeedy/engine";
+import type { Clock, Engine } from "@speeedy/engine";
 import type { Component } from "svelte";
 
 /** What every Reading Mode view receives from the reader shell. */
@@ -14,12 +14,19 @@ export type ModeProps = {
 	doc: Document;
 	/** Start playing at once. False shows the first word and waits for Play (shared text). */
 	autoplay?: boolean;
+	/**
+	 * The Clock this mode declared. The Engine runs on it while the mode is open; a mode on
+	 * the timer Clock has no use for it, but Listen pushes the speech Clock with what it hears.
+	 */
+	clock: Clock;
+	/** BCP 47 tag of the text, `und` when it is not known. */
+	language?: string;
 };
 
 /** A mode's view is loaded on demand, so the registry carries no component code. */
 export type ModeView = () => Promise<{ default: Component<ModeProps> }>;
 
-/** The Reading Modes the reader shell can open. Listen registers here later. */
+/** The Reading Modes the reader shell can open. */
 export const readerModes = createRegistry<ModeView>();
 
 readerModes.register({
@@ -52,6 +59,17 @@ readerModes.register({
 		"punctuationPauses",
 		"speedRamp",
 	],
+});
+
+readerModes.register({
+	kind: "mode",
+	id: "listen",
+	analyticsValue: "listen",
+	view: () => import("./ListenView.svelte"),
+	// The voice sets the pace, not the reader's speed, so no pacing rule shapes its time.
+	pacingRules: [],
+	clock: "web-speech",
+	settingsUsed: ["voice", "voiceRate"],
 });
 
 /**

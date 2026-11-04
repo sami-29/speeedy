@@ -1,11 +1,33 @@
 <script lang="ts">
-import { untrack } from "svelte";
+import { type Snippet, untrack } from "svelte";
 import { m } from "#lib/paraglide/messages.js";
 import type { ModeProps } from "./modes.ts";
-import { renderPacer } from "./pacer/dom.ts";
+import { type PacerDom, renderPacer } from "./pacer/dom.ts";
 import { followCursor } from "./pacer/follow.ts";
 
-let { engine, doc, autoplay = true }: ModeProps = $props();
+/**
+ * What a mode built on this view can change. Listen marks the spoken word or sentence in
+ * place of the Cursor's Frame, names the pane for what it is, and adds its own controls.
+ */
+type Extras = {
+	/** Takes over marking the text. Returns what stops it. It runs before the Engine plays. */
+	follow?: (view: PacerDom, pane: HTMLElement) => () => void;
+	/** The pane's accessible name. */
+	label?: string;
+	testid?: string;
+	/** Controls that belong to the mode, shown under the text. */
+	below?: Snippet;
+};
+
+let {
+	engine,
+	doc,
+	autoplay = true,
+	follow,
+	label,
+	testid = "pacer",
+	below,
+}: ModeProps & Extras = $props();
 
 let pane: HTMLElement | undefined;
 let text: HTMLElement | undefined;
@@ -20,11 +42,18 @@ $effect(() => {
 	const view = renderPacer(pane, text, document, {
 		image: m.reader_pacer_image(),
 	});
-	const stop = followCursor(current, view.show);
+	const frame: HTMLElement = pane;
+	const takeOver = untrack(() => follow);
+	// What the mode's follower reads is its own business: only the Engine and the Document
+	// make this view start over.
+	const stop = takeOver
+		? untrack(() => takeOver(view, frame))
+		: followCursor(current, view.show);
 	// A change of the pane's size moves the current line: put it back in view.
 	const observer = new ResizeObserver(() => view.reveal());
 	observer.observe(pane);
-	if (untrack(() => autoplay)) current.play();
+	// Playing runs the Engine's listeners here; whatever they read must not restart the view.
+	if (untrack(() => autoplay)) untrack(() => current.play());
 	return () => {
 		current.pause();
 		observer.disconnect();
@@ -40,13 +69,16 @@ $effect(() => {
 	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 	<section
 		class="pane"
-		data-testid="pacer"
-		aria-label={m.reader_pacer_label()}
+		data-testid={testid}
+		aria-label={label ?? m.reader_pacer_label()}
 		tabindex="0"
 		bind:this={pane}
 	>
 		<div class="text" bind:this={text}></div>
 	</section>
+	{#if below}
+		<div class="below">{@render below()}</div>
+	{/if}
 </div>
 
 <style>
@@ -55,9 +87,14 @@ $effect(() => {
 	}
 
 	@media (min-width: 861px) {
-		.pane {
+		.pane,
+		.below {
 			grid-column: 2;
 		}
+	}
+
+	.below {
+		min-width: 0;
 	}
 
 	/* A heavy rule above and below frames the stretch of text, as the stage's track does. */
@@ -99,6 +136,12 @@ $effect(() => {
 
 	.text :global([data-state="now"]) {
 		box-shadow: inset 0 -4px 0 var(--color-red);
+	}
+
+	/* A voice that sends no word boundaries marks the whole sentence. A thinner rule says it
+	   is the sentence, not a word, that is being read. */
+	:global(.pane[data-granularity="sentence"] [data-state="now"]) {
+		box-shadow: inset 0 -2px 0 var(--color-red);
 	}
 
 	.text :global([data-em]) {
