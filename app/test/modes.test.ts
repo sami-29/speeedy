@@ -24,7 +24,11 @@ it("registers Pacer through the same registry, after RSVP", () => {
 		analyticsValue: "pacer",
 		clock: "timer",
 	});
-	expect(readerModes.modes().map((mode) => mode.id)).toEqual(["rsvp", "pacer"]);
+	expect(readerModes.modes().map((mode) => mode.id)).toEqual([
+		"rsvp",
+		"pacer",
+		"listen",
+	]);
 });
 
 it("drives Pacer with the timer Clock and the same pacing rules as RSVP", () => {
@@ -43,4 +47,29 @@ it("pauses the visual modes on a hidden tab, and leaves audio modes playing", ()
 		const mode = readerModes.get(id);
 		expect(mode && pausesWhenHidden(mode)).toBe(true);
 	}
+});
+
+it("registers Listen through the same registry, on the Web Speech Clock", () => {
+	const listen = readerModes.get("listen");
+	expect(listen).toMatchObject({
+		kind: "mode",
+		id: "listen",
+		analyticsValue: "listen",
+		clock: "web-speech",
+	});
+	expect(typeof listen?.view).toBe("function");
+});
+
+it("keeps Listen playing on a hidden tab", () => {
+	const listen = readerModes.get("listen");
+	expect(listen && pausesWhenHidden(listen)).toBe(false);
+});
+
+it("paces Listen by the voice: no pacing rules, and no reading speed among its settings", () => {
+	const listen = readerModes.get("listen");
+	expect(listen?.pacingRules).toEqual([]);
+	expect(listen?.settingsUsed).not.toContain("wpm");
+	expect(listen?.settingsUsed).toEqual(
+		expect.arrayContaining(["voice", "voiceRate"]),
+	);
 });
