@@ -1,0 +1,14 @@
+{
+	"extends": "$app/tsconfig/service-worker",
+	"compilerOptions": {
+		"allowImportingTsExtensions": true,
+		"erasableSyntaxOnly": true,
+		"types": ["$app/types"]
+	},
+	"include": [
+		"./*.ts",
+		"../lib/pwa/precache.ts",
+		"../lib/pwa/route.ts",
+		"../lib/pwa/worker-message.ts"
+	]
+}
