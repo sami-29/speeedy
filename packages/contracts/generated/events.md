@@ -12,7 +12,7 @@ Sent by: the app. Schema version 1.
 
 | Property | Value | Required |
 | --- | --- | --- |
-| `route` | one of `/`, `/reader`, `/library`, `/stats`, `/training`, `/s`, `/account/[page]`, `/reading-speed-test`, `/pdf-speed-reader`, `/epub-speed-reader`, `/adhd-reading-tool`, `/text-to-speech-reader`, `/spreeder-alternative`, `/learn`, `/learn/[slug]`, `/share-link`, `/support`, `/plus`, `/privacy`, `/terms`, `/changelog`, `other` | yes |
+| `route` | one of `/`, `/reader`, `/library`, `/stats`, `/training`, `/s`, `/account/[page]`, `/reading-speed-test`, `/pdf-speed-reader`, `/epub-speed-reader`, `/adhd-reading-tool`, `/text-to-speech-reader`, `/spreeder-alternative`, `/learn`, `/learn/[slug]`, `/share-link`, `/support`, `/plus`, `/privacy`, `/privacy/events`, `/terms`, `/changelog`, `other` | yes |
 | `exp_pipeline_check` | one of `off`, `on` | no |
 
 ## `feature_survey_answered`

@@ -24,4 +24,7 @@ export const PUBLIC_PAGES: PublicPage[] = [
 	{ path: "/learn/how-to-read-faster", lastmod: "2026-11-03" },
 	{ path: "/learn/what-is-rsvp", lastmod: "2026-11-03" },
 	{ path: "/learn/average-reading-speed", lastmod: "2026-11-03" },
+	{ path: "/privacy", lastmod: "2026-11-04" },
+	{ path: "/privacy/events", lastmod: "2026-11-04" },
+	{ path: "/terms", lastmod: "2026-11-04" },
 ];

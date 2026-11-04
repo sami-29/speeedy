@@ -56,6 +56,7 @@ export const ROUTES = [
 	"/support",
 	"/plus",
 	"/privacy",
+	"/privacy/events",
 	"/terms",
 	"/changelog",
 	"other",
