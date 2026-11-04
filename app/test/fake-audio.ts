@@ -83,11 +83,13 @@ export class FakeGain extends FakeNode {
 
 export class FakeBuffer {
 	data: Float32Array;
-	constructor(
-		readonly channels: number,
-		readonly length: number,
-		readonly sampleRate: number,
-	) {
+	channels: number;
+	length: number;
+	sampleRate: number;
+	constructor(channels: number, length: number, sampleRate: number) {
+		this.channels = channels;
+		this.length = length;
+		this.sampleRate = sampleRate;
 		this.data = new Float32Array(length);
 	}
 	getChannelData() {
@@ -185,12 +187,13 @@ export class FakeContext implements AudioContextLike {
 }
 
 /** Contexts a system made, newest last. */
-export function fakeContexts() {
+export function fakeContexts(blocked = false) {
 	const made: FakeContext[] = [];
 	return {
 		made,
 		create: () => {
 			const context = new FakeContext();
+			context.blocked = blocked;
 			made.push(context);
 			return context;
 		},

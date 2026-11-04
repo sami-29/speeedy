@@ -2,6 +2,8 @@
 import { baseLanguage, listenLanguage } from "@speeedy/contracts";
 import type { SpeechClock } from "@speeedy/engine";
 import { onDestroy, untrack } from "svelte";
+import { audio } from "#lib/audio/instance.ts";
+import { gainFor } from "#lib/audio/system.ts";
 import { languageName } from "#lib/library/languages.ts";
 import { m } from "#lib/paraglide/messages.js";
 import { trackEvent } from "#lib/telemetry.ts";
@@ -26,7 +28,11 @@ let { engine, doc, autoplay = true, clock, language }: ModeProps = $props();
 /** A drag along the progress bar speaks once it has stopped for this long. */
 const SEEK_SETTLE_MS = 150;
 
-const speech = browserSpeech();
+// The browser's voice cannot be routed through Web Audio, so the voice volume is set on each
+// sentence instead. Ducking of the ambient bed follows the Engine's play and pause.
+const speech = browserSpeech(window, () =>
+	gainFor(audio().prefs.volumes.voice),
+);
 const storage = listenStorage();
 
 let prefs = $state<ListenPrefs>(loadPrefs(storage));

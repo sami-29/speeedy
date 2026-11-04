@@ -13,6 +13,7 @@ import {
 import {
 	type FakeContext,
 	type FakeGain,
+	type FakeNode,
 	fakeContexts,
 	memoryStorage,
 } from "./fake-audio.ts";
@@ -22,9 +23,11 @@ function setup(
 		storage?: ReturnType<typeof memoryStorage>;
 		/** Whether the page has had a user gesture yet. */
 		active?: boolean;
+		/** The browser holds every new context back until a gesture. */
+		blocked?: boolean;
 	} = {},
 ) {
-	const contexts = fakeContexts();
+	const contexts = fakeContexts(options.blocked);
 	const storage = options.storage ?? memoryStorage();
 	const system = createAudioSystem({
 		createContext: contexts.create,
@@ -40,7 +43,7 @@ const gainOf = (node: unknown) => (node as FakeGain).gain;
 function buses(system: AudioSystem) {
 	const found = system.buses;
 	if (!found) throw new Error("the system has no context yet");
-	return found;
+	return found as unknown as Record<"voice" | "ambient" | "cue", FakeNode>;
 }
 
 /** The nodes a noise source runs through: its fade, the duck, and the ambient bus. */
@@ -96,12 +99,11 @@ describe("AudioSystem: one context, started by a gesture", () => {
 	});
 
 	it("reports a browser that holds the context back, and starts it on the next try", async () => {
-		const { system, contexts } = setup();
-		const first = system.unlock();
-		contexts.last.blocked = true;
-		expect(await first).toBe(false);
+		const { system, contexts } = setup({ blocked: true });
+		expect(await system.unlock()).toBe(false);
 		expect(system.state).toBe("suspended");
-		contexts.last.blocked = false;
+		const [context] = contexts.made;
+		if (context) context.blocked = false;
 		expect(await system.unlock()).toBe(true);
 		expect(contexts.made).toHaveLength(1);
 		expect(system.state).toBe("running");
@@ -328,7 +330,7 @@ describe("AudioSystem: ambient noise", () => {
 		system.setAmbient("pink");
 		expect(contexts.last.buffers).toHaveLength(2);
 		expect(contexts.last.sources[0]?.buffer).toBe(
-			contexts.last.sources[2]?.buffer,
+			contexts.last.sources[3]?.buffer,
 		);
 	});
 

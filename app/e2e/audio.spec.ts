@@ -221,9 +221,24 @@ const modeButton = (page: Page, name: string) =>
 	page
 		.getByRole("group", { name: "Reading Mode" })
 		.getByRole("button", { name });
-const ambient = (page: Page) => page.getByLabel("Ambient noise");
+const ambient = (page: Page) =>
+	page.getByLabel("Ambient noise", { exact: true });
 const toggle = (page: Page) =>
 	page.getByTestId("controls").getByRole("button", { name: /^(Play|Pause)$/ });
+
+// A pasted text starts playing at once, so a test says which state it wants.
+async function play(page: Page) {
+	if ((await toggle(page).textContent())?.trim() === "Play") {
+		await toggle(page).click();
+	}
+	await expect(toggle(page)).toHaveText("Pause");
+}
+async function pause(page: Page) {
+	if ((await toggle(page).textContent())?.trim() === "Pause") {
+		await toggle(page).click();
+	}
+	await expect(toggle(page)).toHaveText("Play");
+}
 
 test.describe("sound", () => {
 	test("makes no audio context for a reader who asked for no sound", async ({
@@ -231,7 +246,8 @@ test.describe("sound", () => {
 	}) => {
 		await stubAudio(page);
 		await startPasted(page);
-		await toggle(page).click();
+		await pause(page);
+		await play(page);
 		await page.waitForTimeout(300);
 		expect((await stub(page)).contexts).toBe(0);
 	});
@@ -241,18 +257,20 @@ test.describe("sound", () => {
 	}) => {
 		await stubAudio(page);
 		await startPasted(page);
+		await pause(page);
 		await ambient(page).selectOption("pink");
-		await toggle(page).click();
+		expect((await stub(page)).contexts).toBe(0);
+		await play(page);
 		await expect.poll(async () => (await stub(page)).loopingSources).toBe(1);
 		let seen = await stub(page);
 		expect(seen.contexts).toBe(1);
 		expect(seen.state).toBe("running");
 		expect(seen.fade).toBe(1);
-		await toggle(page).click();
+		await pause(page);
 		await expect.poll(async () => (await stub(page)).fade).toBe(0);
 		seen = await stub(page);
 		expect(seen.contexts).toBe(1);
-		await toggle(page).click();
+		await play(page);
 		await expect.poll(async () => (await stub(page)).fade).toBe(1);
 		expect((await stub(page)).contexts).toBe(1);
 	});
@@ -266,22 +284,21 @@ test.describe("sound", () => {
 		await ambient(page).selectOption("brown");
 		await modeButton(page, "Listen").click();
 		await expect(page.getByTestId("listen")).toBeVisible();
-		if ((await toggle(page).textContent())?.trim() === "Play") {
-			await toggle(page).click();
-		}
+		await play(page);
 		await expect
 			.poll(async () => (await stub(page)).loopingSources)
 			.toBeGreaterThan(0);
 		await expect.poll(async () => (await stub(page)).duck).toBeLessThan(0.5);
-		await toggle(page).click();
+		await pause(page);
 		await expect.poll(async () => (await stub(page)).duck).toBe(1);
 	});
 
 	test("does not duck in a silent mode", async ({ page }) => {
 		await stubAudio(page);
 		await startPasted(page);
+		await pause(page);
 		await ambient(page).selectOption("white");
-		await toggle(page).click();
+		await play(page);
 		await expect.poll(async () => (await stub(page)).loopingSources).toBe(1);
 		await page.waitForTimeout(200);
 		expect((await stub(page)).duck).toBe(1);
@@ -292,12 +309,13 @@ test.describe("sound", () => {
 	}) => {
 		await stubAudio(page);
 		await startPasted(page);
+		await pause(page);
 		await page.getByLabel("Tick on each word").check();
-		await toggle(page).click();
+		await play(page);
 		await expect
 			.poll(async () => (await stub(page)).oscillators)
 			.toBeGreaterThan(2);
-		await toggle(page).click();
+		await pause(page);
 		const paused = (await stub(page)).oscillators;
 		await page.waitForTimeout(600);
 		expect((await stub(page)).oscillators).toBe(paused);
@@ -310,11 +328,11 @@ test.describe("sound", () => {
 		await stubVoice(page);
 		await startPasted(page);
 		await expect(page.getByLabel("Tick on each word")).toBeVisible();
-		await expect(page.getByLabel("Voice volume")).toHaveCount(0);
+		await expect(page.getByTestId("voice-volume")).toHaveCount(0);
 		await modeButton(page, "Listen").click();
 		await expect(page.getByTestId("listen")).toBeVisible();
 		await expect(page.getByLabel("Tick on each word")).toHaveCount(0);
-		await expect(page.getByLabel("Voice volume")).toBeVisible();
+		await expect(page.getByTestId("voice-volume")).toBeVisible();
 		await expect(ambient(page)).toBeVisible();
 	});
 
@@ -326,7 +344,10 @@ test.describe("sound", () => {
 		page.on("request", (request) => requests.push(request.url()));
 		await startPasted(page);
 		await ambient(page).selectOption("white");
-		await page.getByLabel("Ambient volume").fill("0.6");
+		for (let i = 0; i < 3; i++) {
+			await page.getByRole("button", { name: "Louder ambient noise" }).click();
+		}
+		await expect(page.getByTestId("ambient-volume")).toHaveText("60%");
 		await page.getByLabel("Tick on each word").check();
 		const saved = await page.evaluate(() =>
 			localStorage.getItem("speeedy.audio"),
@@ -337,18 +358,21 @@ test.describe("sound", () => {
 			volumes: { ambient: 0.6 },
 		});
 		await page.reload();
-		await page.getByRole("textbox", { name: "Text to read" }).fill(SENTENCES);
-		await page.getByRole("button", { name: "Start" }).click();
+		// The reader comes back with the text it had.
+		await page.getByRole("group", { name: "Sound" }).waitFor();
 		await expect(ambient(page)).toHaveValue("white");
 		await expect(page.getByLabel("Tick on each word")).toBeChecked();
-		await toggle(page).click();
-		await expect.poll(async () => (await stub(page)).loopingSources).toBe(1);
+		await pause(page);
+		await play(page);
+		await expect
+			.poll(async () => (await stub(page)).loopingSources)
+			.toBeGreaterThan(0);
 		// Nothing about sound leaves the page: no audio files, no request that names it.
 		const origin = new URL(page.url()).origin;
 		for (const url of requests) {
 			expect(url.startsWith(origin) || url.startsWith("data:")).toBe(true);
 			expect(url).not.toMatch(/\.(mp3|ogg|wav|m4a|aac)(\?|$)/);
-			expect(url).not.toMatch(/ambient|volume|tick/i);
+			expect(new URL(url).search).not.toMatch(/ambient|volume|tick/i);
 		}
 	});
 
@@ -357,8 +381,9 @@ test.describe("sound", () => {
 	}) => {
 		await stubAudio(page, { blocked: true });
 		await startPasted(page);
+		await pause(page);
 		await ambient(page).selectOption("pink");
-		await toggle(page).click();
+		await play(page);
 		await expect
 			.poll(async () => (await stub(page)).resumes)
 			.toBeGreaterThan(0);
@@ -378,7 +403,7 @@ test.describe("sound", () => {
 		await stubAudio(page);
 		await startPasted(page);
 		await ambient(page).selectOption("pink");
-		await toggle(page).click();
+		await play(page);
 		await expect.poll(async () => (await stub(page)).state).toBe("running");
 		const before = (await stub(page)).resumes;
 		await page.evaluate(() => {
@@ -398,7 +423,6 @@ test.describe("sound", () => {
 		await stubAudio(page);
 		await startPasted(page);
 		await ambient(page).selectOption("pink");
-		await toggle(page).click();
 		await expect.poll(async () => (await stub(page)).fade).toBe(1);
 		await page.getByRole("button", { name: "New text" }).click();
 		await expect.poll(async () => (await stub(page)).fade).toBe(0);

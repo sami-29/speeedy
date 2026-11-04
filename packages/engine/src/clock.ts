@@ -109,6 +109,109 @@ export function createSpeechClock(): SpeechClock {
 	return createManualClock();
 }
 
+/** The two fields of an `AudioContext` the audio Clock reads. Both are in seconds. */
+export type AudioTimeSource = {
+	readonly currentTime: number;
+	/** Absent in browsers that do not report it (Firefox, older Safari). */
+	readonly outputLatency?: number | undefined;
+};
+
+export type AudioClockOptions = {
+	requestFrame?: (callback: () => void) => number;
+	cancelFrame?: (handle: number) => void;
+	/** A timer that still runs in a hidden tab, where frames do not come. */
+	setTimer?: (callback: () => void, ms: number) => unknown;
+	clearTimer?: (handle: unknown) => void;
+};
+
+export interface AudioClock extends Clock {
+	/**
+	 * Whether the browser reports an output latency. Without it the Clock reads the context's
+	 * time alone, which runs ahead of what the reader hears by the device's latency.
+	 */
+	readonly hasOutputLatency: boolean;
+}
+
+/** How often the audio Clock ticks in a tab that is not drawing frames. */
+const HIDDEN_TICK_MS = 250;
+
+/**
+ * The audio Clock: `AudioContext.currentTime - outputLatency`, the moment of the sound the
+ * reader is hearing now. `source` returns the context, or nothing before one exists (the
+ * browser only lets a gesture start it), when the Clock reads zero. A context that is
+ * suspended stops its time, so the Engine holds its Frame until the context runs again.
+ *
+ * It ticks on animation frames, and on a slower timer as well so that Listen goes on moving
+ * the Cursor in a hidden tab, where frames never come; each round ticks once.
+ */
+export function createAudioClock(
+	source: () => AudioTimeSource | undefined,
+	options: AudioClockOptions = {},
+): AudioClock {
+	const browser = globalThis as unknown as BrowserGlobals;
+	const requestFrame =
+		options.requestFrame ??
+		((callback: () => void) => browser.requestAnimationFrame(() => callback()));
+	const cancelFrame =
+		options.cancelFrame ??
+		((handle: number) => browser.cancelAnimationFrame(handle));
+	const setTimer =
+		options.setTimer ??
+		((callback: () => void, ms: number) => setTimeout(callback, ms));
+	const clearTimer =
+		options.clearTimer ??
+		((handle: unknown) =>
+			clearTimeout(handle as ReturnType<typeof setTimeout>));
+
+	// The latency can grow while the context runs; the Clock must not step back when it does.
+	let last: { source: AudioTimeSource; ms: number } | undefined;
+
+	const listeners = new Set<() => void>();
+	let frame: number | undefined;
+	let timer: unknown;
+	let scheduled = false;
+
+	const stopRound = () => {
+		if (frame !== undefined) cancelFrame(frame);
+		if (timer !== undefined) clearTimer(timer);
+		frame = undefined;
+		timer = undefined;
+		scheduled = false;
+	};
+	const schedule = () => {
+		scheduled = true;
+		const run = () => {
+			stopRound();
+			for (const listener of [...listeners]) listener();
+			if (listeners.size > 0 && !scheduled) schedule();
+		};
+		frame = requestFrame(run);
+		timer = setTimer(run, HIDDEN_TICK_MS);
+	};
+
+	return {
+		now() {
+			const current = source();
+			if (!current) return 0;
+			const raw = (current.currentTime - (current.outputLatency ?? 0)) * 1000;
+			const ms = last?.source === current ? Math.max(last.ms, raw) : raw;
+			last = { source: current, ms };
+			return ms;
+		},
+		get hasOutputLatency() {
+			return typeof source()?.outputLatency === "number";
+		},
+		onTick(listener) {
+			listeners.add(listener);
+			if (!scheduled) schedule();
+			return () => {
+				listeners.delete(listener);
+				if (listeners.size === 0) stopRound();
+			};
+		},
+	};
+}
+
 export interface ClockSwitch extends Clock {
 	/**
 	 * Point at another Clock. The listeners follow it, and `now()` reads it. The Clocks do

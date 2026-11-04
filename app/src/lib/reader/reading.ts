@@ -1,6 +1,8 @@
 import type { ClockKind, Position } from "@speeedy/contracts";
 import {
+	type AudioTimeSource,
 	type Clock,
+	createAudioClock,
 	createClockSwitch,
 	createEngine,
 	createSpeechClock,
@@ -8,6 +10,7 @@ import {
 	type Engine,
 	type Timeline,
 } from "@speeedy/engine";
+import { audio as audioSystem } from "#lib/audio/instance.ts";
 import { library } from "#lib/library/instance.ts";
 import { recordSessions } from "#lib/stats/record.ts";
 import { createLiveTimeline, type LiveTimeline } from "./live-timeline.ts";
@@ -19,9 +22,10 @@ export type Reading = {
 	engine: Engine;
 	live: LiveTimeline;
 	/**
-	 * The Clocks a Reading Mode can run on, by the kind its descriptor declares. The timer
-	 * and the speech Clock are here; the audio Clock is added when a voice that makes its own
-	 * audio is.
+	 * The Clocks a Reading Mode can run on, by the kind its descriptor declares: the timer,
+	 * the speech Clock, and the audio Clock (the AudioSystem's context time less its output
+	 * latency). The audio Clock reads zero until a gesture has unlocked the context, so a
+	 * voice unlocks the AudioSystem before it plays on it.
 	 */
 	clocks: Partial<Record<ClockKind, Clock>>;
 	/**
@@ -44,6 +48,11 @@ type StartOptions = {
 	timeline: Timeline;
 	settings: ReaderSettings;
 	client: Pick<TimelineClient, "change">;
+	/**
+	 * The audio context the audio Clock reads, or nothing before there is one. Defaults to the
+	 * page's AudioSystem.
+	 */
+	audio?: () => AudioTimeSource | undefined;
 	/** Called when the worker could not apply a change. */
 	onError?: () => void;
 	/** The Library document being read, or null for text that is not kept. */
@@ -66,6 +75,7 @@ export function startReading({
 	settings,
 	client,
 	onError,
+	audio = () => audioSystem().context,
 	documentId = null,
 	chapters,
 	startAt,
@@ -75,6 +85,7 @@ export function startReading({
 	const clocks: Partial<Record<ClockKind, Clock>> = {
 		timer,
 		"web-speech": createSpeechClock(),
+		audio: createAudioClock(audio),
 	};
 	// The Engine is made once, on a Clock that follows the mode: RSVP and Pacer run on the
 	// timer, Listen on the speech Clock.

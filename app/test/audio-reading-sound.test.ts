@@ -71,11 +71,14 @@ describe("reading sound", () => {
 		const { engine, rig, clock } = setup();
 		engine.play();
 		expect(rig.calls).toContain("reading:true");
+		const reading = () =>
+			rig.calls.filter((call) => call.startsWith("reading:")).at(-1);
 		engine.pause();
-		expect(rig.calls.at(-1)).toBe("reading:false");
+		expect(reading()).toBe("reading:false");
 		engine.play();
+		expect(reading()).toBe("reading:true");
 		clock.advance(60_000);
-		expect(rig.calls.at(-1)).toBe("reading:false");
+		expect(reading()).toBe("reading:false");
 		expect(rig.calls.filter((call) => call === "reading:true")).toHaveLength(2);
 	});
 

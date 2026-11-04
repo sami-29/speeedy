@@ -4,8 +4,12 @@ export {
 	handleBuildRequest,
 } from "./build-request";
 export {
+	type AudioClock,
+	type AudioClockOptions,
+	type AudioTimeSource,
 	type Clock,
 	type ClockSwitch,
+	createAudioClock,
 	createClockSwitch,
 	createManualClock,
 	createSpeechClock,
