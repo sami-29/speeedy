@@ -5,9 +5,13 @@ export {
 } from "./build-request";
 export {
 	type Clock,
+	type ClockSwitch,
+	createClockSwitch,
 	createManualClock,
+	createSpeechClock,
 	createTimerClock,
 	type ManualClock,
+	type SpeechClock,
 	type TimerClockOptions,
 } from "./clock";
 export {
@@ -18,7 +22,12 @@ export {
 	type EngineOptions,
 } from "./engine";
 export { localDate, shiftDate } from "./local-date";
-export { type BackUnit, findChapters } from "./navigation";
+export {
+	type BackUnit,
+	findChapters,
+	type SentenceBounds,
+	sentenceBounds,
+} from "./navigation";
 export { computeOrp, type OrpFocus } from "./orp";
 export {
 	PACING_RULES,

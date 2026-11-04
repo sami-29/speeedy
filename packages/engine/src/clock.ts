@@ -90,3 +90,58 @@ export function createManualClock(): ManualClock {
 		},
 	};
 }
+
+export interface SpeechClock extends Clock {
+	/** Move time forward by `ms`, then tick every listener once. */
+	advance(ms: number): void;
+	/** How many listeners are attached. */
+	readonly listeners: number;
+}
+
+/**
+ * The Web Speech Clock. A browser voice gives no running time, only events (a sentence
+ * began, a word began, a sentence ended), so this Clock never moves by itself: whoever
+ * hears the voice pushes it with `advance`, and it ticks the Engine, which shows whichever
+ * Frame that time falls in. A voice that does know its time (an audio output) uses a Clock
+ * that reads it instead; both plug into the reader through the same Clock switch.
+ */
+export function createSpeechClock(): SpeechClock {
+	return createManualClock();
+}
+
+export interface ClockSwitch extends Clock {
+	/**
+	 * Point at another Clock. The listeners follow it, and `now()` reads it. The Clocks do
+	 * not share a time, so switch while the Engine is paused: it measures from where it
+	 * starts playing.
+	 */
+	use(clock: Clock): void;
+}
+
+/**
+ * A Clock that stands in for whichever Clock the current Reading Mode runs on. The Engine
+ * is made once with this, so a mode switch changes the Clock without a new Engine.
+ */
+export function createClockSwitch(initial: Clock): ClockSwitch {
+	let current = initial;
+	const entries = new Set<{ listener: () => void; stop: () => void }>();
+	return {
+		now: () => current.now(),
+		onTick(listener) {
+			const entry = { listener, stop: current.onTick(listener) };
+			entries.add(entry);
+			return () => {
+				entry.stop();
+				entries.delete(entry);
+			};
+		},
+		use(next) {
+			if (next === current) return;
+			for (const entry of entries) {
+				entry.stop();
+				entry.stop = next.onTick(entry.listener);
+			}
+			current = next;
+		},
+	};
+}

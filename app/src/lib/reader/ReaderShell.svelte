@@ -29,6 +29,7 @@ let {
 	chapters,
 	title,
 	source,
+	language,
 	settings = $bindable(),
 	failed = false,
 	onNewText,
@@ -41,6 +42,8 @@ let {
 	title: string | null;
 	/** Where the text came from, for the page to tell apart. */
 	source: string;
+	/** BCP 47 tag of the text, `und` when it is not known. */
+	language: string;
 	settings: ReaderSettings;
 	failed?: boolean;
 	onNewText: () => void;
@@ -49,6 +52,8 @@ let {
 const modes = readerModes.modes();
 let modeId = $state(modes[0]?.id ?? "rsvp");
 const mode = $derived(readerModes.get(modeId));
+// A mode that is paced by a voice has no reading speed: the controls for it are left out.
+const usesWpm = $derived(mode?.settingsUsed.includes("wpm") ?? true);
 // A shared text waits for Play. After a switch, the next mode plays if the last one was.
 // svelte-ignore state_referenced_locally
 let autoplay = $state(source !== "share");
@@ -115,13 +120,20 @@ function setSettings(change: Partial<ReaderSettings>) {
 }
 
 function setWpm(wpm: number) {
+	if (!usesWpm) return;
 	const next = clampWpm(wpm);
 	if (next !== settings.wpm) setSettings({ wpm: next });
 }
 
 function selectMode(id: string) {
 	if (id === modeId) return;
+	const next = readerModes.get(id);
+	if (!next) return;
 	autoplay = reading.engine.playing;
+	// Each Clock keeps its own time, so the Engine stops before it changes Clock and the next
+	// mode plays on from the same Position.
+	reading.engine.pause();
+	reading.useClock(next.clock);
 	modeId = id;
 }
 
@@ -217,16 +229,24 @@ function onKeydown(event: KeyboardEvent) {
 
 {#if mode}
 	{#await mode.view() then view}
-		<view.default engine={reading.engine} {doc} {autoplay} />
+		<view.default
+			engine={reading.engine}
+			{doc}
+			{autoplay}
+			{language}
+			clock={reading.clocks[mode.clock] ?? reading.useClock(mode.clock)}
+		/>
 	{/await}
 {/if}
 
 <section class="poster chrome controls pt-s-3" data-testid="controls" data-dim={dimmed}>
-	<div class="poster-head">
-		<WpmSlider wpm={settings.wpm} onchange={setWpm} />
-	</div>
-	<div class="stack">
-		<ProgressChart engine={reading.engine} {doc} {chapters} />
+	{#if usesWpm}
+		<div class="poster-head">
+			<WpmSlider wpm={settings.wpm} onchange={setWpm} />
+		</div>
+	{/if}
+	<div class="stack" class:alone={!usesWpm}>
+		<ProgressChart engine={reading.engine} {doc} {chapters} recordSpeed={usesWpm} />
 		<div class="transport">
 			<button type="button" class="button-primary" bind:this={toggle} onclick={togglePlay}>
 				{playing ? m.reader_pause() : m.reader_play()}
@@ -254,8 +274,10 @@ function onKeydown(event: KeyboardEvent) {
 		{#if failed}
 			<p role="status" class="label text-red-ink">{m.reader_rebuild_failed()}</p>
 		{/if}
-		<SpeedZones wpm={settings.wpm} onpick={setWpm} />
-		<ReadingSettings {settings} onchange={setSettings} />
+		{#if usesWpm}
+			<SpeedZones wpm={settings.wpm} onpick={setWpm} />
+		{/if}
+		<ReadingSettings {settings} onchange={setSettings} used={mode?.settingsUsed ?? []} />
 	</div>
 </section>
 
@@ -272,6 +294,13 @@ function onKeydown(event: KeyboardEvent) {
 		display: grid;
 		gap: var(--spacing-s-3);
 		align-content: start;
+	}
+
+	/* Without the speed numeral the controls take the content column on their own. */
+	@media (min-width: 861px) {
+		.stack.alone {
+			grid-column: 2;
+		}
 	}
 
 	.rewinds {

@@ -22,10 +22,13 @@ let {
 	engine,
 	doc: source,
 	chapters,
+	recordSpeed = true,
 }: {
 	engine: Engine;
 	doc: Document;
 	chapters: readonly Chapter[];
+	/** Draw the speed read at. False in a mode the reading speed does not pace (Listen). */
+	recordSpeed?: boolean;
 } = $props();
 
 const track = $derived(progressTracker(source));
@@ -69,7 +72,11 @@ $effect(() => {
 			const value = where(position);
 			show(value, position);
 			// Only reading counts: a rebuild or a seek that shows a Frame does not.
-			if (current.playing && trace.record(value, current.settings.wpm)) {
+			if (
+				recordSpeed &&
+				current.playing &&
+				trace.record(value, current.settings.wpm)
+			) {
 				bars = trace.values();
 			}
 		}),

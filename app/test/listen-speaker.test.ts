@@ -16,7 +16,10 @@ class FakeUtterance implements UtteranceLike {
 		null;
 	onend: ((event: unknown) => void) | null = null;
 	onerror: ((event: { error: string }) => void) | null = null;
-	constructor(public text: string) {}
+	text: string;
+	constructor(text: string) {
+		this.text = text;
+	}
 }
 
 /** speechSynthesis with the browser's habit of reporting a cancelled utterance as an error. */
@@ -163,8 +166,36 @@ describe("browser Speaker", () => {
 		utterance.onerror?.({ error: "interrupted" });
 		expect(log).toEqual([]);
 		utterance.onerror?.({ error: "not-allowed" });
+		expect(log).toEqual(["error blocked"]);
+		// A failed sentence is over: whatever else the browser says about it is dropped.
 		utterance.onerror?.({ error: "synthesis-failed" });
-		expect(log).toEqual(["error blocked", "error failed"]);
+		expect(log).toEqual(["error blocked"]);
+	});
+
+	it("reports a failure of the voice", () => {
+		const { fake, speaker } = setup();
+		const { log, handlers } = handlersLog();
+		speaker.speak({ text: "One.", rate: 1 }, handlers);
+		(fake.queue[0] as FakeUtterance).onerror?.({ error: "synthesis-failed" });
+		expect(log).toEqual(["error failed"]);
+	});
+
+	it("reports a failure when the browser refuses the sentence outright", () => {
+		const refusing: SynthLike = {
+			speak() {
+				throw new TypeError("not an utterance");
+			},
+			cancel() {},
+		};
+		const speaker = createBrowserSpeaker(
+			refusing,
+			(text) => new FakeUtterance(text),
+		);
+		const { log, handlers } = handlersLog();
+		expect(() =>
+			speaker.speak({ text: "One.", rate: 1 }, handlers),
+		).not.toThrow();
+		expect(log).toEqual(["error failed"]);
 	});
 
 	it("cancels the browser's queue when told to stop", () => {

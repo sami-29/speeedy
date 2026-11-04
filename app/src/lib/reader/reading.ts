@@ -1,6 +1,9 @@
-import type { Position } from "@speeedy/contracts";
+import type { ClockKind, Position } from "@speeedy/contracts";
 import {
+	type Clock,
+	createClockSwitch,
 	createEngine,
+	createSpeechClock,
 	createTimerClock,
 	type Engine,
 	type Timeline,
@@ -15,6 +18,17 @@ import type { TimelineClient } from "./timeline-client.ts";
 export type Reading = {
 	engine: Engine;
 	live: LiveTimeline;
+	/**
+	 * The Clocks a Reading Mode can run on, by the kind its descriptor declares. The timer
+	 * and the speech Clock are here; the audio Clock is added when a voice that makes its own
+	 * audio is.
+	 */
+	clocks: Partial<Record<ClockKind, Clock>>;
+	/**
+	 * Run the Engine on the Clock of `kind`. The Clocks keep their own time, so call this while
+	 * the Engine is paused. Throws for a kind that has no Clock here.
+	 */
+	useClock(kind: ClockKind): Clock;
 	dispose(): void;
 };
 
@@ -57,7 +71,14 @@ export function startReading({
 	startAt,
 	onposition,
 }: StartOptions): Reading {
-	const clock = createTimerClock();
+	const timer = createTimerClock();
+	const clocks: Partial<Record<ClockKind, Clock>> = {
+		timer,
+		"web-speech": createSpeechClock(),
+	};
+	// The Engine is made once, on a Clock that follows the mode: RSVP and Pacer run on the
+	// timer, Listen on the speech Clock.
+	const clock = createClockSwitch(timer);
 	const engine = createEngine({
 		clock,
 		timeline,
@@ -65,9 +86,10 @@ export function startReading({
 		chapters,
 	});
 	// Every Reading Mode is read through this Engine, so every one records its Sessions.
+	// Active time is real time whichever Clock paces the Cursor, so the timer measures it.
 	const recording = recordSessions({
 		engine,
-		clock,
+		clock: timer,
 		store: library(),
 		documentId,
 	});
@@ -111,6 +133,13 @@ export function startReading({
 	return {
 		engine,
 		live,
+		clocks,
+		useClock(kind) {
+			const next = clocks[kind];
+			if (!next) throw new Error(`There is no ${kind} Clock for this reading.`);
+			clock.use(next);
+			return next;
+		},
 		dispose() {
 			// Pause first, so the Position of a pause reaches `onposition` before it is detached.
 			engine.pause();

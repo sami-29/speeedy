@@ -36,6 +36,7 @@ export const shortcutName = (id: ShortcutId): string =>
 const MODE_NAMES: Record<string, () => string> = {
 	rsvp: m.mode_rsvp,
 	pacer: m.mode_pacer,
+	listen: m.mode_listen,
 };
 
 export const modeName = (id: string): string => MODE_NAMES[id]?.() ?? id;

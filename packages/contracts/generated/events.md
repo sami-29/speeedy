@@ -50,6 +50,17 @@ Sent by: the app. Schema version 1.
 | `streak_days` | one of `1`, `2-3`, `4-7`, `8-14`, `15-30`, `31-plus` | yes |
 | `exp_pipeline_check` | one of `off`, `on` | no |
 
+## `listen_start`
+
+A reader started Listen on a text. Carries the text's language as one of a fixed list (`other` for the rest) and nothing else: no voice, no title, no text.
+
+Sent by: the app. Schema version 1.
+
+| Property | Value | Required |
+| --- | --- | --- |
+| `document_language` | one of `en`, `es`, `fr`, `de`, `it`, `pt`, `nl`, `sv`, `da`, `no`, `fi`, `pl`, `cs`, `sk`, `sl`, `hr`, `sr`, `ru`, `uk`, `bg`, `tr`, `el`, `hu`, `ro`, `ar`, `he`, `hi`, `ja`, `ko`, `zh`, `other` | yes |
+| `exp_pipeline_check` | one of `off`, `on` | no |
+
 ## `checkout_started`
 
 The Worker opened a hosted checkout for the Plus plan. Carries the billing interval only.

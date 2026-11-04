@@ -95,6 +95,7 @@ type Options = {
 	language?: string;
 	voice?: VoiceLike;
 	rate?: number;
+	seekDelayMs?: number;
 	settings?: Parameters<typeof createEngine>[0]["settings"];
 };
 
@@ -116,6 +117,7 @@ function setup(doc: Document, options: Options = {}) {
 		...(options.language ? { language: options.language } : {}),
 		...(options.voice ? { voice: options.voice } : {}),
 		...(options.rate ? { rate: options.rate } : {}),
+		...(options.seekDelayMs ? { seekDelayMs: options.seekDelayMs } : {}),
 	});
 	const events: string[] = [];
 	for (const name of [
@@ -214,6 +216,16 @@ describe("Listen: speaking", () => {
 		expect(listener.status).toBe("idle");
 	});
 
+	it("counts the last sentence's words before it ends", () => {
+		const { engine, speech } = setup(paragraphs("Only one here."));
+		const shown: string[] = [];
+		engine.on("frameShown", ({ frame }) => shown.push(frame.text));
+		engine.play();
+		speech.end();
+		expect(shown).toEqual(["Only", "one", "here."]);
+		expect(engine.playing).toBe(false);
+	});
+
 	it("speaks the document again from the top when played after the end", () => {
 		const { engine, speech } = setup(paragraphs("Only one."));
 		engine.play();
@@ -268,6 +280,33 @@ describe("Listen: the highlight", () => {
 		speech.end();
 		expect(engine.frame?.text).toBe("Three");
 		expect(textOf(DOC, listener)).toBe("Three four five.");
+	});
+
+	it("counts every word of a finished sentence as shown, whether or not the voice reported them", () => {
+		const { engine, speech, timers } = setup(DOC);
+		const shown: string[] = [];
+		engine.on("frameShown", ({ frame }) => shown.push(frame.text));
+		engine.play();
+		speech.start();
+		timers.fire();
+		speech.end();
+		// Sessions count the Frames shown: the whole sentence was heard, so the whole sentence counts.
+		expect(shown).toEqual(["One", "two.", "Three"]);
+	});
+
+	it("shows every Frame once, in order, even when the voice skips a word", () => {
+		const { engine, speech } = setup(DOC);
+		const shown: string[] = [];
+		engine.on("frameShown", ({ frame }) => shown.push(frame.text));
+		engine.play();
+		speech.start();
+		speech.end();
+		speech.start();
+		speech.boundary(0);
+		// The voice jumped from "Three" to "five.": "four" was still spoken.
+		speech.boundary(11);
+		speech.end();
+		expect(shown).toEqual(["One", "two.", "Three", "four", "five.", "Six."]);
 	});
 
 	it("is always on the sentence being spoken, never ahead of it", () => {
@@ -479,6 +518,44 @@ describe("Listen: pause, resume, seek and rewind", () => {
 		engine.pause();
 		engine.back("sentence");
 		expect(textOf(DOC, listener)).toBe("One two.");
+	});
+});
+
+describe("Listen: scrubbing the progress bar", () => {
+	it("speaks once, from where the reader stopped, not at every step of a drag", () => {
+		const { engine, speech, timers } = setup(DOC, { seekDelayMs: 150 });
+		engine.play();
+		const before = speech.jobs.length;
+		engine.seek({ block: 0, offset: 9 });
+		engine.seek({ block: 0, offset: 15 });
+		engine.seek({ block: 0, offset: 26 });
+		expect(speech.jobs).toHaveLength(before);
+		timers.fire();
+		expect(speech.jobs).toHaveLength(before + 1);
+		expect(speech.last().job.text).toBe("Six.");
+	});
+
+	it("says nothing from a drag the reader paused in the middle of", () => {
+		const { engine, speech, timers } = setup(DOC, { seekDelayMs: 150 });
+		engine.play();
+		engine.seek({ block: 0, offset: 9 });
+		engine.pause();
+		const spoken = speech.jobs.length;
+		timers.fire();
+		expect(speech.jobs).toHaveLength(spoken);
+	});
+
+	it("drops the pending sentence when the listener is disposed", () => {
+		const { engine, speech, timers, listener } = setup(DOC, {
+			seekDelayMs: 150,
+		});
+		engine.play();
+		engine.seek({ block: 0, offset: 9 });
+		listener.dispose();
+		expect(timers.waiting).toBe(0);
+		const spoken = speech.jobs.length;
+		timers.fire();
+		expect(speech.jobs).toHaveLength(spoken);
 	});
 });
 
