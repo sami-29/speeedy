@@ -42,6 +42,8 @@ export type UtteranceLike = {
 	lang: string;
 	voice: VoiceLike | null;
 	rate: number;
+	/** 0 to 1. A fake without one is left alone. */
+	volume?: number;
 	onstart: ((event: unknown) => void) | null;
 	onboundary: ((event: { name?: string; charIndex: number }) => void) | null;
 	onend: ((event: unknown) => void) | null;
@@ -62,6 +64,10 @@ export type SynthLike = {
 export function createBrowserSpeaker(
 	synth: SynthLike,
 	createUtterance: (text: string) => UtteranceLike,
+	options: {
+		/** The voice volume, 0 to 1, read as each sentence begins. Left out, the browser's own. */
+		volume?: () => number;
+	} = {},
 ): Speaker {
 	// Held, so the browser cannot collect an utterance that is still being said.
 	let current: UtteranceLike | undefined;
@@ -78,6 +84,7 @@ export function createBrowserSpeaker(
 			if (job.lang) utterance.lang = job.lang;
 			if (job.voice) utterance.voice = job.voice;
 			utterance.rate = job.rate;
+			if (options.volume) utterance.volume = options.volume();
 			const live = () => current === utterance;
 			utterance.onstart = () => {
 				if (live()) handlers.start();

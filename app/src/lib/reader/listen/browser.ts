@@ -20,6 +20,8 @@ export function browserSpeech(
 		speechSynthesis?: unknown;
 		SpeechSynthesisUtterance?: unknown;
 	} = window,
+	/** The voice volume, 0 to 1, from the AudioSystem's voice bus setting. */
+	volume?: () => number,
 ): BrowserSpeech | undefined {
 	const synth = win.speechSynthesis as SpeechSynthesis | undefined;
 	const Utterance = win.SpeechSynthesisUtterance as
@@ -30,6 +32,7 @@ export function browserSpeech(
 		speaker: createBrowserSpeaker(
 			synth as unknown as SynthLike,
 			(text) => new Utterance(text) as unknown as UtteranceLike,
+			volume ? { volume } : {},
 		),
 		voices: createVoiceList(synth as unknown as VoiceSource),
 	};

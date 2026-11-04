@@ -2,6 +2,9 @@
 import type { Document } from "@speeedy/contracts";
 import type { BackUnit } from "@speeedy/engine";
 import { onMount } from "svelte";
+import { audio } from "#lib/audio/instance.ts";
+import { attachReadingSound } from "#lib/audio/reading-sound.ts";
+import SoundSettings from "#lib/audio/SoundSettings.svelte";
 import { m } from "#lib/paraglide/messages.js";
 import ChapterList from "./ChapterList.svelte";
 import { modeName, rewindName, shortcutName } from "./copy.ts";
@@ -91,6 +94,15 @@ onMount(() => {
 			playing = false;
 		}),
 	];
+	// Ambient noise and the tick follow this reading; a mode on the timer Clock makes no sound.
+	stops.push(
+		attachReadingSound({
+			engine,
+			audio: audio(),
+			silent: () => mode?.clock === "timer",
+			page: window,
+		}),
+	);
 	toggle?.focus();
 	return () => {
 		for (const stop of stops) stop();
@@ -278,6 +290,7 @@ function onKeydown(event: KeyboardEvent) {
 			<SpeedZones wpm={settings.wpm} onpick={setWpm} />
 		{/if}
 		<ReadingSettings {settings} onchange={setSettings} used={mode?.settingsUsed ?? []} />
+		<SoundSettings silent={mode?.clock === "timer"} />
 	</div>
 </section>
 

@@ -11,6 +11,7 @@ class FakeUtterance implements UtteranceLike {
 	lang = "";
 	voice: VoiceLike | null = null;
 	rate = 1;
+	volume = 1;
 	onstart: ((event: unknown) => void) | null = null;
 	onboundary: ((event: { name?: string; charIndex: number }) => void) | null =
 		null;
@@ -215,5 +216,28 @@ describe("browser Speaker", () => {
 		utterance.onend?.({});
 		speaker.cancel();
 		expect(log).toEqual(["end"]);
+	});
+});
+
+describe("browser Speaker volume", () => {
+	it("speaks at the voice volume it is given, read for each sentence", () => {
+		const fake = fakeSynth();
+		let volume = 0.4;
+		const speaker = createBrowserSpeaker(
+			fake.synth,
+			(text) => new FakeUtterance(text),
+			{ volume: () => volume },
+		);
+		speaker.speak({ text: "One.", rate: 1 }, handlersLog().handlers);
+		expect((fake.queue[0] as FakeUtterance).volume).toBe(0.4);
+		volume = 0.9;
+		speaker.speak({ text: "Two.", rate: 1 }, handlersLog().handlers);
+		expect((fake.queue[0] as FakeUtterance).volume).toBe(0.9);
+	});
+
+	it("leaves the browser's own volume alone when none is given", () => {
+		const { fake, speaker } = setup();
+		speaker.speak({ text: "One.", rate: 1 }, handlersLog().handlers);
+		expect((fake.queue[0] as FakeUtterance).volume).toBe(1);
 	});
 });
