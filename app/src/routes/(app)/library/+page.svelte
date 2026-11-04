@@ -4,6 +4,7 @@ import { onDestroy, onMount } from "svelte";
 import { TRUSTED_ORIGINS } from "#lib/launcher/config.ts";
 import { startLauncherReceiver } from "#lib/launcher/receiver.ts";
 import { saveLauncherPage } from "#lib/launcher/save.ts";
+import BackupPanel from "#lib/library/BackupPanel.svelte";
 import IntakePanel from "#lib/library/IntakePanel.svelte";
 import { library } from "#lib/library/instance.ts";
 import { LANGUAGES, languageName } from "#lib/library/languages.ts";
@@ -42,6 +43,8 @@ let asking = $state.raw<{
 	answer: (keep: boolean) => void;
 }>();
 let keepButton = $state<HTMLButtonElement>();
+/** Changes when a restore brings in Sessions, so the stats line reads them again. */
+let statsVersion = $state(0);
 
 const lastRead = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 
@@ -251,7 +254,9 @@ const languageChoices = (doc: DocumentMeta): string[] =>
 
 	<h2 class="title poster-head">{m.library_table_label()}</h2>
 	<div>
-		<LibraryLine />
+		{#key statsVersion}
+			<LibraryLine />
+		{/key}
 		<div role="status">
 			{#if pending}
 				<p class="label mb-s-2 flex flex-wrap items-center gap-s-2">
@@ -379,4 +384,11 @@ const languageChoices = (doc: DocumentMeta): string[] =>
 			</table>
 		{/if}
 	</div>
+
+	<BackupPanel
+		onrestored={() => {
+			statsVersion += 1;
+			void refresh();
+		}}
+	/>
 </div>
