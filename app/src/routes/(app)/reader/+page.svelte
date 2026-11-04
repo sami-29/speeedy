@@ -10,6 +10,9 @@ import { progressTracker } from "#lib/library/progress.ts";
 import { type DocumentSource, effectiveLanguage } from "#lib/library/store.ts";
 import { documentTitle } from "#lib/library/title.ts";
 import { m } from "#lib/paraglide/messages.js";
+import IosInstallHint from "#lib/pwa/IosInstallHint.svelte";
+import { consumeLaunchFiles, type LaunchQueue } from "#lib/pwa/launch.ts";
+import { readShareTarget } from "#lib/pwa/share-target.ts";
 import { takeHandoff } from "#lib/reader/handoff.ts";
 import { type Chapter, chapterList } from "#lib/reader/navigation.ts";
 import {
@@ -24,6 +27,8 @@ import {
 	type ReaderSettings,
 	withPreset,
 } from "#lib/reader/settings.ts";
+import { replaceState } from "$app/navigation";
+import { page } from "$app/state";
 
 const loader = createReaderLoader();
 let saver: PositionSaver | undefined;
@@ -100,7 +105,14 @@ function show(
 	};
 }
 
-async function open(source: ReaderSource, from: DocumentSource = "own") {
+/** What a share sheet adds to the text: the page's title and address, kept on this device. */
+type Shared = { title: string | null; sourceUrl: string | null };
+
+async function open(
+	source: ReaderSource,
+	from: DocumentSource = "own",
+	shared?: Shared,
+) {
 	error = "";
 	opening = true;
 	const result = await loader.open(source, settings);
@@ -113,9 +125,10 @@ async function open(source: ReaderSource, from: DocumentSource = "own") {
 		const store = library();
 		const { meta, duplicate } = await store.addDocument({
 			document: result.document,
-			title: documentTitle(result.title, result.document),
+			title: documentTitle(shared?.title || result.title, result.document),
 			language: result.language,
 			source: from,
+			sourceUrl: shared?.sourceUrl ?? null,
 		});
 		await store.setCurrent(meta.id);
 		const kept = { id: meta.id };
@@ -171,8 +184,28 @@ async function restore() {
 // `/s`) wins over the Library's current document: open it, which also keeps it in the Library
 // with its source, and do not restore.
 onMount(() => {
+	// The OS opened a file with the installed app (`file_handlers`, Chromium only).
+	consumeLaunchFiles(
+		(window as Window & { launchQueue?: LaunchQueue }).launchQueue,
+		(file) => void open({ kind: "file", file }),
+	);
 	const handed = takeHandoff();
 	if (!handed) {
+		const share = readShareTarget(location.search);
+		if (share) {
+			// A shared page or text arrives in the address (`share_target` is a GET). Take it
+			// out of the bar, so a refresh or a copied address does not carry it.
+			replaceState(location.pathname, page.state);
+			if (share.kind === "link-only") {
+				error = m.reader_share_link_only();
+				return;
+			}
+			void open({ kind: "text", text: share.text }, "own", {
+				title: share.title,
+				sourceUrl: share.url,
+			});
+			return;
+		}
 		void restore();
 		return;
 	}
@@ -281,6 +314,7 @@ function onPick(event: Event) {
 						? m.reader_opening()
 						: m.reader_drop_hint()}
 			</p>
+			<IosInstallHint />
 		</form>
 	</section>
 {/if}

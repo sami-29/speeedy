@@ -53,6 +53,7 @@ describe("web app manifest", () => {
 		expect(manifest.share_target).toEqual({
 			action: "/reader",
 			method: "GET",
+			enctype: "application/x-www-form-urlencoded",
 			params: { title: "title", text: "text", url: "url" },
 		});
 	});

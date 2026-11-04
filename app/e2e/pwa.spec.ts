@@ -1,10 +1,12 @@
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { expect, type Page, test } from "@playwright/test";
 
 const TEXT = Array.from({ length: 200 }, (_, i) => `word${i + 1}`).join(" ");
 
 /** Load the app and wait until the service worker has precached and taken over the page. */
-async function installed(page: Page) {
-	await page.goto("/reader");
+async function installed(page: Page, origin = "") {
+	await page.goto(`${origin}/reader`);
 	await page.evaluate(async () => {
 		await navigator.serviceWorker.ready;
 	});
@@ -73,7 +75,7 @@ test.describe("precache", () => {
 			"/stats",
 			"/training",
 			"/s",
-			"/200.html",
+			"/account/offline",
 			"/manifest.webmanifest",
 			"/fonts/archivo-wdth.woff2",
 			"/icons/icon-192.png",
@@ -186,61 +188,103 @@ test.describe("offline", () => {
 	});
 });
 
-test.describe("update", () => {
-	test("a new worker waits, the reader is told in a plain line, and Update takes over", async ({
-		page,
-		context,
-	}) => {
-		let serveNewVersion = false;
-		await context.route("**/service-worker.js", async (route) => {
-			const response = await route.fetch();
-			const body = await response.text();
-			await route.fulfill({
-				response,
-				body: serveNewVersion
-					? `${body}\n;/* speeedy test: next version */`
-					: body,
+/**
+ * A pass-through server in front of the app that can serve a "next version" of the service
+ * worker: the same script with another build version. (A test cannot route the browser's own
+ * update check for the worker script, so the update has to come from a real server.)
+ */
+async function appWithNextVersion(target: string) {
+	const state = { next: false };
+	const server: Server = createServer(async (request, response) => {
+		try {
+			const url = new URL(request.url ?? "/", target);
+			const upstream = await fetch(url, { redirect: "manual" });
+			const headers: Record<string, string> = {};
+			upstream.headers.forEach((value, name) => {
+				if (
+					!["content-encoding", "content-length", "transfer-encoding"].includes(
+						name,
+					)
+				)
+					headers[name] = value;
 			});
-		});
-		await installed(page);
-		await expect(
-			page.getByRole("status").filter({ hasText: /new version/i }),
-		).toHaveCount(0);
+			let body = Buffer.from(await upstream.arrayBuffer());
+			if (state.next && url.pathname === "/service-worker.js")
+				body = Buffer.from(
+					body.toString().replace(/version:`\d+`/, "version:`next`"),
+				);
+			response.writeHead(upstream.status, headers);
+			response.end(body);
+		} catch {
+			response.writeHead(502);
+			response.end();
+		}
+	});
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const { port } = server.address() as AddressInfo;
+	return {
+		origin: `http://127.0.0.1:${port}`,
+		publishNextVersion: () => {
+			state.next = true;
+		},
+		close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+	};
+}
 
-		serveNewVersion = true;
-		await page.evaluate(async () => {
-			const registration = await navigator.serviceWorker.getRegistration();
-			await registration?.update();
-		});
-		const line = page.getByRole("status").filter({ hasText: /new version/i });
-		await expect(line).toBeVisible();
-		// It is a line, not a popup.
-		await expect(page.getByRole("dialog")).toHaveCount(0);
-		// The old worker is still in charge until the reader says so.
-		expect(
+test.describe("update", () => {
+	test("a new version waits, the reader is told in a plain line, and Update takes over", async ({
+		page,
+		baseURL,
+	}) => {
+		const app = await appWithNextVersion(baseURL as string);
+		try {
+			await installed(page, app.origin);
+			const line = page.getByRole("status").filter({ hasText: /new version/i });
+			await expect(line).toHaveCount(0);
+			const precaches = () =>
+				page.evaluate(async () =>
+					(await caches.keys()).filter((name) =>
+						name.startsWith("speeedy-precache-"),
+					),
+				);
+			expect(await precaches()).toHaveLength(1);
+
+			app.publishNextVersion();
 			await page.evaluate(async () => {
 				const registration = await navigator.serviceWorker.getRegistration();
-				return registration?.waiting !== null;
-			}),
-		).toBe(true);
+				await registration?.update();
+			});
+			await expect(line).toBeVisible();
+			// It is a line, not a popup.
+			await expect(page.getByRole("dialog")).toHaveCount(0);
+			// The new version is installed and waiting; the old one is still in charge, and
+			// still has its cache, so the page open now keeps the scripts it loaded with.
+			expect(
+				await page.evaluate(async () => {
+					const registration = await navigator.serviceWorker.getRegistration();
+					return registration?.waiting !== null;
+				}),
+			).toBe(true);
+			expect(await precaches()).toHaveLength(2);
 
-		const reloaded = page.waitForEvent("load");
-		await line.getByRole("button", { name: "Update" }).click();
-		await reloaded;
-		await page.waitForFunction(
-			async () =>
-				(await navigator.serviceWorker.getRegistration())?.waiting === null,
-		);
-		await expect(
-			page.getByRole("status").filter({ hasText: /new version/i }),
-		).toHaveCount(0);
-		await expect(
-			page.getByRole("textbox", { name: "Text to read" }),
-		).toBeVisible();
-		const names = await page.evaluate(() => caches.keys());
-		expect(names.filter((n) => n.startsWith("speeedy-precache-"))).toHaveLength(
-			1,
-		);
+			const reloaded = page.waitForEvent("load");
+			await line.getByRole("button", { name: "Update" }).click();
+			await reloaded;
+			await expect(
+				page.getByRole("textbox", { name: "Text to read" }),
+			).toBeVisible();
+			await expect(line).toHaveCount(0);
+			// The old version's cache is gone and the new one serves the page.
+			await expect.poll(precaches).toEqual(["speeedy-precache-next"]);
+			expect(
+				await page.evaluate(
+					async () =>
+						(await navigator.serviceWorker.getRegistration())?.waiting,
+				),
+			).toBeNull();
+		} finally {
+			await app.close();
+		}
 	});
 });
 

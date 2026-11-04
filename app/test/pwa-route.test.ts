@@ -6,7 +6,7 @@ const precached = new Set([
 	"/",
 	"/reader",
 	"/library",
-	"/200.html",
+	"/account/offline",
 	"/_app/immutable/entry/app.AAAAAAAA.js",
 	"/fonts/archivo-wdth.woff2",
 ]);

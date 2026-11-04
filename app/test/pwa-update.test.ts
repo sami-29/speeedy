@@ -49,7 +49,7 @@ function fakeContainer(options: { controlled: boolean }) {
 	};
 	const container = {
 		controller: options.controlled ? ({} as object) : null,
-		getRegistration: async () => registration,
+		ready: Promise.resolve(registration),
 		addEventListener(_: "controllerchange", fn: Listener) {
 			containerListeners.push(fn);
 		},
