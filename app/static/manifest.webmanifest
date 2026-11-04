@@ -1,0 +1,55 @@
+{
+	"id": "/",
+	"name": "Speeedy",
+	"short_name": "Speeedy",
+	"description": "A speed reader that works on your device. Free, no account, and it keeps working offline.",
+	"lang": "en",
+	"start_url": "/reader",
+	"scope": "/",
+	"display": "standalone",
+	"background_color": "#eff1f1",
+	"theme_color": "#eff1f1",
+	"categories": ["productivity", "education"],
+	"icons": [
+		{
+			"src": "/icons/icon-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/icons/icon-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any"
+		},
+		{
+			"src": "/icons/icon-maskable-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	],
+	"share_target": {
+		"action": "/reader",
+		"method": "GET",
+		"enctype": "application/x-www-form-urlencoded",
+		"params": { "title": "title", "text": "text", "url": "url" }
+	},
+	"file_handlers": [
+		{
+			"action": "/reader",
+			"name": "Speeedy",
+			"accept": {
+				"text/plain": [".txt"],
+				"text/markdown": [".md", ".markdown"],
+				"text/csv": [".csv"],
+				"text/html": [".html", ".htm"],
+				"application/pdf": [".pdf"],
+				"application/epub+zip": [".epub"],
+				"application/vnd.oasis.opendocument.text": [".odt"],
+				"application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"]
+			}
+		}
+	]
+}

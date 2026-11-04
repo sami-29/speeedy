@@ -14,7 +14,7 @@
 		"prepare": "pnpm paraglide && svelte-kit sync",
 		"lint": "node scripts/lint-runes.ts",
 		"paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/lib/paraglide --strategy url baseLocale",
-		"typecheck": "pnpm paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+		"typecheck": "pnpm paraglide && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings && tsc -p src/service-worker/tsconfig.json",
 		"test:unit": "pnpm icons:check && vitest run",
 		"e2e": "playwright test",
 		"icons": "node scripts/generate-icons.ts",

@@ -5,6 +5,7 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
+		"./precache": "./src/precache.ts",
 		"./worker": "./src/worker.ts"
 	},
 	"scripts": {

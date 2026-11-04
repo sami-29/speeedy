@@ -5,6 +5,8 @@ import NewsletterForm from "#lib/NewsletterForm.svelte";
 import { newsletterPageFor, showsFooterForm } from "#lib/newsletter.ts";
 import { m } from "#lib/paraglide/messages.js";
 import { deLocalizeUrl, localizeHref } from "#lib/paraglide/runtime.js";
+import UpdateNotice from "#lib/pwa/UpdateNotice.svelte";
+import { startUpdateWatch } from "#lib/pwa/updates.svelte.ts";
 import { startErrorCapture, trackPageview } from "#lib/telemetry.ts";
 import { theme } from "#lib/theme.svelte.ts";
 import { applyTheme, type Theme } from "#lib/theme.ts";
@@ -15,6 +17,9 @@ let { children } = $props();
 
 // Uncaught errors are reported by code and stack frames only, never their message.
 onMount(startErrorCapture);
+
+// Tell the reader, in a plain line, when a new version of the app is waiting.
+onMount(startUpdateWatch);
 
 // One route-only $pageview per page, on first load and on every client-side navigation.
 afterNavigate((navigation) =>
@@ -89,6 +94,8 @@ const themes = $derived<{ id: Theme; short: string; label: string }[]>([
 <main id="main" class="poster-axis pb-s-6">
 	{@render children()}
 </main>
+
+<UpdateNotice />
 
 {#if showForm}
 	<footer class="rule-heavy mt-s-5 poster px-gutter py-s-4">
