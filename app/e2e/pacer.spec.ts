@@ -146,7 +146,17 @@ test.describe("Reading Mode switch", () => {
 			"true",
 		);
 		await page.keyboard.press("m");
+		await expect(modeButton(page, "Listen")).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		await page.keyboard.press("m");
 		await expect(modeButton(page, "RSVP")).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		await page.keyboard.press("Shift+m");
+		await expect(modeButton(page, "Listen")).toHaveAttribute(
 			"aria-pressed",
 			"true",
 		);

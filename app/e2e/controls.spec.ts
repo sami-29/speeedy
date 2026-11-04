@@ -372,6 +372,12 @@ test.describe("keyboard", () => {
 		);
 		await expect(page.getByTestId("pacer")).toBeVisible();
 		await page.keyboard.press("m");
+		await expect(modes.getByRole("button", { name: "Listen" })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		await expect(page.getByTestId("listen")).toBeVisible();
+		await page.keyboard.press("m");
 		await expect(modes.getByRole("button", { name: "RSVP" })).toHaveAttribute(
 			"aria-pressed",
 			"true",

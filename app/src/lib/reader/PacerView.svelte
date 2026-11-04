@@ -42,14 +42,18 @@ $effect(() => {
 	const view = renderPacer(pane, text, document, {
 		image: m.reader_pacer_image(),
 	});
+	const frame: HTMLElement = pane;
 	const takeOver = untrack(() => follow);
+	// What the mode's follower reads is its own business: only the Engine and the Document
+	// make this view start over.
 	const stop = takeOver
-		? takeOver(view, pane)
+		? untrack(() => takeOver(view, frame))
 		: followCursor(current, view.show);
 	// A change of the pane's size moves the current line: put it back in view.
 	const observer = new ResizeObserver(() => view.reveal());
 	observer.observe(pane);
-	if (untrack(() => autoplay)) current.play();
+	// Playing runs the Engine's listeners here; whatever they read must not restart the view.
+	if (untrack(() => autoplay)) untrack(() => current.play());
 	return () => {
 		current.pause();
 		observer.disconnect();

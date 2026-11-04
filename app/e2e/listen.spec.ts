@@ -389,10 +389,12 @@ test.describe("Listen with browser voices", () => {
 	test("RSVP, Pacer and Listen keep the Position through every switch", async ({
 		page,
 	}) => {
-		await stubSpeech(page, { msPerWord: 500 });
+		await stubSpeech(page, { msPerWord: 1500 });
 		await openListen(page);
 		await page.getByRole("button", { name: "Play" }).click();
-		await expect.poll(() => nowText(page)).toBe("s1b");
+		await expect
+			.poll(() => nowText(page), { timeout: 15_000, intervals: [30] })
+			.toBe("s1b");
 		await page.getByRole("button", { name: "Pause" }).click();
 		const held = await nowText(page);
 		await modeButton(page, "Pacer").click();

@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { Document, Position } from "@speeedy/contracts";
 import type { Engine } from "@speeedy/engine";
+import { untrack } from "svelte";
 import { progressSeeker, progressTracker } from "#lib/library/progress.ts";
 import { m } from "#lib/paraglide/messages.js";
 import {
@@ -73,7 +74,8 @@ $effect(() => {
 			show(value, position);
 			// Only reading counts: a rebuild or a seek that shows a Frame does not.
 			if (
-				recordSpeed &&
+				// Read outside the effect that started the Engine, which runs this handler.
+				untrack(() => recordSpeed) &&
 				current.playing &&
 				trace.record(value, current.settings.wpm)
 			) {
