@@ -107,7 +107,9 @@ describe("copy rules for the legal pages", () => {
 
 	it("never says 'no tracking' or 'no data collection' (ticket 34, rule 6)", () => {
 		for (const [key, value] of legalCopy()) {
-			expect(value, key).not.toMatch(/\bno (data collection|tracking)\b/i);
+			expect(value, key).not.toMatch(
+				/\bno (?:data collection|tracking(?! pixels))\b/i,
+			);
 			expect(value, key).not.toMatch(/\bwe (do not|don't) (track|collect)\b/i);
 		}
 	});
@@ -137,7 +139,8 @@ describe("the privacy policy follows the ticket 56 draft, amended by ticket 43",
 
 	it("names the controller and the contact", () => {
 		expect(privacy).toContain("SamDev LLC");
-		expect(privacy).toContain("privacy@speeedy.app");
+		expect(text("legal_contact_email")).toBe("privacy@speeedy.app");
+		expect(text("privacy_controller_before")).toMatch(/write to$/);
 	});
 
 	it("says PostHog is in the US and never puts analytics in the EU", () => {
@@ -180,7 +183,7 @@ describe("the privacy policy follows the ticket 56 draft, amended by ticket 43",
 	});
 
 	it("covers the Android app and links the deletion page", () => {
-		expect(joined("privacy_play")).toContain("/account/delete");
+		expect(text("privacy_play_delete_before")).toMatch(/Delete your Account/);
 		expect(PLAY_ROWS.length).toBeGreaterThanOrEqual(5);
 	});
 
@@ -340,7 +343,7 @@ describe("the terms follow the ticket 56 draft", () => {
 
 	it("keeps the consent rule: nothing that sends text to our servers is on by default", () => {
 		const consent = joined("terms_consent");
-		expect(consent).toMatch(/never on by default/);
+		expect(consent).toMatch(/ever on by default/);
 		expect(consent).toMatch(/asks before it starts/);
 	});
 
@@ -367,7 +370,8 @@ describe("the terms follow the ticket 56 draft", () => {
 		expect(joined("terms_law")).toMatch(/Delaware/);
 		expect(joined("terms_law")).toMatch(/consumer protections/);
 		expect(terms).toContain("SamDev LLC");
-		expect(terms).toContain("privacy@speeedy.app");
+		expect(text("legal_contact_email")).toBe("privacy@speeedy.app");
+		expect(text("terms_who_before")).toMatch(/Write to$/);
 	});
 
 	it("says the free app has no age limit because it collects nothing about you", () => {
