@@ -3,6 +3,9 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- On the landing page only, hooks.server.ts puts the 1.x hash route mapper here
+		     (src/lib/legacy). It must stay before every other script so it runs before analytics. -->
+		<!--speeedy-legacy-hash-->
 		<meta name="theme-color" content="#eff1f1" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
 		<link rel="icon" href="%sveltekit.assets%/icons/favicon-32.png" type="image/png" sizes="32x32" />

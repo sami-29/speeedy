@@ -60,6 +60,16 @@ test.describe("1.x hash routes", () => {
 		}
 	});
 
+	test("a 1.x bookmark opened in a tab already on the landing page still maps", async ({
+		page,
+	}) => {
+		await page.goto("/");
+		await page.evaluate(() => {
+			location.hash = "#/benchmark";
+		});
+		await expect(page).toHaveURL(/\/reading-speed-test$/);
+	});
+
 	test("replaces the 1.x entry, so Back does not return to it", async ({
 		page,
 	}) => {
@@ -136,18 +146,17 @@ test.describe("hostile hashes", () => {
 		test(`${hash.slice(0, 40)} stays on this site and runs nothing`, async ({
 			page,
 		}) => {
+			const origin = `http://localhost:${process.env.PW_PORT ?? "4173"}`;
 			const offsite: string[] = [];
 			page.on("request", (request) => {
-				if (new URL(request.url()).origin !== new URL(page.url()).origin) {
+				if (new URL(request.url()).origin !== origin) {
 					offsite.push(request.url());
 				}
 			});
 			await page.goto(`/${hash}`);
 			await page.waitForTimeout(500);
 			const url = new URL(page.url());
-			expect(url.origin).toBe(
-				`http://localhost:${process.env.PW_PORT ?? "4173"}`,
-			);
+			expect(url.origin).toBe(origin);
 			expect(["/", "/s"]).toContain(url.pathname);
 			expect(url.search).toBe("");
 			expect(
@@ -158,9 +167,9 @@ test.describe("hostile hashes", () => {
 			expect(
 				await page.evaluate(() => {
 					const plain = {} as { path?: unknown; hash?: unknown };
-					return [plain.path, plain.hash];
+					return [plain.path === undefined, plain.hash === undefined];
 				}),
-			).toEqual([null, null]);
+			).toEqual([true, true]);
 			expect(offsite).toEqual([]);
 		});
 	}

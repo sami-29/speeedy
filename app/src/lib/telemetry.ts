@@ -30,8 +30,12 @@ function start(): Promise<Telemetry> {
 /** The flags for this page load. */
 export const appFlags = (): Promise<Flags> => start().then((t) => t.flags);
 
-/** Queues a `$pageview` for a path. Only the route pattern leaves the page. */
+/**
+ * Queues a `$pageview` for a path. Only the route pattern leaves the page. A page that the
+ * 1.x hash mapper is replacing (src/lib/legacy) reports nothing: the page it goes to will.
+ */
 export function trackPageview(pathname: string): void {
+	if (document.documentElement.dataset.legacyRedirect) return;
 	void start().then((t) => t.analytics.trackPageview(pathname));
 }
 

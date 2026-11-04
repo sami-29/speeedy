@@ -274,7 +274,9 @@ type Calls = { replace: string[]; replaceState: unknown[][] };
 function run(hash: string | (() => string)): {
 	calls: Calls;
 	dataset: Record<string, string>;
+	listeners: Record<string, () => void>;
 } {
+	const listeners: Record<string, () => void> = {};
 	const calls: Calls = { replace: [], replaceState: [] };
 	const dataset: Record<string, string> = {};
 	const location = {
@@ -286,11 +288,15 @@ function run(hash: string | (() => string)): {
 	vm.runInNewContext(LEGACY_HASH_SCRIPT, {
 		location,
 		history: {
+			state: null,
 			replaceState: (...args: unknown[]) => calls.replaceState.push(args),
 		},
 		document: { documentElement: { dataset } },
+		addEventListener: (type: string, listener: () => void) => {
+			listeners[type] = listener;
+		},
 	});
-	return { calls, dataset };
+	return { calls, dataset, listeners };
 }
 
 describe("the inline script", () => {
@@ -322,6 +328,15 @@ describe("the inline script", () => {
 			expect(calls.replaceState).toEqual([]);
 			expect(dataset).toEqual({});
 		}
+	});
+
+	it("looks again when only the hash changes in an open landing page", () => {
+		let hash = "";
+		const { calls, listeners } = run(() => hash);
+		expect(calls.replace).toEqual([]);
+		hash = "#/learn";
+		listeners.hashchange?.();
+		expect(calls.replace).toEqual(["/learn"]);
 	});
 
 	it("never throws, whatever the browser does", () => {
