@@ -97,6 +97,40 @@ export type TrainingResult = {
 	scores: Record<string, number>;
 };
 
+/** Everything the backup file carries, read in one transaction. */
+export type LibrarySnapshot = {
+	documents: { meta: DocumentMeta; document: Document }[];
+	/** Documents left out because their record or their text is damaged. */
+	skipped: number;
+	sessions: StoredSession[];
+	trainingResults: TrainingResult[];
+	settings: Record<string, SettingEntry>;
+	dailyGoalChanges: DailyGoalChange[];
+};
+
+/** What a restore sees of the Library, read inside its transaction. */
+export type RestoreBase = {
+	documents: DocumentMeta[];
+	/**
+	 * Every ID a new document must not take: documents (damaged ones too), their texts, and
+	 * deleted documents.
+	 */
+	takenIds: Set<string>;
+	sessions: StoredSession[];
+	settings: Record<string, SettingEntry>;
+	dailyGoalChanges: DailyGoalChange[];
+	trainingResults: TrainingResult[];
+};
+
+/** The writes a restore makes. `document` is the text of a document that is new here. */
+export type RestorePlan = {
+	documents: { meta: DocumentMeta; document?: Document }[];
+	sessions: StoredSession[];
+	settings: { key: string; entry: SettingEntry }[];
+	dailyGoalChanges: DailyGoalChange[];
+	trainingResults: TrainingResult[];
+};
+
 /** What `deleteDocument` hands back, so `restoreDocument` can undo it. */
 export type RemovedDocument = {
 	meta: DocumentMeta;
@@ -219,6 +253,14 @@ export type LibraryStore = {
 	}): Promise<TrainingResult>;
 	trainingResults(): Promise<TrainingResult[]>;
 
+	/** Everything the backup file carries, read at one moment. */
+	backupSnapshot(): Promise<LibrarySnapshot>;
+	/**
+	 * Apply a restore in one transaction. `build` is given the Library as it is inside the
+	 * transaction and returns the writes; if it throws or any write fails, nothing changes.
+	 */
+	restore(build: (current: RestoreBase) => RestorePlan): Promise<void>;
+
 	/** Close the connection. The next call opens it again. */
 	close(): void;
 };
@@ -286,7 +328,8 @@ function hashedStructure(block: Block): unknown[] {
 	}
 }
 
-async function hashDocument(document: Document): Promise<string> {
+/** The key Sync merges on and the backup file is checked against. */
+export async function hashDocument(document: Document): Promise<string> {
 	const text = JSON.stringify(document.blocks.map(hashedStructure));
 	const digest = await crypto.subtle.digest(
 		"SHA-256",
@@ -769,6 +812,169 @@ export function createLibraryStore(
 		async trainingResults() {
 			const db = await database();
 			return db.getAllFromIndex("trainingResults", "byCompletedAt");
+		},
+
+		async backupSnapshot() {
+			const db = await database();
+			const tx = db.transaction(
+				[
+					"documents",
+					"contents",
+					"sessions",
+					"trainingResults",
+					"settings",
+					"dailyGoalChanges",
+				],
+				"readonly",
+			);
+			const [metas, contents, sessions, results, settings, goals] =
+				await Promise.all([
+					tx.objectStore("documents").getAll(),
+					tx.objectStore("contents").getAll(),
+					tx.objectStore("sessions").index("byStartedAt").getAll(),
+					tx.objectStore("trainingResults").index("byCompletedAt").getAll(),
+					tx.objectStore("settings").getAll(),
+					tx.objectStore("dailyGoalChanges").getAll(),
+				]);
+			await tx.done;
+			const texts = new Map(
+				contents.filter(isRecord).map((each) => [each.id, each.document]),
+			);
+			const documents: LibrarySnapshot["documents"] = [];
+			let skipped = 0;
+			for (const meta of metas.sort((a, b) => a.id.localeCompare(b.id))) {
+				const checked = isMeta(meta)
+					? validateDocument(texts.get(meta.id))
+					: null;
+				if (!isMeta(meta) || !checked?.ok) {
+					skipped += 1;
+					continue;
+				}
+				documents.push({
+					meta: {
+						...meta,
+						position: clampPosition(meta.position, checked.document),
+					},
+					document: checked.document,
+				});
+			}
+			return {
+				documents,
+				skipped,
+				sessions: sessions.filter(isSession),
+				trainingResults: results,
+				settings: Object.fromEntries(
+					settings.map(({ key, value, changedAt }) => [
+						key,
+						{ value, changedAt },
+					]),
+				),
+				dailyGoalChanges: goals.sort(
+					(a, b) =>
+						a.effectiveDate.localeCompare(b.effectiveDate) ||
+						a.changedAt - b.changedAt,
+				),
+			};
+		},
+
+		async restore(build) {
+			const db = await database();
+			const tx = db.transaction(
+				[
+					"documents",
+					"contents",
+					"sessions",
+					"trainingResults",
+					"settings",
+					"dailyGoalChanges",
+					"tombstones",
+				],
+				"readwrite",
+			);
+			try {
+				const [
+					metas,
+					documentIds,
+					contentIds,
+					tombstoneIds,
+					sessions,
+					results,
+					settings,
+					goals,
+				] = await Promise.all([
+					tx.objectStore("documents").getAll(),
+					tx.objectStore("documents").getAllKeys(),
+					tx.objectStore("contents").getAllKeys(),
+					tx.objectStore("tombstones").getAllKeys(),
+					tx.objectStore("sessions").getAll(),
+					tx.objectStore("trainingResults").getAll(),
+					tx.objectStore("settings").getAll(),
+					tx.objectStore("dailyGoalChanges").getAll(),
+				]);
+				const plan = build({
+					documents: metas.filter(isMeta),
+					takenIds: new Set([...documentIds, ...contentIds, ...tombstoneIds]),
+					sessions: sessions.filter(isSession),
+					settings: Object.fromEntries(
+						settings.map(({ key, value, changedAt }) => [
+							key,
+							{ value, changedAt },
+						]),
+					),
+					dailyGoalChanges: goals,
+					trainingResults: results,
+				});
+				for (const { meta, document } of plan.documents) {
+					if (!isMeta(meta)) {
+						throw new LibraryError("invalid-argument", "Not a document.");
+					}
+					if (document !== undefined && !validateDocument(document).ok) {
+						throw new LibraryError("invalid-document", "Not a Document.");
+					}
+				}
+				for (const session of plan.sessions) {
+					if (!isSession(session)) {
+						throw new LibraryError("invalid-argument", "Not a Session.");
+					}
+				}
+				const writes: Promise<unknown>[] = [];
+				for (const { meta, document } of plan.documents) {
+					writes.push(tx.objectStore("documents").put(meta));
+					if (document !== undefined) {
+						writes.push(
+							tx.objectStore("contents").put({ id: meta.id, document }),
+						);
+					}
+				}
+				for (const session of plan.sessions) {
+					writes.push(tx.objectStore("sessions").put(session));
+				}
+				for (const { key, entry } of plan.settings) {
+					writes.push(
+						tx.objectStore("settings").put({
+							key,
+							value: entry.value,
+							changedAt: entry.changedAt,
+						}),
+					);
+				}
+				for (const change of plan.dailyGoalChanges) {
+					writes.push(tx.objectStore("dailyGoalChanges").put(change));
+				}
+				for (const result of plan.trainingResults) {
+					writes.push(tx.objectStore("trainingResults").put(result));
+				}
+				await Promise.all(writes);
+				await tx.done;
+			} catch (error) {
+				try {
+					tx.abort();
+				} catch {
+					// already finished or aborted
+				}
+				await tx.done.catch(() => undefined);
+				throw error;
+			}
 		},
 
 		close() {

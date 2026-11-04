@@ -449,6 +449,29 @@ describe("merging into a Library that already has things", () => {
 		expect((await b.sessions()).map((each) => each.activeMs)).toEqual([50_000]);
 	});
 
+	it("never takes a Session's mark of staying on this device, even when the file's copy is longer", async () => {
+		const b = device("b");
+		const held = await b.addDocument({
+			document: doc("private to this device"),
+			title: "Private",
+			language: "en",
+		});
+		await b.setDeviceOnly(held.meta.id, true);
+		const mine = await b.addSession({
+			...session({ activeMs: 10_000 }),
+			documentId: held.meta.id,
+		});
+		expect(mine.localOnly).toBe(true);
+		const file = JSON.parse(await textOf(b)) as BackupFile;
+		const entry = file.sessions[0];
+		if (!entry) throw new Error("expected a Session");
+		delete entry.localOnly;
+		entry.activeMs = 20_000;
+		await restoreBackup(b, JSON.stringify(file));
+		const after = (await b.sessions())[0];
+		expect(after).toMatchObject({ activeMs: 20_000, localOnly: true });
+	});
+
 	it("leaves what is only here alone, and settings merge one at a time by their own time", async () => {
 		const a = device("a");
 		const b = device("b");
