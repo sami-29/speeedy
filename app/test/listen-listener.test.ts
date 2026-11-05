@@ -235,6 +235,51 @@ describe("Listen: speaking", () => {
 	});
 });
 
+describe("Listen: what a voice that prepares its audio is told", () => {
+	it("gives the whole sentence and where the spoken text starts in it", () => {
+		const { engine, speech } = setup(DOC);
+		engine.seek({ block: 0, offset: 15 });
+		engine.play();
+		expect(speech.last().job).toMatchObject({
+			text: "four five.",
+			sentence: { text: "Three four five.", at: 6 },
+		});
+	});
+
+	it("names the sentences that follow, so they can be prepared ahead", () => {
+		const doc = paragraphs("One two. Three four five.", "Six. Seven.");
+		const { engine, speech } = setup(doc);
+		engine.play();
+		expect(speech.last().job.next).toEqual([
+			"Three four five.",
+			"Six.",
+			"Seven.",
+		]);
+		speech.end();
+		expect(speech.last().job.next).toEqual(["Six.", "Seven."]);
+	});
+
+	it("names no more than three, and none past the end", () => {
+		const doc = paragraphs("One. Two. Three. Four. Five.");
+		const { engine, speech } = setup(doc);
+		engine.play();
+		expect(speech.last().job.next).toEqual(["Two.", "Three.", "Four."]);
+		engine.seek({ block: 0, offset: 23 });
+		expect(speech.last().job.next).toEqual([]);
+	});
+
+	it("tells the voice the next sentences again after a seek", () => {
+		const { engine, speech } = setup(DOC);
+		engine.play();
+		engine.seek({ block: 0, offset: 27 });
+		expect(speech.last().job).toMatchObject({
+			text: "Six.",
+			sentence: { text: "Six.", at: 0 },
+			next: [],
+		});
+	});
+});
+
 describe("Listen: the highlight", () => {
 	it("marks the whole sentence before any word is reported", () => {
 		const { engine, speech, listener } = setup(DOC);

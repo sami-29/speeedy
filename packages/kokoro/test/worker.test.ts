@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
 	type Asset,
+	type CacheLike,
 	createKokoroWorker,
 	type KokoroAssets,
 	type KokoroWorkerMessage,
@@ -9,6 +10,29 @@ import {
 	threadCount,
 } from "../src/index";
 import { fixtureLexicon, rowVoice, stubSession } from "./helpers";
+
+const APP = "https://speeedy.test/_app/immutable/workers/";
+
+/** A Cache Storage cache in memory, keyed by URL. */
+function memoryCache() {
+	const entries = new Map<string, string>();
+	const cache: CacheLike = {
+		async match(url) {
+			const body = entries.get(url);
+			return body === undefined ? undefined : new Response(body);
+		},
+		async put(url, response) {
+			entries.set(url, await response.text());
+		},
+		async delete(url) {
+			return entries.delete(url);
+		},
+		async keys() {
+			return [...entries.keys()].map((url) => ({ url }));
+		},
+	};
+	return { cache, entries };
+}
 
 const encode = (value: unknown) =>
 	new TextEncoder().encode(JSON.stringify(value));
@@ -28,6 +52,7 @@ function fakeAsset(key: string, bytes: Uint8Array): [Asset, Uint8Array] {
 function setup(
 	environment = { crossOriginIsolated: true, hardwareConcurrency: 8 },
 	store = memoryStore(),
+	extra: Partial<Parameters<typeof createKokoroWorker>[0]> = {},
 ) {
 	const files = {
 		model: fakeAsset("model.onnx", new Uint8Array([1, 2, 3, 4])),
@@ -41,6 +66,9 @@ function setup(
 	const requests: string[] = [];
 	const fetcher = (async (url: string) => {
 		requests.push(String(url));
+		if (String(url).startsWith(APP)) {
+			return new Response(`runtime ${url}`, { status: 200 });
+		}
 		const file = Object.values(files).find(
 			([asset]) => asset.url === String(url),
 		);
@@ -60,6 +88,7 @@ function setup(
 			return stubSession();
 		},
 		post: (message, transfer = []) => posted.push({ message, transfer }),
+		...extra,
 	});
 	const last = () => posted.at(-1)?.message;
 	return { worker, requests, posted, sessions, last };
@@ -197,5 +226,130 @@ describe("Kokoro worker", () => {
 			voice: "af_msa",
 		});
 		expect(last()).toMatchObject({ type: "error", id: 3, code: "not-english" });
+	});
+});
+
+describe("Kokoro worker: Listen", () => {
+	const generate = (id: number, sentence = "Hello, world!") =>
+		({ type: "generate", id, sentence, voice: "af_msa" }) as const;
+
+	it("says how long each generation took, measured in the worker", async () => {
+		let time = 1000;
+		const { worker, posted } = setup(undefined, undefined, {
+			now: () => time,
+			createSession: async () => {
+				const session = stubSession();
+				return {
+					async run(input) {
+						time += 250;
+						return session.run(input);
+					},
+				};
+			},
+		});
+		await worker.handle({ type: "download", consent: true });
+		await worker.handle(generate(1));
+		expect(posted.at(-1)?.message).toMatchObject({
+			type: "result",
+			id: 1,
+			ms: 250,
+		});
+	});
+
+	it("skips a queued generation that was cancelled, and says so with its id", async () => {
+		const { worker, posted } = setup();
+		await worker.handle({ type: "download", consent: true });
+		const first = worker.handle(generate(1));
+		const second = worker.handle(generate(2, "The cat sat."));
+		const third = worker.handle(generate(3, "The mat."));
+		await worker.handle({ type: "cancel", ids: [2] });
+		await Promise.all([first, second, third]);
+		const replies = posted
+			.map(({ message }) => message)
+			.filter((message) => "id" in message);
+		expect(
+			replies.map((message) => [message.type, "id" in message && message.id]),
+		).toEqual([
+			["result", 1],
+			["error", 2],
+			["result", 3],
+		]);
+		expect(replies[1]).toMatchObject({ code: "cancelled" });
+	});
+
+	it("keeps its own script and the runtime WASM with the model when the reader agrees", async () => {
+		const runtime = memoryCache();
+		const urls = [
+			`${APP}kokoro.worker-AAAA1111.js`,
+			`${APP}assets/ort-wasm-simd-threaded-BBBB2222.wasm`,
+		];
+		const { worker, requests } = setup(undefined, undefined, {
+			runtime: { urls, cache: async () => runtime.cache },
+		});
+		await worker.handle({ type: "status" });
+		expect(requests).toEqual([]);
+		expect(runtime.entries.size).toBe(0);
+		await worker.handle({ type: "download", consent: true });
+		expect([...runtime.entries.keys()].sort()).toEqual([...urls].sort());
+	});
+
+	it("never fetches the runtime before consent: a refused download caches nothing", async () => {
+		const runtime = memoryCache();
+		const { worker, requests } = setup(undefined, undefined, {
+			runtime: {
+				urls: [`${APP}kokoro.worker-AAAA1111.js`],
+				cache: async () => runtime.cache,
+			},
+		});
+		await worker.handle({ type: "download", consent: false as true });
+		await worker.handle({ type: "load" });
+		expect(requests).toEqual([]);
+		expect(runtime.entries.size).toBe(0);
+	});
+
+	it("on a later visit after an update, keeps the new runtime and drops the old, leaving the model", async () => {
+		const store = memoryStore();
+		const runtime = memoryCache();
+		const old = `${APP}kokoro.worker-OLD11111.js`;
+		await setup(undefined, store, {
+			runtime: { urls: [old], cache: async () => runtime.cache },
+		}).worker.handle({ type: "download", consent: true });
+		runtime.entries.set("https://kokoro.invalid/model.onnx", "model");
+		const fresh = `${APP}kokoro.worker-NEW22222.js`;
+		const later = setup(undefined, store, {
+			runtime: { urls: [fresh], cache: async () => runtime.cache },
+		});
+		await later.worker.handle({ type: "load" });
+		expect(later.last()).toMatchObject({ type: "ready" });
+		expect(runtime.entries.has(fresh)).toBe(true);
+		expect(runtime.entries.has(old)).toBe(false);
+		expect(runtime.entries.has("https://kokoro.invalid/model.onnx")).toBe(true);
+	});
+
+	it("does not fetch a runtime file it already keeps", async () => {
+		const store = memoryStore();
+		const runtime = memoryCache();
+		const urls = [`${APP}kokoro.worker-AAAA1111.js`];
+		await setup(undefined, store, {
+			runtime: { urls, cache: async () => runtime.cache },
+		}).worker.handle({ type: "download", consent: true });
+		const later = setup(undefined, store, {
+			runtime: { urls, cache: async () => runtime.cache },
+		});
+		await later.worker.handle({ type: "load" });
+		expect(later.requests).toEqual([]);
+	});
+
+	it("still loads the voice when the runtime cannot be kept", async () => {
+		const { worker, last } = setup(undefined, undefined, {
+			runtime: {
+				urls: [`${APP}kokoro.worker-AAAA1111.js`],
+				cache: async () => {
+					throw new Error("quota");
+				},
+			},
+		});
+		await worker.handle({ type: "download", consent: true });
+		expect(last()).toMatchObject({ type: "ready" });
 	});
 });

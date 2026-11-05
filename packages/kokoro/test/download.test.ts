@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	type Asset,
 	assetStatus,
+	cacheStore,
 	downloadAsset,
 	IntegrityError,
 	KOKORO_ASSETS,
@@ -206,5 +207,31 @@ describe("Kokoro assets", () => {
 		expect(TOTAL_DOWNLOAD_BYTES).toBe(
 			30_649_897 + 522_240 + 3_000_469 + 3_099_517,
 		);
+	});
+});
+
+describe("cacheStore", () => {
+	it("lists only the voice's own files when the cache also keeps its runtime", async () => {
+		const entries = new Map<string, Response>();
+		const store = cacheStore(async () => ({
+			async match(url: string) {
+				return entries.get(url);
+			},
+			async put(url: string, response: Response) {
+				entries.set(url, response);
+			},
+			async delete(url: string) {
+				return entries.delete(url);
+			},
+			async keys() {
+				return [...entries.keys()].map((url) => ({ url }));
+			},
+		}));
+		await store.put("model.onnx", new Uint8Array([1]));
+		entries.set(
+			"https://speeedy.test/_app/immutable/workers/kokoro.worker-AAAA1111.js",
+			new Response("x"),
+		);
+		expect(await store.keys()).toEqual(["model.onnx"]);
 	});
 });
