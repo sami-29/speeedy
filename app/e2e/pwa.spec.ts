@@ -158,6 +158,30 @@ test.describe("offline", () => {
 		).toBeVisible();
 	});
 
+	test("the on-device voice's runtime comes from its own cache offline, not the precache", async ({
+		page,
+		context,
+	}) => {
+		await installed(page);
+		const files = {
+			"/_app/immutable/workers/kokoro.worker-TESTTEST.js": "worker bytes",
+			"/_app/immutable/workers/assets/ort-wasm-simd-threaded-TESTTEST.wasm":
+				"wasm bytes",
+		};
+		await page.evaluate(async (files) => {
+			const cache = await caches.open("speeedy-kokoro-v1");
+			for (const [path, body] of Object.entries(files))
+				await cache.put(new URL(path, location.origin), new Response(body));
+		}, files);
+		await context.setOffline(true);
+		const bodies = await page.evaluate(async (paths) => {
+			const out: Record<string, string> = {};
+			for (const path of paths) out[path] = await (await fetch(path)).text();
+			return out;
+		}, Object.keys(files));
+		expect(bodies).toEqual(files);
+	});
+
 	test("the landing page and a page the shell does not hold still open offline", async ({
 		page,
 		context,

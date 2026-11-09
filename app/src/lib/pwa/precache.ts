@@ -28,9 +28,20 @@ export const SHELL_PAGES = [
  */
 export const FALLBACK_PAGE = "/account/offline";
 
-/** The voice worker and every model-like file, wherever the build puts them. */
-const VOICE_EXCLUDE =
+/**
+ * The voice worker and every model-like file, wherever the build puts them. None is
+ * precached; the voice's worker and runtime are served from `VOICE_CACHE` instead.
+ */
+export const VOICE_FILES =
 	/(?:^|\/)kokoro\.worker-[\w-]{8}\.m?js$|\.(?:wasm|onnx|bin|ort)$/;
+
+/**
+ * The on-device voice's own cache: its model, voice and lexicon, and the runtime (the voice
+ * worker and the ONNX runtime's WASM), all filled when the reader agrees to the download. It
+ * is not a precache, so no update ever deletes it. The same name as `KOKORO_CACHE`, written
+ * out so the service worker does not bundle the voice.
+ */
+export const VOICE_CACHE = "speeedy-kokoro-v1";
 const SOURCE_MAP = /\.map$/;
 
 /** The static files the app shell, the header and the install flow use. */
@@ -55,7 +66,7 @@ export function precacheList(build: BuildFiles): string[] {
 		if (
 			SOURCE_MAP.test(path) ||
 			PDF_PRECACHE_EXCLUDE.test(path) ||
-			VOICE_EXCLUDE.test(path)
+			VOICE_FILES.test(path)
 		)
 			continue;
 		wanted.add(path);

@@ -16,6 +16,9 @@ import type { VoiceLike } from "./voices.ts";
 /** How long a voice may go without reporting a word before Listen stops expecting it to. */
 export const WATCHDOG_MS = 1500;
 
+/** How many sentences after the one being said a Speaker is told about, to prepare ahead. */
+export const SENTENCES_AHEAD = 3;
+
 /** The text Listen marks: the word being spoken, or the whole sentence it is in. */
 export type Highlight = {
 	kind: "word" | "sentence";
@@ -256,6 +259,25 @@ export function createListener(options: ListenerOptions): Listener {
 		}
 	};
 
+	/** The text of up to `SENTENCES_AHEAD` sentences after the one ending at Frame `last`. */
+	const sentencesAfter = (last: number): string[] => {
+		const all = frames();
+		const found: string[] = [];
+		let index = last + 1;
+		while (index < all.length && found.length < SENTENCES_AHEAD) {
+			const { from, to } = sentenceBounds(all, index);
+			const first = all[from] as Frame;
+			const end = all[to] as Frame;
+			const text = textOf(first.position.block).slice(
+				first.position.offset,
+				end.end.offset,
+			);
+			if (text.trim() !== "") found.push(text);
+			index = to + 1;
+		}
+		return found;
+	};
+
 	const speakFrom = (at: Position): void => {
 		const all = frames();
 		if (all.length === 0) return;
@@ -291,8 +313,19 @@ export function createListener(options: ListenerOptions): Listener {
 					},
 		);
 		setStatus("speaking");
+		const sentenceStart = first.position.offset;
 		speaker.speak(
-			{ text, lang: baseTag(language), voice, rate },
+			{
+				text,
+				lang: baseTag(language),
+				voice,
+				rate,
+				sentence: {
+					text: textOf(block).slice(sentenceStart, end),
+					at: start - sentenceStart,
+				},
+				next: sentencesAfter(to),
+			},
 			{
 				start() {
 					if (mine !== token || disposed) return;

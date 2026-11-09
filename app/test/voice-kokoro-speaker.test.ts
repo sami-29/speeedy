@@ -299,6 +299,7 @@ describe("The on-device voice: pause, cancel and no double playing", () => {
 		const r = rig({ manual: true });
 		r.speaker.speak(r.job("One two."), r.handlers);
 		r.speaker.cancel();
+		await settle();
 		r.kokoro.finishAll();
 		await settle();
 		expect(r.sound.context.sources).toEqual([]);
@@ -321,6 +322,7 @@ describe("The on-device voice: pause, cancel and no double playing", () => {
 		const r = rig({ manual: true });
 		r.speaker.speak(r.job("One two."), r.handlers);
 		r.speaker.speak(r.job("Three four."), r.handlers);
+		await settle();
 		r.kokoro.finishAll();
 		await settle();
 		expect(r.sound.context.sources).toHaveLength(1);
@@ -515,7 +517,16 @@ function listening(doc: Document = DOC, options: RigOptions = {}) {
 		const block = h ? doc.blocks[h.block] : undefined;
 		return h && block && "text" in block ? block.text.slice(h.from, h.to) : "";
 	};
-	return { ...r, engine, listener, word };
+	return {
+		...r,
+		engine,
+		listener,
+		word,
+		/** The source started last. */
+		get source() {
+			return r.sound.context.sources.at(-1);
+		},
+	};
 }
 
 describe("Listen on the on-device voice", () => {
@@ -617,10 +628,9 @@ describe("Listen on the on-device voice", () => {
 		l.play(0.26);
 		l.listener.setRate(1.2);
 		await settle();
-		expect(l.kokoro.generations.at(-1)).toMatchObject({
-			sentence: "One two.",
-			speed: 1.2,
-		});
+		expect(l.kokoro.generations).toContainEqual(
+			expect.objectContaining({ sentence: "One two.", speed: 1.2 }),
+		);
 		expect(l.sound.playing).toHaveLength(1);
 		expect(l.word()).toBe("two.");
 	});

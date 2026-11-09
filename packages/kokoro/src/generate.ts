@@ -19,7 +19,8 @@ export type KokoroErrorCode =
 	| "consent-required"
 	| "not-loaded"
 	| "not-downloaded"
-	| "download-failed";
+	| "download-failed"
+	| "cancelled";
 
 export class KokoroError extends Error {
 	readonly code: KokoroErrorCode;

@@ -9,6 +9,13 @@ export type SpeakJob = {
 	voice?: VoiceLike | undefined;
 	/** 1 is normal speed. */
 	rate: number;
+	/**
+	 * The whole sentence `text` is the end of, and where `text` starts in it. A voice that makes
+	 * its own audio makes the whole sentence once, and starts part-way in from there.
+	 */
+	sentence?: { text: string; at: number } | undefined;
+	/** The sentences after this one, nearest first, so a voice can prepare them ahead. */
+	next?: readonly string[] | undefined;
 };
 
 /** What a Speaker tells Listen about the sentence it was given. */
@@ -34,6 +41,28 @@ export interface Speaker {
 	speak(job: SpeakJob, handlers: SpeakHandlers): void;
 	/** Stop at once. */
 	cancel(): void;
+}
+
+/**
+ * One Speaker over several: each sentence goes to the Speaker its voice belongs to. When the
+ * voice moves to another Speaker, the one before is cancelled first, so two never speak at
+ * once.
+ */
+export function routeSpeaker(
+	choose: (voice: VoiceLike | undefined) => Speaker,
+): Speaker {
+	let last: Speaker | undefined;
+	return {
+		speak(job, handlers) {
+			const next = choose(job.voice);
+			if (last && last !== next) last.cancel();
+			last = next;
+			next.speak(job, handlers);
+		},
+		cancel() {
+			last?.cancel();
+		},
+	};
 }
 
 /** The slice of `SpeechSynthesisUtterance` the Speaker sets and hears. */

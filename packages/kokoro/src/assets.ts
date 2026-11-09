@@ -37,6 +37,12 @@ export const KOKORO_ASSETS = {
 
 export type KokoroAssets = { [K in keyof typeof KOKORO_ASSETS]: Asset };
 
+/**
+ * The Cache Storage cache the voice keeps its model, lexicon and runtime in. The app's
+ * service worker reads the runtime from it and never deletes it.
+ */
+export const KOKORO_CACHE = "speeedy-kokoro-v1";
+
 /** The voice this build downloads (the model repo also has `af_heart`). */
 export const DEFAULT_VOICE = "af_msa";
 

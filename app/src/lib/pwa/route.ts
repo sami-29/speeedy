@@ -1,7 +1,11 @@
+import { VOICE_FILES } from "./precache.ts";
+
 /** How the service worker answers one request. */
 export type Route =
 	/** From the precache; the network is only a fallback. */
 	| "precache"
+	/** The on-device voice's worker or runtime: from the voice's own cache, else the network. */
+	| "voice"
 	/** A page the precache does not hold: the network, then the cached fallback page. */
 	| "page"
 	/** Not the service worker's business: the browser handles it as if there were none. */
@@ -23,7 +27,8 @@ export function routeFor(
 	const url = new URL(request.url);
 	if (url.origin !== context.origin) return "network";
 	if (context.precached.has(cacheKeyFor(url))) return "precache";
-	// Anything else that is not a page (a PDF chunk, the voice, `version.json`) is never
-	// cached here, so it always comes from the network.
+	if (VOICE_FILES.test(url.pathname)) return "voice";
+	// Anything else that is not a page (a PDF chunk, `version.json`) is never cached here, so
+	// it always comes from the network.
 	return request.mode === "navigate" ? "page" : "network";
 }

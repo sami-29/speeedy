@@ -3,7 +3,7 @@
  * `onnxruntime-web/wasm` and the URL of its `.wasm` binary (a bundler concern, so it stays in
  * the app) and calls `startKokoroWorker(self, { ort, wasmPaths })`.
  */
-import { KOKORO_ASSETS } from "./assets";
+import { KOKORO_ASSETS, KOKORO_CACHE } from "./assets";
 import { type AssetStore, type CacheLike, cacheStore } from "./download";
 import { createOrtSession, type OrtModule } from "./ort";
 import {
@@ -16,6 +16,7 @@ type WorkerScope = {
 	crossOriginIsolated?: boolean;
 	navigator: { hardwareConcurrency?: number };
 	caches?: { open(name: string): Promise<CacheLike> };
+	location: { href: string };
 	onmessage: ((event: { data: KokoroWorkerRequest }) => void) | null;
 	postMessage(message: KokoroWorkerMessage, transfer?: Transferable[]): void;
 	fetch: typeof fetch;
@@ -25,19 +26,24 @@ type OrtWithEnv = OrtModule & {
 	env: { wasm: { numThreads?: number; wasmPaths?: unknown; proxy?: boolean } };
 };
 
-export const CACHE_NAME = "speeedy-kokoro-v1";
-
 export function startKokoroWorker(
 	scope: WorkerScope,
 	{
 		ort,
 		wasmPaths,
 		store,
-	}: { ort: OrtWithEnv; wasmPaths?: unknown; store?: AssetStore },
+		runtime,
+	}: {
+		ort: OrtWithEnv;
+		wasmPaths?: unknown;
+		store?: AssetStore;
+		/** The URLs of the voice's own code, relative to this worker: its script and WASM. */
+		runtime?: readonly string[];
+	},
 ) {
 	const caches = scope.caches;
 	const assets =
-		store ?? (caches ? cacheStore(() => caches.open(CACHE_NAME)) : undefined);
+		store ?? (caches ? cacheStore(() => caches.open(KOKORO_CACHE)) : undefined);
 	if (!assets) throw new Error("Cache Storage is not available in this worker");
 	if (wasmPaths !== undefined) ort.env.wasm.wasmPaths = wasmPaths;
 	ort.env.wasm.proxy = false;
@@ -54,6 +60,15 @@ export function startKokoroWorker(
 			return createOrtSession(ort, model, { threads });
 		},
 		post: (message, transfer) => scope.postMessage(message, transfer ?? []),
+		// This script and the WASM it loads, so the voice starts offline.
+		...(caches && runtime
+			? {
+					runtime: {
+						urls: runtime.map((url) => new URL(url, scope.location.href).href),
+						cache: () => caches.open(KOKORO_CACHE),
+					},
+				}
+			: {}),
 	});
 	scope.onmessage = (event) => {
 		void worker.handle(event.data);
