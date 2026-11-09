@@ -4,8 +4,10 @@
 
 // The offline free core. The worker precaches the app shell and the parsers (see
 // `src/lib/pwa/precache.ts` for what is in and out) and answers those requests from the
-// cache. It never caches anything else: PDF code, the voice and its model go to the network,
-// so a PDF or the voice offline fails the way it would in any browser, with a message.
+// cache. It caches nothing else: PDF code goes to the network, so a PDF offline fails the
+// way it would in any browser, with a message. The on-device voice's worker and runtime are
+// served from the voice's own cache (`VOICE_CACHE`), which the voice fills when the reader
+// agrees to its download and which this worker only reads, never fills or deletes.
 //
 // A new version installs and then waits. It takes over only when the reader chooses to
 // switch (the page sends SKIP_WAITING) or when every tab has closed, so a page never loses
@@ -18,6 +20,7 @@ import {
 	FALLBACK_PAGE,
 	isStaleCache,
 	precacheList,
+	VOICE_CACHE,
 } from "../lib/pwa/precache.ts";
 import { cacheKeyFor, routeFor } from "../lib/pwa/route.ts";
 import { SKIP_WAITING } from "../lib/pwa/worker-message.ts";
@@ -84,6 +87,18 @@ async function fromPrecache(request: Request): Promise<Response> {
 	return hit ? usable(hit) : fetch(request);
 }
 
+/** The voice's worker or runtime, as the voice kept it at download; else the network. */
+async function fromVoiceCache(request: Request): Promise<Response> {
+	try {
+		const cache = await caches.open(VOICE_CACHE);
+		const hit = await cache.match(request.url, { ignoreVary: true });
+		if (hit) return hit;
+	} catch {
+		// No cache to read: the network answers as it would without this worker.
+	}
+	return fetch(request);
+}
+
 /** A page the precache does not hold: the network, then the cached fallback page offline. */
 async function pageOrFallback(request: Request): Promise<Response> {
 	try {
@@ -105,6 +120,8 @@ scope.addEventListener("fetch", (event) => {
 	event.respondWith(
 		route === "precache"
 			? fromPrecache(event.request)
-			: pageOrFallback(event.request),
+			: route === "voice"
+				? fromVoiceCache(event.request)
+				: pageOrFallback(event.request),
 	);
 });

@@ -1,3 +1,4 @@
+import { KOKORO_CACHE } from "@speeedy/kokoro";
 import { describe, expect, it } from "vitest";
 import {
 	cacheNameFor,
@@ -5,6 +6,7 @@ import {
 	isStaleCache,
 	precacheList,
 	SHELL_PAGES,
+	VOICE_CACHE,
 } from "../src/lib/pwa/precache.ts";
 
 // A build as SvelteKit lists it: hashed files under /_app/immutable, the static folder, and
@@ -171,5 +173,11 @@ describe("cache names", () => {
 		// The on-device voice keeps its own cache; the service worker must never delete it.
 		expect(isStaleCache("speeedy-kokoro-v1", current)).toBe(false);
 		expect(isStaleCache("workbox-precache-v2", current)).toBe(false);
+	});
+
+	it("keeps the voice's runtime in the cache the voice worker fills, which is never stale", () => {
+		expect(VOICE_CACHE).toBe("speeedy-kokoro-v1");
+		expect(VOICE_CACHE).toBe(KOKORO_CACHE);
+		expect(isStaleCache(VOICE_CACHE, cacheNameFor("9"))).toBe(false);
 	});
 });

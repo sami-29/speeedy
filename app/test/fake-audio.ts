@@ -102,11 +102,18 @@ export class FakeSource extends FakeNode {
 	loop = false;
 	startedAt: number | undefined;
 	stoppedAt: number | undefined;
+	onended: (() => void) | null = null;
+	ended = false;
 	start(time = 0) {
 		this.startedAt = time;
 	}
 	stop(time = 0) {
 		this.stoppedAt = time;
+	}
+	/** The buffer has played to its end: the browser fires `ended`. */
+	end() {
+		this.ended = true;
+		this.onended?.();
 	}
 }
 

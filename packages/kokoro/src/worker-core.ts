@@ -5,8 +5,10 @@
  */
 import { formatBytes, type KokoroAssets, TOTAL_DOWNLOAD_BYTES } from "./assets";
 import {
+	ASSET_BASE,
 	type AssetStore,
 	assetStatus,
+	type CacheLike,
 	downloadAsset,
 	type Fetch,
 } from "./download";
@@ -40,7 +42,9 @@ export type KokoroWorkerRequest =
 	| { type: "status" }
 	| { type: "download"; consent: true }
 	| { type: "load" }
-	| ({ type: "generate"; id: number; sentence: string } & GenerateOptions);
+	| ({ type: "generate"; id: number; sentence: string } & GenerateOptions)
+	/** Drop these generations if they have not started. */
+	| { type: "cancel"; ids: readonly number[] };
 
 export type KokoroWorkerMessage =
 	| {
@@ -53,7 +57,8 @@ export type KokoroWorkerMessage =
 	  }
 	| { type: "progress"; loaded: number; totalBytes: number }
 	| { type: "ready"; threads: number; crossOriginIsolated: boolean }
-	| { type: "result"; id: number; result: GenerateResult }
+	/** `ms`: how long the generation took, measured in the worker. */
+	| { type: "result"; id: number; result: GenerateResult; ms: number }
 	| {
 			type: "error";
 			id?: number;
@@ -71,6 +76,14 @@ export type KokoroWorkerOptions = {
 		options: { threads: number },
 	) => Promise<KokoroSession>;
 	post: (message: KokoroWorkerMessage, transfer?: Transferable[]) => void;
+	/** Defaults to `performance.now`. */
+	now?: () => number;
+	/**
+	 * The voice's own code (this worker's script and the runtime's WASM), kept in the model's
+	 * cache so the voice works offline without the app's precache holding 15 MB nobody asked
+	 * for. Fetched when the reader agrees to the download, and topped up on each later load.
+	 */
+	runtime?: { urls: readonly string[]; cache: () => Promise<CacheLike> };
 };
 
 const offline: Fetch = async () => {
@@ -85,6 +98,34 @@ export function createKokoroWorker(options: KokoroWorkerOptions) {
 	const totalBytes = list.reduce((sum, asset) => sum + asset.bytes, 0);
 	let generator: Generator | null = null;
 	let queue: Promise<unknown> = Promise.resolve();
+	const cancelled = new Set<number>();
+	const now = options.now ?? (() => performance.now());
+
+	/**
+	 * Keep the runtime files, fetching only those not kept yet, and drop runtime files of
+	 * older builds. The model's own entries are left alone. Best effort: the voice works
+	 * online without them.
+	 */
+	async function keepRuntime() {
+		const runtime = options.runtime;
+		if (!runtime) return;
+		try {
+			const cache = await runtime.cache();
+			const wanted = new Set(runtime.urls);
+			for (const url of wanted) {
+				if (await cache.match(url)) continue;
+				const response = await options.fetch(url);
+				if (response.ok) await cache.put(url, response);
+			}
+			for (const { url } of await cache.keys()) {
+				if (!url.startsWith(ASSET_BASE) && !wanted.has(url)) {
+					await cache.delete(url);
+				}
+			}
+		} catch {
+			// Out of quota, or offline: the voice still runs from the network copy.
+		}
+	}
 
 	const fail = (
 		error: unknown,
@@ -164,7 +205,9 @@ export function createKokoroWorker(options: KokoroWorkerOptions) {
 					});
 				} catch (error) {
 					fail(error, "download-failed");
+					return;
 				}
+				await keepRuntime();
 				return;
 			case "load":
 				try {
@@ -172,18 +215,26 @@ export function createKokoroWorker(options: KokoroWorkerOptions) {
 					await load(offline);
 				} catch (error) {
 					fail(error, "not-downloaded");
+					return;
 				}
+				await keepRuntime();
+				return;
+			case "cancel":
+				for (const id of request.ids) cancelled.add(id);
 				return;
 			case "generate": {
 				const { id, sentence, ...generateOptions } = request;
 				const run = queue.then(async () => {
+					if (cancelled.delete(id)) throw new KokoroError("cancelled");
 					if (!generator) throw new KokoroError("not-loaded");
-					return generator.generate(sentence, generateOptions);
+					const started = now();
+					const result = await generator.generate(sentence, generateOptions);
+					return { result, ms: now() - started };
 				});
 				queue = run.catch(() => undefined);
 				try {
-					const result = await run;
-					post({ type: "result", id, result }, [
+					const { result, ms } = await run;
+					post({ type: "result", id, result, ms }, [
 						result.samples.buffer as ArrayBuffer,
 					]);
 				} catch (error) {

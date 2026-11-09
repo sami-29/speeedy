@@ -2,13 +2,16 @@ export {
 	DEFAULT_VOICE,
 	formatBytes,
 	KOKORO_ASSETS,
+	KOKORO_CACHE,
 	type KokoroAssets,
 	TOTAL_DOWNLOAD_BYTES,
 } from "./assets";
 export {
+	ASSET_BASE,
 	type Asset,
 	type AssetStore,
 	assetStatus,
+	type CacheLike,
 	cacheStore,
 	downloadAsset,
 	type Fetch,

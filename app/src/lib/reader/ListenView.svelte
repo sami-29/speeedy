@@ -1,12 +1,21 @@
 <script lang="ts">
 import { baseLanguage, listenLanguage } from "@speeedy/contracts";
-import type { SpeechClock } from "@speeedy/engine";
+import { createAudioClock, type SpeechClock } from "@speeedy/engine";
 import { onDestroy, untrack } from "svelte";
 import { audio } from "#lib/audio/instance.ts";
 import { gainFor } from "#lib/audio/system.ts";
 import { languageName } from "#lib/library/languages.ts";
 import { m } from "#lib/paraglide/messages.js";
 import { trackEvent } from "#lib/telemetry.ts";
+import { canUseOnDeviceVoice, onDeviceVoice } from "#lib/voice/instance.ts";
+import {
+	createKokoroSpeaker,
+	type FallbackReason,
+	isKokoroVoice,
+	KOKORO_VOICE,
+} from "#lib/voice/kokoro-speaker.ts";
+import type { OnDeviceState, OnDeviceVoice } from "#lib/voice/on-device.ts";
+import { voiceRating } from "#lib/voice/rating.ts";
 import ListenControls from "./ListenControls.svelte";
 import { browserSpeech, listenStorage } from "./listen/browser.ts";
 import { createListener, type Listener } from "./listen/listener.ts";
@@ -18,6 +27,7 @@ import {
 	withRate,
 	withVoice,
 } from "./listen/prefs.ts";
+import { routeSpeaker, type Speaker } from "./listen/speaker.ts";
 import { pickVoice, type VoiceLike } from "./listen/voices.ts";
 import type { ModeProps } from "./modes.ts";
 import PacerView from "./PacerView.svelte";
@@ -41,6 +51,33 @@ let status = $state<"idle" | "speaking" | "blocked" | "failed">("idle");
 let wordSync = $state<"unknown" | "word" | "sentence">("unknown");
 let listener: Listener | undefined;
 
+// The on-device voice speaks English only, and needs a worker, Cache Storage and Web Audio.
+// Checking whether it is downloaded reads the cache alone: no worker starts and no host is
+// asked until the reader agrees to the download.
+const onDevice: OnDeviceVoice | undefined =
+	speech &&
+	baseLanguage(untrack(() => language)) === "en" &&
+	canUseOnDeviceVoice()
+		? onDeviceVoice()
+		: undefined;
+let device = $state.raw<OnDeviceState | undefined>(onDevice?.state);
+/** Why the on-device voice stopped, if it did: it failed, or it cannot keep up here. */
+let gaveWay = $state<FallbackReason | null>(null);
+const stopDevice = onDevice?.subscribe(() => {
+	device = onDevice.state;
+});
+if (onDevice?.state.phase === "unknown") void onDevice.check();
+onDestroy(() => stopDevice?.());
+
+/** Downloaded: offered in the voice list. A failed voice stays there, so it can be tried again. */
+const deviceReady = $derived(
+	device?.phase === "downloaded" ||
+		device?.phase === "loading" ||
+		device?.phase === "ready" ||
+		device?.phase === "failed",
+);
+const deviceVoice = { ...KOKORO_VOICE, name: m.listen_on_device_voice() };
+
 const stopVoices = speech?.voices.subscribe((list) => {
 	voices = list;
 });
@@ -50,15 +87,19 @@ onDestroy(() => {
 });
 
 const code = $derived(baseLanguage(language));
+// The on-device voice is used only when the reader chose it: never picked on its own.
 const choice = $derived(
-	pickVoice(voices, language, prefs.voices[code ?? "und"]),
+	deviceReady && prefs.voices[code ?? "und"] === KOKORO_VOICE.voiceURI
+		? { voice: deviceVoice, matched: true }
+		: pickVoice(voices, language, prefs.voices[code ?? "und"]),
 );
 /** The voices worth offering: those that speak the document's language, if any do. */
 const offered = $derived.by(() => {
 	const same = code
 		? voices.filter((voice) => baseLanguage(voice.lang) === code)
 		: [];
-	return same.length > 0 ? same : voices;
+	const browser = same.length > 0 ? same : voices;
+	return deviceReady ? [deviceVoice, ...browser] : browser;
 });
 
 // A change of voice or speed, from the reader or from a late voice list, carries on from the
@@ -89,6 +130,46 @@ const problem = $derived(
 				: null,
 );
 
+const deviceNote = $derived(
+	gaveWay === "slow"
+		? m.listen_on_device_slow()
+		: gaveWay === "failed"
+			? m.listen_on_device_failed()
+			: null,
+);
+
+/**
+ * Listen's Speaker: the on-device voice for its own sentences, the browser's for the rest.
+ * The on-device voice plays through the voice bus on the audio Clock; when it fails or is
+ * too slow here, the browser's voice takes over and the choice moves to it.
+ */
+function speakerFor(browser: Speaker, device: OnDeviceVoice | undefined) {
+	if (!device) return browser;
+	const sound = audio();
+	const clock = createAudioClock(() => sound.context);
+	let own: Speaker | undefined;
+	const make = () =>
+		createKokoroSpeaker({
+			render: (sentence, speed, signal) =>
+				device.render(sentence, speed, signal),
+			audio: sound,
+			clock,
+			fallback: browser,
+			onFallback: (reason) => {
+				gaveWay = reason;
+				// A failed voice is made again if the reader picks it again.
+				if (reason === "failed") own = undefined;
+				chooseVoice(undefined);
+			},
+			onPlayed: (seconds) => voiceRating().played("kokoro", seconds),
+		});
+	return routeSpeaker((voice) => {
+		if (!isKokoroVoice(voice)) return browser;
+		own ??= make();
+		return own;
+	});
+}
+
 function asSpeechClock(value: unknown): SpeechClock {
 	const candidate = value as Partial<SpeechClock> | undefined;
 	if (!candidate || typeof candidate.advance !== "function") {
@@ -108,7 +189,7 @@ function follow(view: PacerDom, pane: HTMLElement) {
 		engine: current,
 		document: untrack(() => doc),
 		clock: asSpeechClock(untrack(() => clock)),
-		speaker: speech.speaker,
+		speaker: speakerFor(speech.speaker, onDevice),
 		language: untrack(() => language),
 		voice: untrack(() => choice.voice),
 		rate: untrack(() => prefs.rate),
@@ -149,8 +230,16 @@ function follow(view: PacerDom, pane: HTMLElement) {
 }
 
 function chooseVoice(uri: string | undefined) {
+	if (uri === KOKORO_VOICE.voiceURI) gaveWay = null;
 	prefs = withVoice(prefs, language, uri);
 	savePrefs(storage, prefs);
+}
+
+/** The reader agreed to the download: fetch the voice, then read with it. */
+async function downloadVoice() {
+	if (!onDevice) return;
+	gaveWay = null;
+	if (await onDevice.download()) chooseVoice(KOKORO_VOICE.voiceURI);
 }
 
 function changeRate(direction: 1 | -1) {
@@ -179,6 +268,9 @@ function changeRate(direction: 1 | -1) {
 			{languageNote}
 			sentenceNote={wordSync === "sentence"}
 			{problem}
+			device={onDevice ? device : undefined}
+			ondownload={downloadVoice}
+			{deviceNote}
 		/>
 	{/snippet}
 </PacerView>

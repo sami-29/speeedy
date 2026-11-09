@@ -74,9 +74,12 @@ export type CacheLike = {
 	keys(): Promise<readonly { url: string }[]>;
 };
 
+/** Where the voice's files sit in its Cache Storage cache. Anything else there is not an asset. */
+export const ASSET_BASE = "https://kokoro.invalid/";
+
 /** An AssetStore over a Cache Storage cache, which keeps the files for offline use. */
 export function cacheStore(open: () => Promise<CacheLike>): AssetStore {
-	const base = "https://kokoro.invalid/";
+	const base = ASSET_BASE;
 	return {
 		async get(key) {
 			const response = await (await open()).match(base + key);
@@ -95,7 +98,9 @@ export function cacheStore(open: () => Promise<CacheLike>): AssetStore {
 		},
 		async keys() {
 			const requests = await (await open()).keys();
-			return requests.map((r) => r.url.slice(base.length));
+			return requests
+				.filter((r) => r.url.startsWith(base))
+				.map((r) => r.url.slice(base.length));
 		},
 	};
 }

@@ -60,3 +60,28 @@ describe("routeFor", () => {
 		);
 	});
 });
+
+describe("routeFor: the on-device voice", () => {
+	it("serves the voice's worker and runtime from the voice's own cache, offline too", () => {
+		expect(route("/_app/immutable/workers/kokoro.worker-BuIIhfUY.js")).toBe(
+			"voice",
+		);
+		expect(
+			route(
+				"/_app/immutable/workers/assets/ort-wasm-simd-threaded-qh98TCA_.wasm",
+			),
+		).toBe("voice");
+	});
+
+	it("leaves other workers, other origins and other methods alone", () => {
+		expect(route("/_app/immutable/workers/parser.worker-AAAAAAAA.js")).toBe(
+			"network",
+		);
+		expect(route("https://huggingface.co/x/onnx/model.onnx")).toBe("network");
+		expect(
+			route("/_app/immutable/workers/kokoro.worker-BuIIhfUY.js", {
+				method: "POST",
+			}),
+		).toBe("network");
+	});
+});
