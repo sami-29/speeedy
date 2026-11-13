@@ -37,7 +37,7 @@ let { open = $bindable(false) }: { open?: boolean } = $props();
 		margin: 0;
 		padding: 0;
 		list-style: none;
-		border-top: 4px solid var(--color-ink);
+		border-top: var(--rule-heavy) solid var(--color-ink);
 	}
 
 	.list[hidden] {

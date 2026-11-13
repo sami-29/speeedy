@@ -210,7 +210,7 @@ const dayStatus = (day: { goalMet: boolean; readingDay: boolean }) =>
 		<div class="poster-head"></div>
 		<div class="rule-heavy pt-s-2">
 			<label class="flex items-start gap-s-1 label">
-				<input type="checkbox" class="mt-1 size-5 accent-ink" checked={!lineHidden} onchange={toggleLine} />
+				<input type="checkbox" class="mt-1" checked={!lineHidden} onchange={toggleLine} />
 				<span>
 					{m.stats_line_toggle()}
 					<span class="caption block text-ink-2">{m.stats_line_toggle_note()}</span>

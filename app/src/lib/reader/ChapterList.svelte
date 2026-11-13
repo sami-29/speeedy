@@ -63,7 +63,7 @@ $effect(() => {
 		padding: 0;
 		overflow-y: auto;
 		list-style: none;
-		border-top: 4px solid var(--color-ink);
+		border-top: var(--rule-heavy) solid var(--color-ink);
 	}
 
 	.list[hidden] {

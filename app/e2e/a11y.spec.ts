@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { chooseTheme } from "./theme.ts";
 
 const routes = [
 	"/",
@@ -44,9 +45,25 @@ for (const viewport of viewports) {
 	}
 }
 
-test("axe passes on the Night theme", async ({ page }) => {
+for (const theme of ["Paper", "Classic", "Cozy"] as const) {
+	for (const appearance of ["Light", "Dark"] as const) {
+		test(`axe passes on ${theme} in ${appearance.toLowerCase()}`, async ({
+			page,
+		}) => {
+			await page.goto("/reader");
+			await chooseTheme(page, { theme, appearance });
+			const results = await new AxeBuilder({ page })
+				.withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+				.analyze();
+			expect(results.violations).toEqual([]);
+		});
+	}
+}
+
+test("axe passes with the Theme menu open", async ({ page }) => {
 	await page.goto("/reader");
-	await page.getByRole("button", { name: "Night theme" }).click();
+	await page.getByRole("button", { name: "Theme", exact: true }).click();
+	await expect(page.getByRole("radio", { name: "Cozy" })).toBeVisible();
 	const results = await new AxeBuilder({ page })
 		.withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
 		.analyze();

@@ -86,7 +86,7 @@ function onPick(event: Event) {
 	}
 
 	.file:focus-within {
-		outline: 3px solid var(--color-red);
+		outline: 3px solid var(--color-accent);
 		outline-offset: 3px;
 	}
 </style>

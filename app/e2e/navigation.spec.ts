@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { chooseTheme } from "./theme.ts";
 
 // Three chapters of three paragraphs of three sentences of three words. A word like `c2p3s1b`
 // says where it is: chapter 2, paragraph 3, sentence 1, second word. A sentence ends on the
@@ -482,9 +483,9 @@ for (const viewport of [
 			await check(page);
 		});
 
-		test("in the Night theme", async ({ page }) => {
+		test("in Paper dark", async ({ page }) => {
 			await openBook(page);
-			await page.getByRole("button", { name: "Night theme" }).click();
+			await chooseTheme(page, { appearance: "Dark" });
 			await page.getByRole("button", { name: "Chapters", exact: true }).click();
 			await check(page);
 		});

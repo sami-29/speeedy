@@ -39,6 +39,7 @@ const trace = createSpeedTrace();
 // The mark moves from the engine's frame events without going through the framework, so
 // reading never re-renders this component. Only the whole percent, the chapter and the bars
 // are state: they change a few dozen times over a whole text.
+let chart: HTMLElement | undefined;
 let slider: HTMLElement | undefined;
 let mark: HTMLElement | undefined;
 let share = 0;
@@ -60,6 +61,8 @@ function show(value: number, position: Position) {
 	if (mark && tenths !== markAt) {
 		markAt = tenths;
 		mark.style.left = `${tenths / 10}%`;
+		// Cozy's glaze foot fills to the same place; other themes do not draw it.
+		chart?.style.setProperty("--read", `${tenths / 10}%`);
 	}
 	percent = Math.round(value * 100);
 	chapter = chapterAt(chapters, position);
@@ -151,7 +154,7 @@ const ticks = $derived(
 );
 </script>
 
-<div class="chart" data-testid="progress-chart">
+<div class="chart" data-testid="progress-chart" bind:this={chart}>
 	<ZoneBands {top} ranges={false} />
 	<div
 		bind:this={slider}
@@ -197,7 +200,28 @@ const ticks = $derived(
 	.chart {
 		position: relative;
 		height: 128px;
-		border-bottom: 4px solid var(--color-ink);
+		margin-bottom: var(--chart-foot);
+		border-bottom: var(--rule-heavy) solid var(--color-ink);
+	}
+
+	/* Cozy's one texture: glaze pooled at the foot of the bowl. It sits under the floor
+	   rule, darkens toward its lower edge and fills to the reading position. Zero tall in
+	   the other themes. */
+	.chart::after {
+		content: "";
+		position: absolute;
+		top: calc(100% + var(--rule-heavy));
+		left: 4.5rem;
+		right: 0;
+		height: var(--chart-foot);
+		background: linear-gradient(
+			to bottom,
+			color-mix(in oklab, var(--color-red) 45%, var(--color-paper)),
+			var(--color-red)
+		)
+			0 0 / var(--read, 0%) 100% no-repeat,
+			var(--color-paper-2);
+		pointer-events: none;
 	}
 
 	/* The slider is the plot: it starts to the right of the band names, so the bars never

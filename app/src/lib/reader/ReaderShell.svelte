@@ -227,7 +227,7 @@ function onKeydown(event: KeyboardEvent) {
 		<!-- Anyone can craft a Share Link, so its text is marked as not ours and waits for Play. -->
 		<p class="caption w-full text-ink-2" data-testid="shared-notice">{m.reader_shared_notice()}</p>
 	{/if}
-	<div role="group" aria-label={m.reader_mode_label()} class="flex border-2 border-ink">
+	<div role="group" aria-label={m.reader_mode_label()} class="segment-group">
 		{#each modes as entry (entry.id)}
 			<button
 				type="button"

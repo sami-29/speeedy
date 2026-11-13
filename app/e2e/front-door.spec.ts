@@ -128,7 +128,9 @@ test.describe("paste or drop box", () => {
 			buffer: Buffer.from(TEXT),
 		});
 		await expect(page).toHaveURL(/\/reader$/);
-		await expect(page.getByTestId("word")).toHaveText("one");
+		// It plays at once, so the first word may already be gone; the order from the
+		// first word is held by reader.spec.ts.
+		await expect(page.getByTestId("word")).toHaveText(/^(one|two|three|four)$/);
 	});
 
 	test("dropping a file on the box opens the reader with it", async ({
@@ -146,7 +148,9 @@ test.describe("paste or drop box", () => {
 		await box.dispatchEvent("dragover", { dataTransfer: data });
 		await box.dispatchEvent("drop", { dataTransfer: data });
 		await expect(page).toHaveURL(/\/reader$/);
-		await expect(page.getByTestId("word")).toHaveText("one");
+		// It plays at once, so the first word may already be gone; the order from the
+		// first word is held by reader.spec.ts.
+		await expect(page.getByTestId("word")).toHaveText(/^(one|two|three|four)$/);
 	});
 
 	test("a file the reader cannot open gets a message there, not a crash", async ({

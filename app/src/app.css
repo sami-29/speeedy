@@ -11,6 +11,69 @@
 	font-display: swap;
 }
 
+/* The Classic and Cozy faces, self-hosted from Fontsource (SIL OFL 1.1, see
+   static/fonts/OFL-*.txt). Split by unicode-range, so a page only fetches the faces its
+   theme uses and the scripts its text needs. */
+@font-face {
+	font-family: "Inter";
+	src: url("/fonts/inter-latin.woff2") format("woff2");
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: "Inter";
+	src: url("/fonts/inter-latin-ext.woff2") format("woff2");
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+	font-family: "JetBrains Mono";
+	src: url("/fonts/jetbrains-mono-latin.woff2") format("woff2");
+	font-weight: 100 800;
+	font-style: normal;
+	font-display: swap;
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: "JetBrains Mono";
+	src: url("/fonts/jetbrains-mono-latin-ext.woff2") format("woff2");
+	font-weight: 100 800;
+	font-style: normal;
+	font-display: swap;
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+	font-family: "Atkinson Hyperlegible Next";
+	src: url("/fonts/atkinson-hyperlegible-next-latin.woff2") format("woff2");
+	font-weight: 200 800;
+	font-style: normal;
+	font-display: swap;
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: "Atkinson Hyperlegible Next";
+	src: url("/fonts/atkinson-hyperlegible-next-latin-ext.woff2") format("woff2");
+	font-weight: 200 800;
+	font-style: normal;
+	font-display: swap;
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 /* Swiss Reading Poster tokens from DESIGN.md. `static` keeps every variable in the output
    even when no utility uses it, so themes and components can read them. The Tailwind default
    palette, radii and shadows are cleared: there is no second hue and nothing floats. */
@@ -26,18 +89,14 @@
 	--color-red: #d12d16;
 	--color-red-ink: #b8240f;
 	--color-on-red: #fff6f2;
-
-	--color-night-paper: #111314;
-	--color-night-paper-2: #1b1e1f;
-	--color-night-ink: #ecece6;
-	--color-night-ink-2: #b9b9b2;
-	--color-night-ink-3: #8f8f88;
-	--color-night-rule: #33383a;
-	--color-night-red: #ff5a3c;
-	--color-night-red-ink: #ff7a60;
-	--color-night-on-red: #1a0703;
+	/* The primary action and focus. Paper uses its vermilion; Classic and Cozy their own. */
+	--color-accent: #d12d16;
+	--color-on-accent: #fff6f2;
+	--color-accent-hover: #111111;
 
 	--font-sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+	/* The RSVP word. Each theme sets its own; Paper reads in Archivo. */
+	--font-word: var(--font-sans);
 
 	--radius-*: initial;
 	--radius-none: 0px;
@@ -59,19 +118,132 @@
 	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Night keeps the same colour names and swaps their values, so components never branch on
-   the theme. Paper is the default and the only theme on public pages. */
-:root[data-theme="night"] {
-	--color-paper: var(--color-night-paper);
-	--color-paper-2: var(--color-night-paper-2);
-	--color-ink: var(--color-night-ink);
-	--color-ink-2: var(--color-night-ink-2);
-	--color-ink-3: var(--color-night-ink-3);
-	--color-rule: var(--color-night-rule);
-	--color-red: var(--color-night-red);
-	--color-red-ink: var(--color-night-red-ink);
-	--color-on-red: var(--color-night-on-red);
+/* Per-theme values that are not Tailwind tokens. Paper: square controls, quick snaps, no
+   texture, and no foot band under the progress chart. */
+:root {
+	--radius-control: 0px;
+	--motion-quick: 160ms;
+	--motion-enter: 900ms;
+	--motion-ease: var(--ease-out);
+	--texture: none;
+	--chart-foot: 0px;
+	--word-scale: 1;
+	--rule-heavy: 4px;
+	/* A pressed segment, and the selected Speed Zone swatch. */
+	--color-pressed: var(--color-ink);
+	--color-on-pressed: var(--color-paper);
+	--color-select: var(--color-red);
+}
+
+/* Every theme keeps the same colour names and swaps their values, so components never
+   branch on the theme. The root carries `data-theme` (paper, classic, cozy) and
+   `data-scheme` (light, dark); public pages carry neither and stay Paper in light.
+   test/theme-contrast.test.ts reads these blocks and holds each one to WCAG AA. */
+
+/* Paper in dark is Night. */
+:root[data-scheme="dark"] {
+	--color-paper: #111314;
+	--color-paper-2: #1b1e1f;
+	--color-ink: #ecece6;
+	--color-ink-2: #b9b9b2;
+	--color-ink-3: #8f8f88;
+	--color-rule: #33383a;
+	--color-red: #ff5a3c;
+	--color-red-ink: #ff7a60;
+	--color-on-red: #1a0703;
+	--color-accent: #ff5a3c;
+	--color-on-accent: #1a0703;
+	--color-accent-hover: #ecece6;
 	color-scheme: dark;
+}
+
+/* Classic: 1.x refined. Cool slate grounds, the indigo primary, a red pivot, Inter for the
+   interface and JetBrains Mono for the word, rounded controls and the drifting dot grid. */
+:root[data-theme="classic"] {
+	--color-paper: #f3f3f8;
+	--color-paper-2: #dddde6;
+	--color-ink: #18181b;
+	--color-ink-2: #3f3f46;
+	--color-ink-3: #52525b;
+	--color-rule: #c9c9d2;
+	--color-red: #dc2626;
+	--color-red-ink: #b91c1c;
+	--color-on-red: #ffffff;
+	--color-accent: #422ad5;
+	--color-on-accent: #ffffff;
+	--color-accent-hover: #3620b0;
+	--color-pressed: var(--color-accent);
+	--color-on-pressed: var(--color-on-accent);
+	--font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+	--font-word: "JetBrains Mono", ui-monospace, monospace;
+	--word-scale: 0.86;
+	--radius-control: 0.5rem;
+	--motion-quick: 200ms;
+	--motion-enter: 500ms;
+	--motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+	--texture: radial-gradient(
+		color-mix(in oklab, var(--color-ink) 10%, transparent) 1.5px,
+		transparent 1.5px
+	);
+}
+
+:root[data-theme="classic"][data-scheme="dark"] {
+	--color-paper: #1a2027;
+	--color-paper-2: #252c35;
+	--color-ink: #e6e9ef;
+	--color-ink-2: #bcc3cf;
+	--color-ink-3: #9aa3b2;
+	--color-rule: #363e48;
+	--color-red: #e63946;
+	--color-red-ink: #fca5a5;
+	--color-on-red: #1c0707;
+	--color-accent: #605dff;
+	--color-on-accent: #ffffff;
+	--color-accent-hover: #4a47e0;
+}
+
+/* Cozy: tea bowl glaze. Celadon by day, tenmoku by night, iron rust (amber in the dark) for
+   the reading position only, Atkinson Hyperlegible Next throughout, a slow 400ms settle.
+   The fields are flat; the one texture is the pooled foot under the progress chart. */
+:root[data-theme="cozy"] {
+	--color-paper: #dce6de;
+	--color-paper-2: #c9d8cc;
+	--color-ink: #1e2a24;
+	--color-ink-2: #36443c;
+	--color-ink-3: #46544c;
+	--color-rule: #a7b9ab;
+	--color-red: #a8431c;
+	--color-red-ink: #8e3716;
+	--color-on-red: #fbf3ec;
+	--color-accent: #1e2a24;
+	--color-on-accent: #dce6de;
+	--color-accent-hover: #36443c;
+	--font-sans:
+		"Atkinson Hyperlegible Next", ui-sans-serif, system-ui, sans-serif;
+	--font-word:
+		"Atkinson Hyperlegible Next", ui-sans-serif, system-ui, sans-serif;
+	--radius-control: 10px;
+	--motion-quick: 400ms;
+	--motion-enter: 700ms;
+	--motion-ease: cubic-bezier(0.25, 1, 0.5, 1);
+	--chart-foot: 6px;
+	--rule-heavy: 1px;
+	--color-select: var(--color-ink);
+}
+
+:root[data-theme="cozy"][data-scheme="dark"] {
+	--color-paper: #1c1714;
+	--color-paper-2: #2a221d;
+	--color-ink: #ede4d6;
+	--color-ink-2: #cdbfab;
+	--color-ink-3: #ab9c8a;
+	--color-rule: #463a31;
+	--color-red: #e07b39;
+	--color-red-ink: #eb955c;
+	--color-on-red: #1c1714;
+	--color-accent: #ede4d6;
+	--color-on-accent: #1c1714;
+	--color-accent-hover: #cdbfab;
 }
 
 @layer base {
@@ -92,9 +264,40 @@
 		min-height: 100vh;
 	}
 
+	/* Checkboxes are drawn from the tokens: the browser's own box turns a flat grey in dark
+	   schemes that belongs to no theme. Components still set the size. */
+	input[type="checkbox"] {
+		appearance: none;
+		flex: none;
+		display: inline-grid;
+		place-content: center;
+		width: 1.25rem;
+		height: 1.25rem;
+		margin: 0;
+		border: 2px solid var(--color-ink-3);
+		border-radius: min(var(--radius-control), 4px);
+		background: var(--color-paper);
+		cursor: pointer;
+	}
+
+	input[type="checkbox"]:checked {
+		border-color: var(--color-ink);
+		background: var(--color-ink);
+	}
+
+	input[type="checkbox"]:checked::after {
+		content: "";
+		width: 0.75em;
+		height: 0.75em;
+		background: var(--color-paper);
+		mask:
+			url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M1.5 6.5 4.5 9.5 10.5 2.5' fill='none' stroke='black' stroke-width='2.2'/%3E%3C/svg%3E")
+			center / contain no-repeat;
+	}
+
 	::selection {
-		background: var(--color-red);
-		color: var(--color-on-red);
+		background: var(--color-accent);
+		color: var(--color-on-accent);
 	}
 
 	a {
@@ -107,9 +310,47 @@
 	}
 
 	:focus-visible {
-		outline: 3px solid var(--color-red);
+		outline: 3px solid var(--color-accent);
 		outline-offset: 3px;
 	}
+
+	input,
+	select,
+	textarea {
+		border-radius: var(--radius-control);
+	}
+}
+
+/* Classic's dot grid drifts slowly behind the chrome. It sits on its own fixed layer and
+   moves by transform, so the page never repaints for it. While the reader plays it fades
+   out and holds still, then picks up where it stopped; reduced motion never moves it. The
+   layer overhangs the top left by one loop (ten 28px cells), so the drift wraps seamlessly. */
+@keyframes texture-drift {
+	to {
+		transform: translate(280px, 280px);
+	}
+}
+
+:root[data-theme="classic"] body {
+	/* html paints the ground, so the grid layer shows through. */
+	background: transparent;
+}
+
+:root[data-theme="classic"] body::before {
+	content: "";
+	position: fixed;
+	inset: -280px 0 0 -280px;
+	z-index: -1;
+	pointer-events: none;
+	background-image: var(--texture);
+	background-size: 28px 28px;
+	animation: texture-drift 80s linear infinite;
+	transition: opacity var(--motion-quick) var(--motion-ease);
+}
+
+:root[data-reading="playing"] body::before {
+	opacity: 0;
+	animation-play-state: paused;
 }
 
 /* Type roles. Width is a voice: condensed headlines, wide numerals, regular words. */
@@ -160,7 +401,7 @@
 
 /* Heavy rules replace cards and containers. */
 @utility rule-heavy {
-	border-top: 4px solid var(--color-ink);
+	border-top: var(--rule-heavy) solid var(--color-ink);
 }
 
 @utility rule-2 {
@@ -220,7 +461,7 @@
 }
 
 @utility enter {
-	animation: rise 900ms var(--ease-out) both;
+	animation: rise var(--motion-enter) var(--motion-ease) both;
 }
 
 @utility button-primary {
@@ -229,19 +470,20 @@
 	justify-content: center;
 	min-height: 52px;
 	padding-inline: var(--spacing-s-3);
-	background: var(--color-red);
-	color: var(--color-on-red);
+	border-radius: var(--radius-control);
+	background: var(--color-accent);
+	color: var(--color-on-accent);
 	font-size: 1.25rem;
 	font-weight: 800;
 	letter-spacing: -0.01em;
 	text-decoration: none;
 	transition:
-		background-color 160ms var(--ease-out),
-		color 160ms var(--ease-out);
+		background-color var(--motion-quick) var(--motion-ease),
+		color var(--motion-quick) var(--motion-ease);
 
 	&:hover {
-		background: var(--color-ink);
-		color: var(--color-paper);
+		background: var(--color-accent-hover);
+		color: var(--color-on-accent);
 	}
 }
 
@@ -249,16 +491,41 @@
 	min-height: 44px;
 	padding: var(--spacing-s-1) var(--spacing-s-2);
 	font-size: 0.9375rem;
+	border-radius: var(--radius-control);
 	font-weight: 750;
 	cursor: pointer;
+	transition: background-color var(--motion-quick) var(--motion-ease);
 
 	&:hover {
 		background: var(--color-paper-2);
 	}
 
 	&[aria-pressed="true"] {
-		background: var(--color-ink);
-		color: var(--color-paper);
+		background: var(--color-pressed);
+		color: var(--color-on-pressed);
+	}
+}
+
+/* A bordered row of segments. The row takes the theme's rounding; inside it only the outer
+   corners of the end segments follow, so a pressed segment fills the row cleanly. Nothing
+   is clipped, so focus rings stay whole. */
+@utility segment-group {
+	display: flex;
+	border: 2px solid var(--color-ink);
+	border-radius: var(--radius-control);
+
+	& > * {
+		border-radius: 0;
+	}
+
+	& > :first-child {
+		border-start-start-radius: calc(var(--radius-control) - 2px);
+		border-end-start-radius: calc(var(--radius-control) - 2px);
+	}
+
+	& > :last-child {
+		border-start-end-radius: calc(var(--radius-control) - 2px);
+		border-end-end-radius: calc(var(--radius-control) - 2px);
 	}
 }
 
@@ -271,6 +538,7 @@
 	width: 40px;
 	height: 40px;
 	border: 2px solid var(--color-ink);
+	border-radius: var(--radius-control);
 	font-size: 1.25rem;
 	font-weight: 800;
 	line-height: 1;
@@ -291,7 +559,7 @@
 /* While the reader plays, the header drops to 35% like the rest of the reading chrome.
    The reader sets `data-reading` on the root; hover and keyboard focus bring it back. */
 header {
-	transition: opacity 200ms var(--ease-out);
+	transition: opacity var(--motion-quick) var(--motion-ease);
 }
 
 :root[data-reading="playing"] header:not(:hover):not(:has(:focus-visible)) {

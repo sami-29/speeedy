@@ -9,7 +9,13 @@ import UpdateNotice from "#lib/pwa/UpdateNotice.svelte";
 import { startUpdateWatch } from "#lib/pwa/updates.svelte.ts";
 import { startErrorCapture, trackPageview } from "#lib/telemetry.ts";
 import { theme } from "#lib/theme.svelte.ts";
-import { applyTheme, type Theme } from "#lib/theme.ts";
+import {
+	type Appearance,
+	applyTheme,
+	THEME_COLORS,
+	type ThemeFamily,
+} from "#lib/theme.ts";
+import Wordmark from "#lib/Wordmark.svelte";
 import { afterNavigate } from "$app/navigation";
 import { page } from "$app/state";
 
@@ -35,9 +41,16 @@ const path = $derived(
 // Not on a reading surface, and not where the page carries the full block itself.
 const showForm = $derived(showsFooterForm(path));
 
-// App routes follow the saved theme; public pages are always Paper.
+// App routes follow the saved theme and, unless the reader chose, the system's light or
+// dark; public pages are always Paper in light. Switching only changes two attributes on the
+// root, so nothing reloads and the reader keeps its place.
 $effect(() => {
-	applyTheme(document.documentElement, inApp ? theme.current : "paper");
+	const family = inApp ? theme.family : "paper";
+	const scheme = inApp ? theme.scheme : "light";
+	applyTheme(document.documentElement, family, scheme);
+	document
+		.querySelector('meta[name="theme-color"]')
+		?.setAttribute("content", THEME_COLORS[family][scheme]);
 });
 
 const nav = $derived([
@@ -47,9 +60,16 @@ const nav = $derived([
 	{ href: "/training", label: m.nav_training(), essential: false },
 ]);
 
-const themes = $derived<{ id: Theme; short: string; label: string }[]>([
-	{ id: "paper", short: m.theme_paper_short(), label: m.theme_paper() },
-	{ id: "night", short: m.theme_night_short(), label: m.theme_night() },
+const families = $derived<{ id: ThemeFamily; label: string }[]>([
+	{ id: "paper", label: m.theme_paper() },
+	{ id: "classic", label: m.theme_classic() },
+	{ id: "cozy", label: m.theme_cozy() },
+]);
+
+const appearances = $derived<{ id: Appearance; label: string }[]>([
+	{ id: "system", label: m.theme_system() },
+	{ id: "light", label: m.theme_light() },
+	{ id: "dark", label: m.theme_dark() },
 ]);
 </script>
 
@@ -60,8 +80,7 @@ const themes = $derived<{ id: Theme; short: string; label: string }[]>([
 
 <header class="flex flex-wrap items-center justify-between gap-x-s-2 px-gutter py-s-2">
 	<a href={localizeHref("/")} class="wordmark inline-flex min-h-11 items-center" aria-label={m.site_name()}>
-		<img class="wordmark-paper" src="/brand/wordmark.svg" width="102" height="28" alt="" />
-		<img class="wordmark-night" src="/brand/wordmark-night.svg" width="102" height="28" alt="" />
+		<Wordmark />
 	</a>
 	<div class="flex items-center gap-s-4 max-[860px]:gap-s-2">
 		<nav aria-label={m.nav_label()} class="label flex items-center gap-s-4 max-[860px]:gap-s-2">
@@ -76,16 +95,45 @@ const themes = $derived<{ id: Theme; short: string; label: string }[]>([
 			{/each}
 		</nav>
 		{#if inApp}
-			<div class="flex border-2 border-ink">
-				{#each themes as item (item.id)}
-					<button
-						type="button"
-						class="segment"
-						aria-label={item.label}
-						aria-pressed={theme.current === item.id}
-						onclick={() => theme.set(item.id)}>{item.short}</button
-					>
-				{/each}
+			<button
+				type="button"
+				class="segment border-2 border-ink"
+				popovertarget="theme-picker">{m.theme_button()}</button
+			>
+			<!-- No display class on the popover itself: it would beat the rule that hides it. -->
+			<div id="theme-picker" popover class="picker border-2 border-ink bg-paper p-s-3">
+				<div class="grid gap-s-3">
+				<fieldset class="grid gap-s-1">
+					<legend class="caption mb-s-1 text-ink-2">{m.theme_family_legend()}</legend>
+					{#each families as item (item.id)}
+						<label class="choice label">
+							<input
+								type="radio"
+								name="theme-family"
+								value={item.id}
+								checked={theme.family === item.id}
+								onchange={() => theme.setFamily(item.id)}
+							/>
+							{item.label}
+						</label>
+					{/each}
+				</fieldset>
+				<fieldset class="grid gap-s-1">
+					<legend class="caption mb-s-1 text-ink-2">{m.theme_appearance_legend()}</legend>
+					{#each appearances as item (item.id)}
+						<label class="choice label">
+							<input
+								type="radio"
+								name="theme-appearance"
+								value={item.id}
+								checked={theme.appearance === item.id}
+								onchange={() => theme.setAppearance(item.id)}
+							/>
+							{item.label}
+						</label>
+					{/each}
+				</fieldset>
+				</div>
 			</div>
 		{/if}
 	</div>
@@ -108,13 +156,45 @@ const themes = $derived<{ id: Theme; short: string; label: string }[]>([
 {/if}
 
 <style>
-	.wordmark-night {
-		display: none;
+	/* A popover sits in the top layer, so it is placed against the viewport: under the
+	   header, on the right edge, like a menu dropped from the toggle. */
+	.picker {
+		inset: auto;
+		top: 4.5rem;
+		right: var(--spacing-gutter);
+		margin: 0;
+		min-width: 14rem;
+		border-radius: var(--radius-control);
+		color: var(--color-ink);
 	}
-	:global(:root[data-theme="night"]) .wordmark-paper {
-		display: none;
+
+	.choice {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-s-1);
+		min-height: 44px;
+		cursor: pointer;
 	}
-	:global(:root[data-theme="night"]) .wordmark-night {
-		display: inline;
+
+	/* Drawn from the tokens, as the checkboxes are: the browser's own radio is a flat
+	   grey in dark schemes. */
+	.choice input {
+		appearance: none;
+		flex: none;
+		width: 1.25rem;
+		height: 1.25rem;
+		margin: 0;
+		border: 2px solid var(--color-ink-3);
+		border-radius: 50%;
+		background: var(--color-paper);
+		cursor: pointer;
+	}
+
+	.choice input:checked {
+		border-color: var(--color-accent);
+		background: radial-gradient(
+			var(--color-accent) 0 42%,
+			var(--color-paper) 46%
+		);
 	}
 </style>

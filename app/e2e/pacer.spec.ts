@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { chooseTheme } from "./theme.ts";
 
 // 150 sentences of three words: "s7a s7b s7c." The letter gives the place inside the
 // sentence and the number the sentence, so a word's place in the text is easy to read back.
@@ -560,12 +561,10 @@ test.describe("accessibility and fit", () => {
 		});
 	}
 
-	test("axe passes on Pacer in the Night theme while playing", async ({
-		page,
-	}) => {
+	test("axe passes on Pacer in Paper dark while playing", async ({ page }) => {
 		await openDocument(page);
-		await page.getByRole("button", { name: "Night theme" }).click();
-		await expect(page.locator("html")).toHaveAttribute("data-theme", "night");
+		await chooseTheme(page, { appearance: "Dark" });
+		await expect(page.locator("html")).toHaveAttribute("data-scheme", "dark");
 		await page.getByRole("button", { name: "Play" }).click();
 		await page.getByRole("button", { name: "Pause" }).click();
 		const results = await new AxeBuilder({ page })
@@ -574,11 +573,11 @@ test.describe("accessibility and fit", () => {
 		expect(results.violations).toEqual([]);
 	});
 
-	test("the Night theme turns the faint words and the highlight to Night values", async ({
+	test("Paper dark turns the faint words and the highlight to its own values", async ({
 		page,
 	}) => {
 		await openDocument(page);
-		await page.getByRole("button", { name: "Night theme" }).click();
+		await chooseTheme(page, { appearance: "Dark" });
 		await page.getByRole("slider", { name: "Reading progress" }).focus();
 		await page.keyboard.press("End");
 		const read = pane(page).locator('[data-state="read"]').first();

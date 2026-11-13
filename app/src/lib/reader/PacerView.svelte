@@ -103,7 +103,7 @@ $effect(() => {
 		height: clamp(16rem, 46vh, 38rem);
 		overflow-y: auto;
 		overscroll-behavior: contain;
-		border-block: 4px solid var(--color-ink);
+		border-block: var(--rule-heavy) solid var(--color-ink);
 		padding-block: var(--spacing-s-3);
 		scroll-behavior: auto;
 	}
@@ -208,7 +208,7 @@ $effect(() => {
 
 	.text :global([data-kind="quote"]) {
 		padding-left: var(--spacing-s-2);
-		border-left: 4px solid var(--color-ink);
+		border-left: var(--rule-heavy) solid var(--color-ink);
 		font-weight: 500;
 	}
 

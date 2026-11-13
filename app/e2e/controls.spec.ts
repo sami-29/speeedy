@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { chooseTheme } from "./theme.ts";
 
 // 150 sentences of three words: "s7a s7b s7c." The letter gives the place inside the
 // sentence and the number the sentence, so a word's place in the text is easy to read back.
@@ -504,24 +505,47 @@ for (const viewport of [
 			await check(page);
 		});
 
-		test("in the Night theme", async ({ page }) => {
+		test("in Paper dark", async ({ page }) => {
 			await start(page);
 			await pause(page);
-			await page.getByRole("button", { name: "Night theme" }).click();
+			await chooseTheme(page, { appearance: "Dark" });
 			await check(page);
 		});
 	});
 }
 
-test.describe("Paper and Night", () => {
-	test("the theme switch is in the reader and keeps working while reading", async ({
+test.describe("themes", () => {
+	test("switching theme mid-read never reloads the page or moves the Position", async ({
 		page,
 	}) => {
 		await start(page);
-		await page.getByRole("button", { name: "Night theme" }).click();
-		await expect(page.locator("html")).toHaveAttribute("data-theme", "night");
-		await page.getByRole("button", { name: "Paper theme" }).click();
-		await expect(page.locator("html")).toHaveAttribute("data-theme", "paper");
+		await pause(page);
+		const progress = page.getByRole("slider", { name: "Reading progress" });
+		await progress.focus();
+		await page.keyboard.press("ArrowRight");
+		await page.keyboard.press("ArrowRight");
+		const before = await progress.getAttribute("aria-valuenow");
+		const word = await page.getByTestId("word").textContent();
+		await page.evaluate(() => {
+			(window as unknown as { stayed: boolean }).stayed = true;
+		});
+		const html = page.locator("html");
+		for (const [theme, appearance] of [
+			["Classic", "Dark"],
+			["Cozy", "Light"],
+			["Cozy", "Dark"],
+			["Paper", "Match system"],
+		] as const) {
+			await chooseTheme(page, { theme, appearance });
+			await expect(html).toHaveAttribute("data-theme", theme.toLowerCase());
+			await expect(progress).toHaveAttribute("aria-valuenow", before ?? "");
+			await expect(page.getByTestId("word")).toHaveText(word ?? "");
+		}
+		expect(
+			await page.evaluate(
+				() => (window as unknown as { stayed?: boolean }).stayed,
+			),
+		).toBe(true);
 	});
 });
 
