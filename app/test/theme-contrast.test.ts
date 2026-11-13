@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { THEME_COLORS } from "../src/lib/theme.ts";
 
 // Every theme, light and dark, has to pass WCAG AA. This reads the colour tokens straight
 // from app.css, applies the theme blocks the way the cascade would, and checks the pairs
@@ -67,6 +68,7 @@ const pairs: [string, string, number][] = [
 	["ink-3", "paper", 4.5],
 	["ink", "paper-2", 4.5],
 	["ink-2", "paper-2", 4.5],
+	["ink-3", "paper-2", 4.5],
 	["red-ink", "paper", 4.5],
 	["on-red", "red", 4.5],
 	["on-accent", "accent", 4.5],
@@ -101,5 +103,15 @@ describe("theme contrast", () => {
 			["light", "dark"].map((scheme) => tokensFor(theme, scheme).paper),
 		);
 		expect(new Set(grounds).size).toBe(6);
+	});
+
+	it("gives the browser bar each theme's own ground", () => {
+		for (const theme of ["paper", "classic", "cozy"] as const) {
+			for (const scheme of ["light", "dark"] as const) {
+				expect(THEME_COLORS[theme][scheme]).toBe(
+					tokensFor(theme, scheme).paper,
+				);
+			}
+		}
 	});
 });
