@@ -337,7 +337,7 @@ function onKeydown(event: KeyboardEvent) {
 	   focus and for a moment after any key or touch. Reduced motion removes the fade
 	   (the stylesheet's reduced-motion rule shortens every transition). */
 	.chrome {
-		transition: opacity 200ms var(--ease-out);
+		transition: opacity var(--motion-quick) var(--motion-ease);
 	}
 
 	.chrome[data-dim="true"]:not(:hover):not(:has(:focus-visible)) {
