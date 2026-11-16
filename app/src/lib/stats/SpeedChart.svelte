@@ -37,7 +37,7 @@ const latest = $derived(points[points.length - 1]);
 	.chart {
 		position: relative;
 		height: 240px;
-		border-bottom: 4px solid var(--color-ink);
+		border-bottom: var(--rule-heavy) solid var(--color-ink);
 	}
 
 	/* The dots sit to the right of the band names. */

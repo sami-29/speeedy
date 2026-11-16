@@ -106,8 +106,6 @@ export async function buildIcons(): Promise<Map<string, Buffer>> {
 	const icon512 = master("icon-512");
 
 	out.set("static/favicon.svg", master("icon-32"));
-	out.set("static/brand/wordmark.svg", master("wordmark"));
-	out.set("static/brand/wordmark-night.svg", master("wordmark-night"));
 	const favicons = await Promise.all(
 		[16, 32, 48].map(async (size) => ({
 			size,

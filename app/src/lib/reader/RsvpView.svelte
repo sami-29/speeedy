@@ -80,8 +80,11 @@ $effect(() => {
 		grid-template-columns: 1fr auto 1fr;
 		width: calc(70% + 3px);
 		margin: 0;
+		font-family: var(--font-word);
+		/* A theme's word face can run wider than Archivo; --word-scale evens it out. */
 		font-size: calc(
-			clamp(2.25rem, 1rem + 5.5vw, 5.5rem) / (1 + (var(--words, 1) - 1) * 0.45)
+			clamp(2.25rem, 1rem + 5.5vw, 5.5rem) * var(--word-scale, 1) /
+				(1 + (var(--words, 1) - 1) * 0.45)
 		);
 		font-weight: 600;
 		font-variation-settings: "wdth" 100;

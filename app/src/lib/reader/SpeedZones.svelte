@@ -64,7 +64,7 @@ const current = $derived(zoneFor(wpm));
 	}
 
 	.zone[aria-pressed="true"] .swatch {
-		background: var(--color-red);
+		background: var(--color-select);
 		box-shadow: none;
 	}
 

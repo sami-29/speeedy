@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { chooseTheme } from "./theme.ts";
 
 // Headless Chromium has no browser voices, so these tests replace speechSynthesis with a
 // stand-in that speaks on a timer. It can report word boundaries or, like Chrome's network
@@ -527,13 +528,13 @@ test.describe("accessibility and fit", () => {
 		});
 	}
 
-	test("axe passes on Listen in the Night theme while it plays", async ({
+	test("axe passes on Listen in Paper dark while it plays", async ({
 		page,
 	}) => {
 		await stubSpeech(page, { boundaries: false, msPerWord: 800 });
 		await openListen(page);
-		await page.getByRole("button", { name: "Night theme" }).click();
-		await expect(page.locator("html")).toHaveAttribute("data-theme", "night");
+		await chooseTheme(page, { appearance: "Dark" });
+		await expect(page.locator("html")).toHaveAttribute("data-scheme", "dark");
 		await page.getByRole("button", { name: "Play" }).click();
 		await expect(now(page).first()).toBeVisible();
 		await expect(

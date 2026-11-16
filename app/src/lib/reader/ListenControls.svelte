@@ -147,7 +147,7 @@ const share = $derived(
 <style>
 	.settings {
 		display: grid;
-		border-top: 4px solid var(--color-ink);
+		border-top: var(--rule-heavy) solid var(--color-ink);
 	}
 
 	.row {
