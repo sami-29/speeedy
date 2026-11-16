@@ -1,0 +1,4 @@
+# Biome on the staged files, then the same typecheck and unit tests CI runs (about 2 minutes).
+pnpm exec lint-staged
+pnpm typecheck
+pnpm test:unit

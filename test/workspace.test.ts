@@ -33,7 +33,6 @@ describe("clean slate", () => {
 			"public",
 			"scripts",
 			"test-fixtures",
-			".husky",
 			"index.html",
 			"test-content.txt",
 			"vite.config.ts",

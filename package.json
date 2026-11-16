@@ -8,6 +8,7 @@
 		"node": ">=22.22.0"
 	},
 	"scripts": {
+		"prepare": "husky",
 		"build": "pnpm -r --if-present build",
 		"lint": "biome check . && pnpm -r --if-present lint",
 		"lint:fix": "biome check --write .",
@@ -20,6 +21,8 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.6.3",
 		"@types/node": "22.20.5",
+		"husky": "9.1.7",
+		"lint-staged": "17.6.0",
 		"typescript": "6.0.3"
 	}
 }
