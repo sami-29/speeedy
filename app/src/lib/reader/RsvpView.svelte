@@ -155,9 +155,22 @@ $effect(() => {
 		white-space: pre;
 	}
 
-	/* A chunk may spill past its column rather than move the pivot off the axis. */
+	/* A chunk is wide, and its after part (" workplace.") often outgrows the right column,
+	   which moves the pivot off the axis. So a chunk's box runs to the stage's right edge,
+	   and the after part also spans the fourth column, the stage beyond the old box. While
+	   the chunk fits the stage, both outer columns stay equal and the pivot stays on the
+	   axis. When it doesn't, the after column grows past half and the pivot moves left, as
+	   on a single word, so no letter is cut off. A single word keeps the old box: it has
+	   no gap between words to show, and its drift on narrow screens predates this rule. */
 	.word:global([data-chunk]) {
-		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+		width: 100%;
+		grid-template-columns: 1fr auto 1fr calc(30% - 3px);
+	}
+
+	/* An item that spans a flexible column has no automatic minimum, so give it one. */
+	.word:global([data-chunk]) .after {
+		grid-column: 3 / 5;
+		min-width: max-content;
 	}
 
 	.before {
