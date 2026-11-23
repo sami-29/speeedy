@@ -282,6 +282,61 @@ test.describe("settings", () => {
 		await expect(page.getByTestId("chunk")).toHaveText("1");
 	});
 
+	/** A flash's text, and the text the reader sees once CSS has collapsed whitespace. */
+	type Flash = { text: string; shown: string };
+
+	// #23: a chunk's ORP comes from its first word, so after a one- or two-letter first word
+	// the gap between words starts the after part ("a" | " book"). It must still show.
+	test("a flash of several words keeps the space beside the ORP letter", async ({
+		page,
+	}) => {
+		// Recorded in the page, so no flash is missed. innerText follows CSS whitespace
+		// collapsing, so it drops a space the reader cannot see; textContent keeps it.
+		await page.addInitScript(() => {
+			const seen: Flash[] = [];
+			(window as unknown as { __flashes: Flash[] }).__flashes = seen;
+			new MutationObserver(() => {
+				const word = document.querySelector('[data-testid="word"]');
+				const text = word?.textContent ?? "";
+				if (!word || !text || text === seen[seen.length - 1]?.text) return;
+				const parts = word.querySelectorAll<HTMLElement>("[data-part]");
+				// biome-ignore lint/performance/useDomNodeTextContent: the collapsed text is the point
+				const shown = Array.from(parts, (part) => part.innerText).join("");
+				seen.push({ text, shown });
+			}).observe(document, {
+				subtree: true,
+				childList: true,
+				characterData: true,
+			});
+		});
+		// "the organization" is the example from the issue.
+		await start(
+			page,
+			"the organization of a book. a book of the day. ".repeat(20).trim(),
+		);
+		const group = await settings(page);
+		const before = await rebuilds(page);
+		await group.getByRole("button", { name: "More words per flash" }).click();
+		await rebuiltAfter(page, before);
+
+		const flashes = () =>
+			page.evaluate(
+				() => (window as unknown as { __flashes: Flash[] }).__flashes,
+			);
+		const pairs = ["the organization", "of a", "a book", "of the"];
+		await expect
+			.poll(async () => (await flashes()).map((flash) => flash.text), {
+				timeout: 10_000,
+			})
+			.toEqual(expect.arrayContaining(pairs));
+		const shown = (await flashes()).filter((flash) =>
+			pairs.includes(flash.text),
+		);
+		expect(shown.map((flash) => flash.shown)).toEqual(
+			shown.map((flash) => flash.text),
+		);
+	});
+
 	test("smart speed, punctuation pauses and speed ramp are switches that rebuild", async ({
 		page,
 	}) => {
