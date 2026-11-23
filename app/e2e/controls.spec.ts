@@ -41,6 +41,9 @@ const rebuiltAfter = async (page: Page, before: number) => {
 		.toBeGreaterThan(before);
 };
 
+/** A flash's text, and the text the reader sees once CSS has collapsed whitespace. */
+type Flash = { text: string; shown: string };
+
 async function pause(page: Page): Promise<string> {
 	await page.getByRole("button", { name: "Pause" }).click();
 	return (await page.getByTestId("word").textContent()) ?? "";
@@ -282,34 +285,13 @@ test.describe("settings", () => {
 		await expect(page.getByTestId("chunk")).toHaveText("1");
 	});
 
-	/** A flash's text, and the text the reader sees once CSS has collapsed whitespace. */
-	type Flash = { text: string; shown: string };
-
 	// #23: a chunk's ORP comes from its first word, so after a one- or two-letter first word
 	// the gap between words starts the after part ("a" | " book"). It must still show.
 	test("a flash of several words keeps the space beside the ORP letter", async ({
 		page,
 	}) => {
-		// Recorded in the page, so no flash is missed. innerText follows CSS whitespace
-		// collapsing, so it drops a space the reader cannot see; textContent keeps it.
-		await page.addInitScript(() => {
-			const seen: Flash[] = [];
-			(window as unknown as { __flashes: Flash[] }).__flashes = seen;
-			new MutationObserver(() => {
-				const word = document.querySelector('[data-testid="word"]');
-				const text = word?.textContent ?? "";
-				if (!word || !text || text === seen[seen.length - 1]?.text) return;
-				const parts = word.querySelectorAll<HTMLElement>("[data-part]");
-				// biome-ignore lint/performance/useDomNodeTextContent: the collapsed text is the point
-				const shown = Array.from(parts, (part) => part.innerText).join("");
-				seen.push({ text, shown });
-			}).observe(document, {
-				subtree: true,
-				childList: true,
-				characterData: true,
-			});
-		});
-		// "the organization" is the example from the issue.
+		// "the organization" is the example from the issue. It joined on 1.x, where the pivot
+		// came from the whole chunk.
 		await start(
 			page,
 			"the organization of a book. a book of the day. ".repeat(20).trim(),
@@ -318,6 +300,29 @@ test.describe("settings", () => {
 		const before = await rebuilds(page);
 		await group.getByRole("button", { name: "More words per flash" }).click();
 		await rebuiltAfter(page, before);
+
+		// Recorded in the page, so no flash is missed. The text repeats, so recording from here
+		// still sees every pair. innerText follows CSS whitespace collapsing, so it drops a space
+		// the reader cannot see; textContent keeps it.
+		await page.evaluate(() => {
+			const seen: Flash[] = [];
+			(window as unknown as { __flashes: Flash[] }).__flashes = seen;
+			const word = document.querySelector(
+				'[data-testid="word"]',
+			) as HTMLElement;
+			new MutationObserver(() => {
+				const text = word.textContent ?? "";
+				if (!text || text === seen[seen.length - 1]?.text) return;
+				const parts = word.querySelectorAll<HTMLElement>("[data-part]");
+				// biome-ignore lint/performance/useDomNodeTextContent: the collapsed text is the point
+				const shown = Array.from(parts, (part) => part.innerText).join("");
+				seen.push({ text, shown });
+			}).observe(word, {
+				subtree: true,
+				childList: true,
+				characterData: true,
+			});
+		});
 
 		const flashes = () =>
 			page.evaluate(
