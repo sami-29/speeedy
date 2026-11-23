@@ -44,6 +44,68 @@ const rebuiltAfter = async (page: Page, before: number) => {
 /** A flash's text, and the text the reader sees once CSS has collapsed whitespace. */
 type Flash = { text: string; shown: string };
 
+/** Where a flash sat: the ORP letter's offset from the axis, and the edges of its text. */
+type Placement = {
+	offset: number;
+	left: number;
+	right: number;
+	stageLeft: number;
+	stageRight: number;
+};
+
+/**
+ * Reads `text` at 390px with two words per flash and returns where each of `flashes` sat.
+ * Measured in the page as each flash is shown, so no flash is missed.
+ */
+async function placements(
+	page: Page,
+	text: string,
+	flashes: string[],
+): Promise<Record<string, Placement>> {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await start(page, text.repeat(20).trim());
+	await page.evaluate(() => document.fonts.ready);
+	const group = await settings(page);
+	const before = await rebuilds(page);
+	await group.getByRole("button", { name: "More words per flash" }).click();
+	await rebuiltAfter(page, before);
+
+	await page.evaluate(() => {
+		const seen: Record<string, Placement> = {};
+		(window as unknown as { __seen: Record<string, Placement> }).__seen = seen;
+		const stage = document.querySelector('[data-testid="stage"]') as Element;
+		const word = document.querySelector('[data-testid="word"]') as Element;
+		const pivot = word.querySelector('[data-part="pivot"]') as Element;
+		const range = document.createRange();
+		new MutationObserver(() => {
+			const area = stage.getBoundingClientRect();
+			const box = pivot.getBoundingClientRect();
+			range.selectNodeContents(word);
+			const ink = range.getBoundingClientRect();
+			seen[word.textContent ?? ""] = {
+				offset: box.x + box.width / 2 - (area.x + area.width * 0.35 + 1.5),
+				left: ink.left,
+				right: ink.right,
+				stageLeft: area.left,
+				stageRight: area.right,
+			};
+		}).observe(word, {
+			subtree: true,
+			childList: true,
+			characterData: true,
+		});
+	});
+
+	const seen = () =>
+		page.evaluate(
+			() => (window as unknown as { __seen: Record<string, Placement> }).__seen,
+		);
+	await expect
+		.poll(async () => Object.keys(await seen()), { timeout: 10_000 })
+		.toEqual(expect.arrayContaining(flashes));
+	return seen();
+}
+
 async function pause(page: Page): Promise<string> {
 	await page.getByRole("button", { name: "Pause" }).click();
 	return (await page.getByTestId("word").textContent()) ?? "";
@@ -347,48 +409,31 @@ test.describe("settings", () => {
 	test("a flash of several words keeps its ORP letter on the axis at 390px", async ({
 		page,
 	}) => {
-		await page.setViewportSize({ width: 390, height: 844 });
-		await start(page, "a workplace. a book. ".repeat(20).trim());
-		await page.evaluate(() => document.fonts.ready);
-		const group = await settings(page);
-		const before = await rebuilds(page);
-		await group.getByRole("button", { name: "More words per flash" }).click();
-		await rebuiltAfter(page, before);
-
-		// Measured in the page as each flash is shown, so no flash is missed.
-		await page.evaluate(() => {
-			const offsets: Record<string, number> = {};
-			(window as unknown as { __offsets: Record<string, number> }).__offsets =
-				offsets;
-			const stage = document.querySelector('[data-testid="stage"]') as Element;
-			const word = document.querySelector('[data-testid="word"]') as Element;
-			const pivot = word.querySelector('[data-part="pivot"]') as Element;
-			new MutationObserver(() => {
-				const area = stage.getBoundingClientRect();
-				const box = pivot.getBoundingClientRect();
-				const axisCentre = area.x + area.width * 0.35 + 1.5;
-				offsets[word.textContent ?? ""] = box.x + box.width / 2 - axisCentre;
-			}).observe(word, {
-				subtree: true,
-				childList: true,
-				characterData: true,
-			});
-		});
-
-		const offsets = () =>
-			page.evaluate(
-				() =>
-					(window as unknown as { __offsets: Record<string, number> })
-						.__offsets,
+		const seen = await placements(page, "a workplace. a book. ", [
+			"a workplace.",
+			"a book.",
+		]);
+		for (const pair of ["a workplace.", "a book."]) {
+			expect(Math.abs(seen[pair]?.offset as number), pair).toBeLessThanOrEqual(
+				1,
 			);
-		const pairs = ["a workplace.", "a book."];
-		await expect
-			.poll(async () => Object.keys(await offsets()), { timeout: 10_000 })
-			.toEqual(expect.arrayContaining(pairs));
-		const seen = await offsets();
-		for (const pair of pairs) {
-			expect(Math.abs(seen[pair] as number), pair).toBeLessThanOrEqual(1.5);
 		}
+	});
+
+	// Centring a chunk on the axis must not push its end past the stage edge, where it is cut off.
+	test("a flash of several words too long for the axis stays whole at 390px", async ({
+		page,
+	}) => {
+		const chunk = "underestimated responsibilities.";
+		const single = "internationalization.";
+		const seen = await placements(page, `${chunk} ${single} `, [chunk, single]);
+		const long = seen[chunk] as Placement;
+		expect(long.left, chunk).toBeGreaterThanOrEqual(long.stageLeft - 0.5);
+		expect(long.right, chunk).toBeLessThanOrEqual(long.stageRight + 0.5);
+		// A single word keeps its old grid, where a long one moves left and stays whole.
+		const word = seen[single] as Placement;
+		expect(word.left, single).toBeGreaterThanOrEqual(word.stageLeft - 0.5);
+		expect(word.right, single).toBeLessThanOrEqual(word.stageRight + 0.5);
 	});
 
 	test("smart speed, punctuation pauses and speed ramp are switches that rebuild", async ({
