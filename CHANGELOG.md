@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Paused view**: while paused, RSVP can show the word, its sentence or the full text.
 - **Tick pitch**: set the pitch of the tick on each word.
 
+### Fixed
+- **Joined words with 2+ words per flash** — the space next to the highlighted letter no longer disappears, so "a book" no longer shows as "abook". ([#23](https://github.com/sami-29/speeedy/issues/23))
+
 ## [1.3.0] - 2026-06-26
 
 ### Added

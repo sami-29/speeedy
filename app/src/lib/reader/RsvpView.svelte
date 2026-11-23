@@ -132,7 +132,9 @@ $effect(() => {
 	}
 
 	/* A box centred on the axis, with the pivot letter in the middle column. The word is
-	   cut in and out: no transition, no animation, no opacity. */
+	   cut in and out: no transition, no animation, no opacity.
+	   `pre`, not `nowrap`: in a chunk the gap between words can start the after part
+	   ("a" | " book"), and nowrap drops a space at the edge of a grid cell. */
 	.word {
 		position: relative;
 		display: grid;
@@ -148,7 +150,7 @@ $effect(() => {
 		font-weight: 600;
 		font-variation-settings: "wdth" 100;
 		line-height: 1.1;
-		white-space: nowrap;
+		white-space: pre;
 	}
 
 	.before {
