@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Joined words with 2+ words per flash** — the space next to the highlighted letter no longer disappears, so "a book" no longer shows as "abook". ([#23](https://github.com/sami-29/speeedy/issues/23))
-- **Multi-word flashes on narrow screens** — a flash of several words now keeps its highlighted letter on the reading axis while it fits the screen. A flash too long for that moves left and stays whole. ([#23](https://github.com/sami-29/speeedy/issues/23))
+- **Multi-word flashes on narrow screens** — a flash of several words now keeps its highlighted letter on the reading axis while it fits the screen. A flash too long for that moves left and stays whole while it fits the screen. ([#23](https://github.com/sami-29/speeedy/issues/23))
 
 ## [1.3.0] - 2026-06-26
 

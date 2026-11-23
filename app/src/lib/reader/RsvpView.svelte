@@ -160,8 +160,9 @@ $effect(() => {
 	   and the after part also spans the fourth column, the stage beyond the old box. While
 	   the chunk fits the stage, both outer columns stay equal and the pivot stays on the
 	   axis. When it doesn't, the after column grows past half and the pivot moves left, as
-	   on a single word, so no letter is cut off. A single word keeps the old box: it has
-	   no gap between words to show, and its drift on narrow screens predates this rule. */
+	   on a single word, so no letter is cut off while the chunk fits the screen. A single
+	   word keeps the old box: it has no gap between words to show, and its drift on
+	   narrow screens predates this rule. */
 	.word:global([data-chunk]) {
 		width: 100%;
 		grid-template-columns: 1fr auto 1fr calc(30% - 3px);
