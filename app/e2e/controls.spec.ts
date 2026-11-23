@@ -342,6 +342,55 @@ test.describe("settings", () => {
 		);
 	});
 
+	// The space shown for #23 widens the after part. At 390px that made "a workplace." wider
+	// than its column, and the grid moved the ORP letter left to fit it.
+	test("a flash of several words keeps its ORP letter on the axis at 390px", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		await start(page, "a workplace. a book. ".repeat(20).trim());
+		await page.evaluate(() => document.fonts.ready);
+		const group = await settings(page);
+		const before = await rebuilds(page);
+		await group.getByRole("button", { name: "More words per flash" }).click();
+		await rebuiltAfter(page, before);
+
+		// Measured in the page as each flash is shown, so no flash is missed.
+		await page.evaluate(() => {
+			const offsets: Record<string, number> = {};
+			(window as unknown as { __offsets: Record<string, number> }).__offsets =
+				offsets;
+			const stage = document.querySelector('[data-testid="stage"]') as Element;
+			const word = document.querySelector('[data-testid="word"]') as Element;
+			const pivot = word.querySelector('[data-part="pivot"]') as Element;
+			new MutationObserver(() => {
+				const area = stage.getBoundingClientRect();
+				const box = pivot.getBoundingClientRect();
+				const axisCentre = area.x + area.width * 0.35 + 1.5;
+				offsets[word.textContent ?? ""] = box.x + box.width / 2 - axisCentre;
+			}).observe(word, {
+				subtree: true,
+				childList: true,
+				characterData: true,
+			});
+		});
+
+		const offsets = () =>
+			page.evaluate(
+				() =>
+					(window as unknown as { __offsets: Record<string, number> })
+						.__offsets,
+			);
+		const pairs = ["a workplace.", "a book."];
+		await expect
+			.poll(async () => Object.keys(await offsets()), { timeout: 10_000 })
+			.toEqual(expect.arrayContaining(pairs));
+		const seen = await offsets();
+		for (const pair of pairs) {
+			expect(Math.abs(seen[pair] as number), pair).toBeLessThanOrEqual(1.5);
+		}
+	});
+
 	test("smart speed, punctuation pauses and speed ramp are switches that rebuild", async ({
 		page,
 	}) => {
