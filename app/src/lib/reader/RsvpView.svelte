@@ -40,6 +40,7 @@ $effect(() => {
 		if (word && next !== words) {
 			words = next;
 			word.style.setProperty("--words", next);
+			word.toggleAttribute("data-chunk", frame.words > 1);
 		}
 	};
 	// The handlers run inside the effect when it plays: untrack keeps it off their state.
@@ -134,7 +135,8 @@ $effect(() => {
 	/* A box centred on the axis, with the pivot letter in the middle column. The word is
 	   cut in and out: no transition, no animation, no opacity.
 	   `pre`, not `nowrap`: in a chunk the gap between words can start the after part
-	   ("a" | " book"), and nowrap drops a space at the edge of a grid cell. */
+	   ("a" | " book"), and nowrap drops a space at the edge of a grid cell. Keep the three
+	   spans on one line in the markup: with `pre`, whitespace between them is a grid item. */
 	.word {
 		position: relative;
 		display: grid;
@@ -151,6 +153,11 @@ $effect(() => {
 		font-variation-settings: "wdth" 100;
 		line-height: 1.1;
 		white-space: pre;
+	}
+
+	/* A chunk may spill past its column rather than move the pivot off the axis. */
+	.word:global([data-chunk]) {
+		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 	}
 
 	.before {
