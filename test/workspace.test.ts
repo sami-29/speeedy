@@ -190,24 +190,44 @@ describe("CI", () => {
 		assert.doesNotMatch(yaml, /version: 10\.30\.3/);
 	});
 
-	it("sets the Node floor no lower than any locked package's plain >= floor", () => {
-		const version = (v: string) => v.split(".").map(Number);
-		const below = (a: string, b: string) => {
-			const [x, y] = [version(a), version(b)];
+	it("sets a Node floor that every locked package's engines range accepts", () => {
+		// Ranges in the lockfile are `>=x`, `^x` or `x`, joined by `||`; versions may be short
+		// or end in `.*`.
+		const atLeast = (have: number[], want: number[]) => {
 			for (let i = 0; i < 3; i++)
-				if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) < (y[i] ?? 0);
-			return false;
+				if ((have[i] ?? 0) !== (want[i] ?? 0))
+					return (have[i] ?? 0) > (want[i] ?? 0);
+			return true;
 		};
+		const accepts = (range: string, have: number[]) =>
+			range.split("||").some((part) => {
+				const { op, v } =
+					/^\s*(?<op>>=|\^)?\s*v?(?<v>\d+(?:\.\d+)*)(?:\.\*)?\s*$/.exec(part)
+						?.groups ?? {};
+				assert.ok(v, `cannot read engines range "${range}"`);
+				const want = v.split(".").map(Number);
+				if (op === "^") return have[0] === want[0] && atLeast(have, want);
+				if (op === ">=") return atLeast(have, want);
+				return want.every((n, i) => have[i] === n);
+			});
 		const engines = json("package.json").engines as { node: string };
-		const floor = engines.node.replace(/^>=/, "");
-		const higher = [
+		const floor = engines.node.replace(/^>=/, "").split(".").map(Number);
+		const ranges = [
 			...read("pnpm-lock.yaml").matchAll(
-				/^ {2}(\S+):\n(?: {4}.*\n)*? {4}engines: \{node: '>=([\d.]+)'\}/gm,
+				/^ {2}(?<name>\S+):\n(?: {4}.*\n)*? {4}engines: \{node: '?(?<range>[^'}]+)'?\}/gm,
 			),
-		]
-			.filter(([, , needs]) => below(floor, needs))
-			.map(([, name, needs]) => `${name} needs >=${needs}`);
-		assert.deepEqual(higher, []);
+		].map((m) => m.groups as { name: string; range: string });
+		assert.ok(
+			ranges.length > 100,
+			"found too few engines ranges in the lockfile",
+		);
+		// sharp's 32-bit Windows binary only supports Node 20; Node 22 has no 32-bit Windows
+		// build, so it is never installed.
+		const refused = ranges
+			.filter(({ name }) => !name.startsWith("'@img/sharp-win32-ia32@"))
+			.filter(({ range }) => !accepts(range, floor))
+			.map(({ name, range }) => `${name} needs ${range}`);
+		assert.deepEqual(refused, []);
 	});
 });
 

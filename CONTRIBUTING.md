@@ -6,7 +6,7 @@ Thanks for your interest. This document covers everything you need to get starte
 
 ## Development Setup
 
-**Prerequisites:** [Node.js](https://nodejs.org) 22.22.1+ and [pnpm](https://pnpm.io) (the exact version is pinned in `packageManager`; Corepack or `pnpm/action-setup` picks it up)
+**Prerequisites:** [Node.js](https://nodejs.org) 22.22.2+ and [pnpm](https://pnpm.io) (the exact version is pinned in `packageManager`; Corepack or `pnpm/action-setup` picks it up)
 
 ```bash
 git clone https://github.com/sami-29/speeedy
