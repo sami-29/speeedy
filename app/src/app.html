@@ -13,15 +13,20 @@
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
 		<link rel="manifest" href="/manifest.webmanifest" />
 		<link rel="preload" href="%sveltekit.assets%/fonts/archivo-wdth.woff2" as="font" type="font/woff2" crossorigin />
-		<!-- Applies the saved Night theme before first paint on app routes. The landing and
-		     other public pages are always Paper. Keep the route list in step with src/lib/routes.ts. -->
+		<!-- Applies the theme and light or dark before first paint on app routes. The landing
+		     and other public pages are always Paper in light. This repeats readChoice and
+		     resolveScheme from src/lib/theme.ts (test/theme.test.ts runs both); keep the route
+		     list in step with src/lib/routes.ts. -->
 		<script>
 			try {
-				if (
-					localStorage.getItem("speeedy.theme") === "night" &&
-					/^(\/[a-z]{2})?\/(reader|library|stats|training|s|account)(\/|$)/.test(location.pathname)
-				) {
-					document.documentElement.dataset.theme = "night";
+				const app = /^(\/[a-z]{2})?\/(reader|library|stats|training|s|account)(\/|$)/;
+				if (app.test(location.pathname)) {
+					const t = localStorage.getItem("speeedy.theme");
+					let a = localStorage.getItem("speeedy.appearance");
+					if (a !== "system" && a !== "light" && a !== "dark") a = t === "night" ? "dark" : "system";
+					const d = document.documentElement.dataset;
+					d.theme = t === "classic" || t === "cozy" || t === "paper" ? t : "paper";
+					d.scheme = a === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : a;
 				}
 			} catch {}
 		</script>

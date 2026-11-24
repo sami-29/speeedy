@@ -443,6 +443,9 @@ test.describe("sound", () => {
 					height: viewport.height,
 				});
 				await startPasted(page);
+				// Paused, so the reading chrome is at full strength: while playing it fades to
+				// 35% on purpose, and axe would race the end of the text.
+				await page.getByRole("button", { name: "Pause" }).click();
 				await modeButton(page, mode).click();
 				const group = page.getByRole("group", { name: "Sound" });
 				await group.scrollIntoViewIfNeeded();

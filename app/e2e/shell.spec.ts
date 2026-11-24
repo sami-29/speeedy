@@ -1,4 +1,5 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
+import { chooseTheme } from "./theme.ts";
 
 const appRoutes = [
 	"/reader",
@@ -101,14 +102,18 @@ test.describe("landing /", () => {
 		expect(still).toBe("none");
 	});
 
-	test("stays light even when Night is saved", async ({ page }) => {
-		await page.addInitScript(() =>
-			localStorage.setItem("speeedy.theme", "night"),
-		);
+	test("stays Paper in light whatever is saved or the system says", async ({
+		page,
+	}) => {
+		await page.emulateMedia({ colorScheme: "dark" });
+		await page.addInitScript(() => {
+			localStorage.setItem("speeedy.theme", "cozy");
+			localStorage.setItem("speeedy.appearance", "dark");
+		});
 		await page.goto("/");
 		expect(
-			await page.evaluate(() => document.documentElement.dataset.theme),
-		).not.toBe("night");
+			await page.evaluate(() => document.documentElement.dataset.scheme),
+		).not.toBe("dark");
 		expect(
 			await page.evaluate(
 				() => getComputedStyle(document.body).backgroundColor,
@@ -161,16 +166,67 @@ test.describe("app routes", () => {
 });
 
 test.describe("themes", () => {
-	test("Paper and Night switch and persist on app routes", async ({ page }) => {
+	// The root paints the ground; Classic leaves the body clear so its dot grid shows.
+	const bg = (page: Page) =>
+		page.evaluate(
+			() => getComputedStyle(document.documentElement).backgroundColor,
+		);
+
+	test("a theme and light or dark switch and persist on app routes", async ({
+		page,
+	}) => {
 		await page.goto("/reader");
-		const bg = () =>
-			page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-		expect(await bg()).toBe("rgb(239, 241, 241)");
-		await page.getByRole("button", { name: "Night theme" }).click();
-		expect(await bg()).toBe("rgb(17, 19, 20)");
+		expect(await bg(page)).toBe("rgb(239, 241, 241)");
+		// The menu stays shut until the Theme button opens it, and shuts again after.
+		const cozy = page.getByRole("radio", { name: "Cozy", exact: true });
+		await expect(cozy).toBeHidden();
+		await page.getByRole("button", { name: "Theme", exact: true }).click();
+		await expect(cozy).toBeVisible();
+		await page.keyboard.press("Escape");
+		await expect(cozy).toBeHidden();
+		await chooseTheme(page, { appearance: "Dark" });
+		expect(await bg(page)).toBe("rgb(17, 19, 20)");
+		await chooseTheme(page, { theme: "Cozy" });
+		expect(await bg(page)).toBe("rgb(28, 23, 20)");
 		await page.reload();
-		expect(await bg()).toBe("rgb(17, 19, 20)");
-		await page.getByRole("button", { name: "Paper theme" }).click();
-		expect(await bg()).toBe("rgb(239, 241, 241)");
+		expect(await bg(page)).toBe("rgb(28, 23, 20)");
+		await chooseTheme(page, { theme: "Classic", appearance: "Light" });
+		expect(await bg(page)).toBe("rgb(243, 243, 248)");
+		await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute(
+			"content",
+			"#f3f3f8",
+		);
+	});
+
+	test("with no choice made, the app follows the system light or dark", async ({
+		page,
+	}) => {
+		await page.emulateMedia({ colorScheme: "dark" });
+		await page.goto("/reader");
+		await expect(page.locator("html")).toHaveAttribute("data-scheme", "dark");
+		expect(await bg(page)).toBe("rgb(17, 19, 20)");
+		// And keeps following it while the page is open.
+		await page.emulateMedia({ colorScheme: "light" });
+		await expect(page.locator("html")).toHaveAttribute("data-scheme", "light");
+		expect(await bg(page)).toBe("rgb(239, 241, 241)");
+		// A choice of Light or Dark stops it following.
+		await chooseTheme(page, { appearance: "Light" });
+		await page.emulateMedia({ colorScheme: "dark" });
+		await expect(page.locator("html")).toHaveAttribute("data-scheme", "light");
+	});
+
+	test("the old saved Night value opens as Paper in dark", async ({ page }) => {
+		await page.addInitScript(() =>
+			localStorage.setItem("speeedy.theme", "night"),
+		);
+		await page.goto("/reader");
+		expect(await bg(page)).toBe("rgb(17, 19, 20)");
+		await page.getByRole("button", { name: "Theme", exact: true }).click();
+		await expect(
+			page.getByRole("radio", { name: "Dark", exact: true }),
+		).toBeChecked();
+		await expect(
+			page.getByRole("radio", { name: "Paper", exact: true }),
+		).toBeChecked();
 	});
 });

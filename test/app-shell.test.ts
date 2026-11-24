@@ -96,20 +96,26 @@ describe("design tokens", () => {
 			"--color-paper: #eff1f1",
 			"--color-ink: #111111",
 			"--color-red: #d12d16",
-			"--color-night-paper: #111314",
-			"--color-night-red: #ff5a3c",
 		]) {
 			assert.ok(css().includes(token), token);
 		}
 	});
 
-	it("has no radii or shadows", () => {
+	it("clears the Tailwind radii and shadows; themes round controls through one token", () => {
 		assert.match(css(), /--radius-\*:\s*initial/);
 		assert.match(css(), /--shadow-\*:\s*initial/);
+		assert.match(css(), /--radius-control:\s*0px/);
 	});
 
-	it("switches Paper and Night with data-theme and respects reduced motion", () => {
-		assert.match(css(), /\[data-theme="night"\]/);
+	it("switches themes with data-theme and data-scheme and respects reduced motion", () => {
+		assert.match(css(), /:root\[data-scheme="dark"\]/);
+		for (const theme of ["classic", "cozy"]) {
+			assert.ok(css().includes(`:root[data-theme="${theme}"] {`), theme);
+			assert.ok(
+				css().includes(`:root[data-theme="${theme}"][data-scheme="dark"] {`),
+				`${theme} dark`,
+			);
+		}
 		assert.match(css(), /prefers-reduced-motion:\s*reduce/);
 	});
 
@@ -127,6 +133,29 @@ describe("design tokens", () => {
 			read("app/static/fonts/OFL.txt"),
 			/SIL OPEN FONT LICENSE Version 1\.1/,
 		);
+	});
+
+	it("self-hosts the Classic and Cozy faces with their licences", () => {
+		for (const face of [
+			"inter",
+			"jetbrains-mono",
+			"atkinson-hyperlegible-next",
+		]) {
+			for (const subset of ["latin", "latin-ext"]) {
+				const file = `/fonts/${face}-${subset}.woff2`;
+				assert.ok(css().includes(file), file);
+				assert.equal(
+					readFileSync(join(root, `app/static${file}`))
+						.subarray(0, 4)
+						.toString(),
+					"wOF2",
+				);
+			}
+			assert.match(
+				read(`app/static/fonts/OFL-${face}.txt`),
+				/SIL Open Font License, Version 1\.1/,
+			);
+		}
 	});
 });
 

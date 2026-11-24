@@ -37,8 +37,6 @@ const build = {
 	assets: [
 		"/fonts/archivo-wdth.woff2",
 		"/fonts/OFL.txt",
-		"/brand/wordmark.svg",
-		"/brand/wordmark-night.svg",
 		"/icons/icon-192.png",
 		"/icons/icon-512.png",
 		"/icons/icon-maskable-512.png",
@@ -82,7 +80,6 @@ describe("precacheList", () => {
 		expect(list).toContain("/_app/immutable/nodes/0.CCCCCCCC.js");
 		expect(list).toContain("/_app/immutable/assets/0.EEEEEEEE.css");
 		expect(list).toContain("/fonts/archivo-wdth.woff2");
-		expect(list).toContain("/brand/wordmark.svg");
 	});
 
 	it("holds the parsers: the parser and Timeline workers", () => {

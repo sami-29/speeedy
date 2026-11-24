@@ -119,7 +119,7 @@ const percent = (bus: BusName) =>
 <style>
 	.settings {
 		display: grid;
-		border-top: 4px solid var(--color-ink);
+		border-top: var(--rule-heavy) solid var(--color-ink);
 	}
 
 	.row {
@@ -160,9 +160,6 @@ const percent = (bus: BusName) =>
 	input[type="checkbox"] {
 		width: 24px;
 		height: 24px;
-		margin: 0;
-		accent-color: var(--color-ink);
-		cursor: pointer;
 	}
 
 	.note {

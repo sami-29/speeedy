@@ -227,7 +227,7 @@ function onKeydown(event: KeyboardEvent) {
 		<!-- Anyone can craft a Share Link, so its text is marked as not ours and waits for Play. -->
 		<p class="caption w-full text-ink-2" data-testid="shared-notice">{m.reader_shared_notice()}</p>
 	{/if}
-	<div role="group" aria-label={m.reader_mode_label()} class="flex border-2 border-ink">
+	<div role="group" aria-label={m.reader_mode_label()} class="segment-group">
 		{#each modes as entry (entry.id)}
 			<button
 				type="button"
@@ -337,7 +337,7 @@ function onKeydown(event: KeyboardEvent) {
 	   focus and for a moment after any key or touch. Reduced motion removes the fade
 	   (the stylesheet's reduced-motion rule shortens every transition). */
 	.chrome {
-		transition: opacity 200ms var(--ease-out);
+		transition: opacity var(--motion-quick) var(--motion-ease);
 	}
 
 	.chrome[data-dim="true"]:not(:hover):not(:has(:focus-visible)) {
