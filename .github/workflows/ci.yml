@@ -7,7 +7,8 @@ on:
     branches: [main, "2.0"]
 
 # pnpm/action-setup reads the version from `packageManager` in package.json.
-# Node 22.22 is the floor: posthog-node, wrangler and pnpm 11+ all need it or newer.
+# Node 22.22.2 is the floor: jsdom 30 needs it, lint-staged 17 needs 22.22.1, and posthog-node,
+# wrangler and pnpm 11+ need 22.22. 22.22 here resolves to the newest 22.22.x.
 jobs:
   lint:
     runs-on: ubuntu-latest

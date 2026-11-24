@@ -274,10 +274,21 @@ test.describe("update", () => {
 			expect(await precaches()).toHaveLength(1);
 
 			app.publishNextVersion();
-			await page.evaluate(async () => {
+			// update() resolves once the new script is fetched. Installing it precaches the whole
+			// shell through the proxy, which can take longer than an expect timeout on a busy
+			// machine, so wait for the install to end before looking for the line.
+			const workerState = await page.evaluate(async () => {
 				const registration = await navigator.serviceWorker.getRegistration();
 				await registration?.update();
+				const worker = registration?.installing ?? registration?.waiting;
+				if (worker?.state !== "installing") return worker?.state;
+				return new Promise<string>((resolve) => {
+					worker.addEventListener("statechange", () => {
+						if (worker.state !== "installing") resolve(worker.state);
+					});
+				});
 			});
+			expect(workerState).toBe("installed");
 			await expect(line).toBeVisible();
 			// It is a line, not a popup.
 			await expect(page.getByRole("dialog")).toHaveCount(0);

@@ -33,7 +33,6 @@ describe("clean slate", () => {
 			"public",
 			"scripts",
 			"test-fixtures",
-			".husky",
 			"index.html",
 			"test-content.txt",
 			"vite.config.ts",
@@ -189,6 +188,46 @@ describe("CI", () => {
 		assert.doesNotMatch(yaml, /node-version: (20|22)$/m);
 		assert.match(yaml, /node-version: 22\.22/);
 		assert.doesNotMatch(yaml, /version: 10\.30\.3/);
+	});
+
+	it("sets a Node floor that every locked package's engines range accepts", () => {
+		// Ranges in the lockfile are `>=x`, `^x` or `x`, joined by `||`; versions may be short
+		// or end in `.*`.
+		const atLeast = (have: number[], want: number[]) => {
+			for (let i = 0; i < 3; i++)
+				if ((have[i] ?? 0) !== (want[i] ?? 0))
+					return (have[i] ?? 0) > (want[i] ?? 0);
+			return true;
+		};
+		const accepts = (range: string, have: number[]) =>
+			range.split("||").some((part) => {
+				const { op, v } =
+					/^\s*(?<op>>=|\^)?\s*v?(?<v>\d+(?:\.\d+)*)(?:\.\*)?\s*$/.exec(part)
+						?.groups ?? {};
+				assert.ok(v, `cannot read engines range "${range}"`);
+				const want = v.split(".").map(Number);
+				if (op === "^") return have[0] === want[0] && atLeast(have, want);
+				if (op === ">=") return atLeast(have, want);
+				return want.every((n, i) => have[i] === n);
+			});
+		const engines = json("package.json").engines as { node: string };
+		const floor = engines.node.replace(/^>=/, "").split(".").map(Number);
+		const ranges = [
+			...read("pnpm-lock.yaml").matchAll(
+				/^ {2}(?<name>\S+):\n(?: {4}.*\n)*? {4}engines: \{node: '?(?<range>[^'}]+)'?\}/gm,
+			),
+		].map((m) => m.groups as { name: string; range: string });
+		assert.ok(
+			ranges.length > 100,
+			"found too few engines ranges in the lockfile",
+		);
+		// sharp's 32-bit Windows binary only supports Node 20; Node 22 has no 32-bit Windows
+		// build, so it is never installed.
+		const refused = ranges
+			.filter(({ name }) => !name.startsWith("'@img/sharp-win32-ia32@"))
+			.filter(({ range }) => !accepts(range, floor))
+			.map(({ name, range }) => `${name} needs ${range}`);
+		assert.deepEqual(refused, []);
 	});
 });
 
