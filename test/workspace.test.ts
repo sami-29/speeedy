@@ -189,6 +189,26 @@ describe("CI", () => {
 		assert.match(yaml, /node-version: 22\.22/);
 		assert.doesNotMatch(yaml, /version: 10\.30\.3/);
 	});
+
+	it("sets the Node floor no lower than any locked package's plain >= floor", () => {
+		const version = (v: string) => v.split(".").map(Number);
+		const below = (a: string, b: string) => {
+			const [x, y] = [version(a), version(b)];
+			for (let i = 0; i < 3; i++)
+				if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) < (y[i] ?? 0);
+			return false;
+		};
+		const engines = json("package.json").engines as { node: string };
+		const floor = engines.node.replace(/^>=/, "");
+		const higher = [
+			...read("pnpm-lock.yaml").matchAll(
+				/^ {2}(\S+):\n(?: {4}.*\n)*? {4}engines: \{node: '>=([\d.]+)'\}/gm,
+			),
+		]
+			.filter(([, , needs]) => below(floor, needs))
+			.map(([, name, needs]) => `${name} needs >=${needs}`);
+		assert.deepEqual(higher, []);
+	});
 });
 
 describe("licence and README", () => {

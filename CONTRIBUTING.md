@@ -6,7 +6,7 @@ Thanks for your interest. This document covers everything you need to get starte
 
 ## Development Setup
 
-**Prerequisites:** [Node.js](https://nodejs.org) 22.22+ and [pnpm](https://pnpm.io) (the exact version is pinned in `packageManager`; Corepack or `pnpm/action-setup` picks it up)
+**Prerequisites:** [Node.js](https://nodejs.org) 22.22.1+ and [pnpm](https://pnpm.io) (the exact version is pinned in `packageManager`; Corepack or `pnpm/action-setup` picks it up)
 
 ```bash
 git clone https://github.com/sami-29/speeedy
@@ -47,6 +47,8 @@ The repo is a pnpm workspace: `app`, `worker`, `packages/engine`, `packages/pars
 4. Run `pnpm test:unit` and `pnpm test:worker` — all tests must pass
 5. Run `pnpm lint` — no lint errors
 6. Open a PR with a clear title and description
+
+`pnpm install` sets up a commit hook (`.husky/pre-commit`) that runs Biome on your staged files, then `pnpm typecheck` and `pnpm test:unit`. It takes about 2 minutes per commit. `git commit --no-verify` skips it for a work-in-progress commit; CI runs the same checks on the PR.
 
 **PR title format:** `fix: short description` / `feat: short description` / `chore: short description`
 
