@@ -1,3 +1,4 @@
+import { deviceStorage } from "../device-storage.ts";
 import {
 	type AudioContextLike,
 	type AudioSystem,
@@ -14,14 +15,6 @@ function browserContext(): AudioContextLike {
 	const Context = w.AudioContext ?? w.webkitAudioContext;
 	if (!Context) throw new Error("This browser has no Web Audio.");
 	return new Context() as AudioContextLike;
-}
-
-function deviceStorage(): Storage | undefined {
-	try {
-		return window.localStorage;
-	} catch {
-		return undefined;
-	}
 }
 
 /**

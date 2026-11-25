@@ -97,9 +97,9 @@ $effect(() => {
 		min-width: 0;
 	}
 
-	/* In the focus state the page is the whole screen, less the room <main> keeps around it. */
+	/* In the focus state the page takes the room app.css gives the reading surface. */
 	:global(:root[data-focus="on"]) .pane {
-		height: calc(100dvh - var(--spacing-s-5));
+		height: var(--focus-surface-height);
 	}
 
 	/* A heavy rule above and below frames the stretch of text, as the stage's track does. */

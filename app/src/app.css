@@ -567,7 +567,13 @@ header {
 }
 
 /* The focus state: only the reading surface is left, filling the screen without a scroll.
-   The reader sets `data-focus` on the root and marks its own controls `data-chrome`. */
+   The reader sets `data-focus` on the root (ReaderShell). Anything that is not the reading
+   surface carries `data-chrome` so this hides it; a surface that sizes itself to the screen
+   uses --focus-surface-height (PacerView). */
+:root[data-focus="on"] {
+	--focus-surface-height: calc(100dvh - var(--spacing-s-5));
+}
+
 :root[data-focus="on"] :is(header, footer, [data-chrome]) {
 	display: none;
 }

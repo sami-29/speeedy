@@ -37,12 +37,3 @@ export function browserSpeech(
 		voices: createVoiceList(synth as unknown as VoiceSource),
 	};
 }
-
-/** The device's storage for Listen's preferences, or undefined where it is blocked. */
-export function listenStorage(): Storage | undefined {
-	try {
-		return window.localStorage;
-	} catch {
-		return undefined;
-	}
-}

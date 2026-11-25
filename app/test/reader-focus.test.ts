@@ -5,17 +5,7 @@ import {
 	loadFocusOnPlay,
 	saveFocusOnPlay,
 } from "../src/lib/reader/focus.ts";
-
-const memory = () => {
-	const items = new Map<string, string>();
-	return {
-		items,
-		getItem: (key: string) => items.get(key) ?? null,
-		setItem: (key: string, value: string) => {
-			items.set(key, value);
-		},
-	};
-};
+import { memoryStorage as memory } from "./fake-audio.ts";
 
 describe("focus on Play", () => {
 	it("is off until the reader turns it on", () => {
@@ -34,7 +24,7 @@ describe("focus on Play", () => {
 	it("reads a damaged or foreign value as off", () => {
 		const storage = memory();
 		for (const raw of ["yes", "{", '{"onPlay":"true"}', "[true]", "null"]) {
-			storage.items.set(FOCUS_PREFS_KEY, raw);
+			storage.data.set(FOCUS_PREFS_KEY, raw);
 			expect(loadFocusOnPlay(storage)).toBe(false);
 		}
 	});

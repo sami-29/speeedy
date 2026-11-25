@@ -33,7 +33,15 @@ async function expectFocused(page: Page) {
 	await expect(controls(page)).toBeHidden();
 	await expect(page.getByRole("group", { name: "Reading Mode" })).toBeHidden();
 	await expect(page.getByTestId("wpm")).toBeHidden();
+	await expect(page.getByRole("group", { name: "Speed Zones" })).toBeHidden();
+	await expect(page.locator("footer")).toBeHidden();
+	await expect(page.getByTestId("listen-settings")).toBeHidden();
 	await expect(page.getByRole("button", { name: /Back one/ })).toHaveCount(0);
+}
+
+/** The sentence number of the word on screen: "s12b" is 12. */
+async function sentence(page: Page) {
+	return Number((await word(page).textContent())?.match(/^s(\d+)/)?.[1]);
 }
 
 async function expectChrome(page: Page) {
@@ -108,6 +116,19 @@ test.describe("focus state", () => {
 		await page.keyboard.press(" ");
 		await expectChrome(page);
 
+		// The same in Pacer, whose view starts the Engine itself. Listen plays only with a
+		// browser voice, which headless Chromium lacks; it goes through the same Play hook.
+		for (const mode of ["Pacer"]) {
+			await modeButton(page, mode).click();
+			await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+			await page.getByRole("button", { name: "Play" }).click();
+			await expectFocused(page);
+			await page.keyboard.press(" ");
+			await expectChrome(page);
+		}
+		await modeButton(page, "RSVP").click();
+		await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+
 		// A reload reopens the text and plays it, straight into focus.
 		await page.reload();
 		await expectFocused(page);
@@ -163,44 +184,93 @@ test.describe("focus state", () => {
 		await expectChrome(page);
 		await expect(word(page)).toHaveText(held ?? "");
 
-		// The Pacer page grows to the whole screen in focus; the word it marks stays the same.
-		await modeButton(page, "Pacer").click();
-		const now = page.getByTestId("pacer").locator('[data-state="now"]');
-		await expect(now).toHaveCount(1);
-		const marked = await now.textContent();
-		await page.keyboard.press("f");
-		await expectFocused(page);
-		await expect(now).toHaveText(marked ?? "");
-		await page.mouse.click(10, 10);
-		await expectChrome(page);
-		await expect(now).toHaveText(marked ?? "");
+		// The Pacer page grows to the whole screen in focus; what it marks stays the same.
+		// Listen shows the same page under its own name.
+		for (const [mode, id] of [
+			["Pacer", "pacer"],
+			["Listen", "listen"],
+		]) {
+			await modeButton(page, mode).click();
+			const now = page.getByTestId(id).locator('[data-state="now"]');
+			await expect(now.first()).toBeVisible();
+			const marked = (await now.allTextContents()).join(" ");
+			await page.keyboard.press("f");
+			await expectFocused(page);
+			expect((await now.allTextContents()).join(" ")).toBe(marked);
+			await page.mouse.click(10, 10);
+			await expectChrome(page);
+			expect((await now.allTextContents()).join(" ")).toBe(marked);
+		}
+
+		// Back in RSVP after all of that, the word is the one it was paused on.
+		await modeButton(page, "RSVP").click();
+		await expect(word(page)).toHaveText(held ?? "");
 	});
 
-	test("keyboard and screen-reader users can leave it and reach every control", async ({
+	test("entering focus while reading carries on from the same place", async ({
 		page,
 	}) => {
 		await start(page);
-		await pause(page);
+		await expect(word(page)).toHaveText(/^s[3-9]/, { timeout: 5000 });
+		const before = await sentence(page);
 		await page.keyboard.press("f");
 		await expectFocused(page);
-		await expect(
-			page.getByRole("status").filter({ hasText: /Escape/ }),
-		).toHaveText(/Only the words are on screen/);
-
-		const leave = page.getByRole("button", { name: "Show the controls" });
-		// Tab past the skip link to the one control left; it shows once it has focus.
-		for (let i = 0; i < 3; i++) {
-			await page.keyboard.press("Tab");
-			if (await leave.evaluate((el) => el === document.activeElement)) break;
-		}
-		await expect(leave).toBeFocused();
-		await expect(leave).toBeInViewport();
-		expect(
-			await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze(),
-		).toHaveProperty("violations", []);
-
-		await page.keyboard.press("Enter");
+		await page.keyboard.press(" ");
 		await expectChrome(page);
-		await expect(page.getByRole("button", { name: "Play" })).toBeFocused();
+		// Reading went on from where it was: never back to the start, never far ahead.
+		const after = await sentence(page);
+		expect(after).toBeGreaterThanOrEqual(before);
+		expect(after - before).toBeLessThan(5);
 	});
+
+	for (const mode of ["RSVP", "Pacer", "Listen"]) {
+		test(`keyboard and screen-reader users can leave it and reach every control, in ${mode}`, async ({
+			page,
+		}) => {
+			await start(page);
+			await pause(page);
+			await modeButton(page, mode).click();
+			await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+			await page.keyboard.press("f");
+			await expectFocused(page);
+			await expect(
+				page.getByRole("status").filter({ hasText: /Escape/ }),
+			).toHaveText(/Only the words are on screen/);
+
+			const leave = page.getByRole("button", { name: "Show the controls" });
+			// Tab past the skip link to the one control left; it shows once it has focus.
+			for (let i = 0; i < 3; i++) {
+				await page.keyboard.press("Tab");
+				if (await leave.evaluate((el) => el === document.activeElement)) break;
+			}
+			await expect(leave).toBeFocused();
+			await expect(leave).toBeInViewport();
+			expect(
+				await new AxeBuilder({ page })
+					.withTags(["wcag2a", "wcag2aa"])
+					.analyze(),
+			).toHaveProperty("violations", []);
+
+			await page.keyboard.press("Enter");
+			await expectChrome(page);
+			await expect(page.getByRole("button", { name: "Play" })).toBeFocused();
+
+			// Every control is back and in the tab order again.
+			const back = [
+				page.getByRole("checkbox", { name: "Focus when I press Play" }),
+				page.getByRole("button", { name: "Focus", exact: true }),
+				modeButton(page, mode),
+			];
+			if (mode === "Listen") {
+				back.push(
+					page.getByTestId("listen-settings").getByRole("button").first(),
+				);
+			}
+			for (const control of back) {
+				await expect(control).toBeVisible();
+				await control.focus();
+				await expect(control).toBeFocused();
+			}
+		});
+	}
 });

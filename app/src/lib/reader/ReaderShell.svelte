@@ -6,6 +6,7 @@ import { audio } from "#lib/audio/instance.ts";
 import { attachReadingSound } from "#lib/audio/reading-sound.ts";
 import SoundSettings from "#lib/audio/SoundSettings.svelte";
 import { m } from "#lib/paraglide/messages.js";
+import { deviceStorage } from "../device-storage.ts";
 import ChapterList from "./ChapterList.svelte";
 import { modeName, rewindName, shortcutName } from "./copy.ts";
 import { loadFocusOnPlay, saveFocusOnPlay } from "./focus.ts";
@@ -71,38 +72,42 @@ let toggle: HTMLButtonElement | undefined;
 // bring the controls back; the reader can have Play enter it, and that choice is remembered.
 let focused = $state(false);
 let focusOnPlay = $state(false);
+let focusStart = $state<HTMLElement>();
 
-/** localStorage, or nothing in a private window or with storage blocked. */
-function deviceStorage(): Storage | undefined {
-	try {
-		return window.localStorage;
-	} catch {
-		return undefined;
-	}
-}
-
-function enterFocus() {
+async function enterFocus() {
 	if (focused) return;
 	focused = true;
-	// The control that had keyboard focus is about to be hidden; let go of it, so Space
-	// still plays or pauses and Tab starts from the top of what is left.
+	// The control that had keyboard focus is about to be hidden. Park focus just before the
+	// leave button: Space still plays or pauses, and the next Tab reaches that button. A bare
+	// blur would leave Tab starting from the hidden control.
 	const active = document.activeElement;
 	if (active instanceof HTMLElement && active.closest("[data-chrome]")) {
-		active.blur();
+		await tick();
+		focusStart?.focus();
 	}
 }
 
-async function leaveFocus() {
+/**
+ * Bring the controls back. After a key, keyboard focus returns to Play/Pause, where it was
+ * before the controls went; a tap leaves it where the pointer put it.
+ */
+async function leaveFocus(by: "key" | "pointer" = "key") {
 	if (!focused) return;
-	const lost =
-		document.activeElement === document.body ||
-		document.activeElement?.closest("[data-focus-leave]") != null;
+	const needsRefocus =
+		by === "key" &&
+		(document.activeElement === document.body ||
+			document.activeElement === focusStart ||
+			document.activeElement?.closest("[data-focus-leave]") != null);
 	focused = false;
-	// Keyboard focus comes back on Play/Pause, where it was before the controls went.
-	if (lost) {
+	if (needsRefocus) {
 		await tick();
 		toggle?.focus();
 	}
+}
+
+function toggleFocus() {
+	if (focused) void leaveFocus();
+	else void enterFocus();
 }
 
 function setFocusOnPlay(on: boolean) {
@@ -134,7 +139,7 @@ onMount(() => {
 		engine.on("play", () =>
 			untrack(() => {
 				playing = true;
-				if (focusOnPlay) enterFocus();
+				if (focusOnPlay) void enterFocus();
 			}),
 		),
 		engine.on("pause", () =>
@@ -249,8 +254,7 @@ function run(command: ReaderCommand) {
 			);
 			break;
 		case "focus":
-			if (focused) void leaveFocus();
-			else enterFocus();
+			toggleFocus();
 			break;
 		case "help":
 			helpOpen = !helpOpen;
@@ -293,7 +297,7 @@ function onKeydown(event: KeyboardEvent) {
 	onkeydown={onKeydown}
 	onpointerdown={() => {
 		wake();
-		void leaveFocus();
+		void leaveFocus("pointer");
 	}}
 />
 
@@ -303,8 +307,9 @@ function onKeydown(event: KeyboardEvent) {
 
 <p role="status" class="sr-only">{focused ? m.reader_focus_status() : ""}</p>
 {#if focused}
+	<span class="focus-start" tabindex="-1" bind:this={focusStart}></span>
 	<!-- Hidden until a keyboard reaches it: the one control left in focus. -->
-	<button type="button" class="leave segment border-2 border-ink" data-focus-leave onclick={leaveFocus}
+	<button type="button" class="leave segment border-2 border-ink" data-focus-leave onclick={() => leaveFocus()}
 		>{m.reader_focus_leave()}</button
 	>
 {/if}
@@ -442,12 +447,19 @@ function onKeydown(event: KeyboardEvent) {
 		align-items: center;
 		gap: var(--spacing-s-1);
 		min-height: 44px;
+		cursor: pointer;
 	}
 
 	.check input {
-		width: 1.25rem;
-		height: 1.25rem;
+		width: 24px;
+		height: 24px;
+		margin: 0;
 		accent-color: var(--color-ink);
+	}
+
+	.focus-start {
+		position: fixed;
+		outline: none;
 	}
 
 	/* Off screen until the keyboard reaches it, then pinned top left over the text. */
