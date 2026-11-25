@@ -566,6 +566,20 @@ header {
 	opacity: 0.35;
 }
 
+/* The focus state: only the reading surface is left, filling the screen without a scroll.
+   The reader sets `data-focus` on the root and marks its own controls `data-chrome`. */
+:root[data-focus="on"] :is(header, footer, [data-chrome]) {
+	display: none;
+}
+
+:root[data-focus="on"] main {
+	display: grid;
+	align-content: center;
+	height: 100dvh;
+	padding-block: 0;
+	overflow: hidden;
+}
+
 /* Reduced motion has to beat every utility and component rule, hence !important. */
 @media (prefers-reduced-motion: reduce) {
 	*,

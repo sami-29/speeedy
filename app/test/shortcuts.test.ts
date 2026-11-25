@@ -23,6 +23,18 @@ describe("reader keys", () => {
 		expect(commandForKey(press("k"))).toEqual({ kind: "toggle" });
 	});
 
+	it("F enters or leaves the focus state, whatever the case", () => {
+		expect(commandForKey(press("f"))).toEqual({ kind: "focus" });
+		expect(commandForKey(press("F"))).toEqual({ kind: "focus" });
+		expect(commandForKey(press("f", { ctrlKey: true }))).toBeUndefined();
+	});
+
+	it("lists F among the shortcuts", () => {
+		expect(SHORTCUTS.find((entry) => entry.id === "focus")?.keys).toEqual([
+			"F",
+		]);
+	});
+
 	it("ArrowLeft goes back a sentence, Shift+ArrowLeft a paragraph", () => {
 		expect(commandForKey(press("ArrowLeft"))).toEqual({
 			kind: "back",

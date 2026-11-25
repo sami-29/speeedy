@@ -30,6 +30,7 @@ export const shortcutName = (id: ShortcutId): string =>
 		speed: m.shortcut_speed,
 		speed_big: m.shortcut_speed_big,
 		mode: m.shortcut_mode,
+		focus: m.shortcut_focus,
 		help: m.shortcut_help,
 	})[id]();
 

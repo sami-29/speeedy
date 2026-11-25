@@ -1,13 +1,14 @@
 <script lang="ts">
 import type { Document } from "@speeedy/contracts";
 import type { BackUnit } from "@speeedy/engine";
-import { onMount } from "svelte";
+import { onMount, tick, untrack } from "svelte";
 import { audio } from "#lib/audio/instance.ts";
 import { attachReadingSound } from "#lib/audio/reading-sound.ts";
 import SoundSettings from "#lib/audio/SoundSettings.svelte";
 import { m } from "#lib/paraglide/messages.js";
 import ChapterList from "./ChapterList.svelte";
 import { modeName, rewindName, shortcutName } from "./copy.ts";
+import { loadFocusOnPlay, saveFocusOnPlay } from "./focus.ts";
 import { pausesWhenHidden, readerModes } from "./modes.ts";
 import type { Chapter } from "./navigation.ts";
 import ProgressChart from "./ProgressChart.svelte";
@@ -66,6 +67,49 @@ let helpOpen = $state(false);
 let awake = $state(false);
 let toggle: HTMLButtonElement | undefined;
 
+// The focus state leaves only the reading surface on screen. Pause, a tap, F or Escape
+// bring the controls back; the reader can have Play enter it, and that choice is remembered.
+let focused = $state(false);
+let focusOnPlay = $state(false);
+
+/** localStorage, or nothing in a private window or with storage blocked. */
+function deviceStorage(): Storage | undefined {
+	try {
+		return window.localStorage;
+	} catch {
+		return undefined;
+	}
+}
+
+function enterFocus() {
+	if (focused) return;
+	focused = true;
+	// The control that had keyboard focus is about to be hidden; let go of it, so Space
+	// still plays or pauses and Tab starts from the top of what is left.
+	const active = document.activeElement;
+	if (active instanceof HTMLElement && active.closest("[data-chrome]")) {
+		active.blur();
+	}
+}
+
+async function leaveFocus() {
+	if (!focused) return;
+	const lost =
+		document.activeElement === document.body ||
+		document.activeElement?.closest("[data-focus-leave]") != null;
+	focused = false;
+	// Keyboard focus comes back on Play/Pause, where it was before the controls went.
+	if (lost) {
+		await tick();
+		toggle?.focus();
+	}
+}
+
+function setFocusOnPlay(on: boolean) {
+	focusOnPlay = on;
+	saveFocusOnPlay(deviceStorage(), on);
+}
+
 // The chrome dims while reading and comes back for a moment after any key or touch. Hover
 // and keyboard focus bring it back too (see the styles).
 const dimmed = $derived(playing && !awake);
@@ -83,16 +127,28 @@ function wake() {
 onMount(() => {
 	const engine = reading.engine;
 	playing = engine.playing;
+	focusOnPlay = loadFocusOnPlay(deviceStorage());
+	// A mode view plays the Engine from its own effect, which runs these handlers inside it;
+	// untrack keeps that effect from depending on the focus state it reads here.
 	const stops = [
-		engine.on("play", () => {
-			playing = true;
-		}),
-		engine.on("pause", () => {
-			playing = false;
-		}),
-		engine.on("end", () => {
-			playing = false;
-		}),
+		engine.on("play", () =>
+			untrack(() => {
+				playing = true;
+				if (focusOnPlay) enterFocus();
+			}),
+		),
+		engine.on("pause", () =>
+			untrack(() => {
+				playing = false;
+				void leaveFocus();
+			}),
+		),
+		engine.on("end", () =>
+			untrack(() => {
+				playing = false;
+				void leaveFocus();
+			}),
+		),
 	];
 	// Ambient noise and the tick follow this reading; a mode on the timer Clock makes no sound.
 	stops.push(
@@ -117,6 +173,17 @@ $effect(() => {
 	else delete root.dataset.reading;
 	return () => {
 		delete root.dataset.reading;
+	};
+});
+
+// The header and footer sit outside this component; the page stylesheet hides them from
+// this mark.
+$effect(() => {
+	const root = document.documentElement;
+	if (focused) root.dataset.focus = "on";
+	else delete root.dataset.focus;
+	return () => {
+		delete root.dataset.focus;
 	};
 });
 
@@ -181,6 +248,10 @@ function run(command: ReaderCommand) {
 				),
 			);
 			break;
+		case "focus":
+			if (focused) void leaveFocus();
+			else enterFocus();
+			break;
 		case "help":
 			helpOpen = !helpOpen;
 			break;
@@ -190,6 +261,11 @@ function run(command: ReaderCommand) {
 function onKeydown(event: KeyboardEvent) {
 	wake();
 	if (event.defaultPrevented) return;
+	if (event.key === "Escape" && focused) {
+		event.preventDefault();
+		void leaveFocus();
+		return;
+	}
 	if (event.key === "Escape" && helpOpen) {
 		helpOpen = false;
 		return;
@@ -213,13 +289,27 @@ function onKeydown(event: KeyboardEvent) {
 }
 </script>
 
-<svelte:window onkeydown={onKeydown} onpointerdown={wake} />
+<svelte:window
+	onkeydown={onKeydown}
+	onpointerdown={() => {
+		wake();
+		void leaveFocus();
+	}}
+/>
 
 <h1 class="sr-only" data-testid="reader-source" data-source={source}>
 	{title ?? m.reader_reading()}
 </h1>
 
-<div class="bar chrome px-gutter pt-s-2" data-dim={dimmed}>
+<p role="status" class="sr-only">{focused ? m.reader_focus_status() : ""}</p>
+{#if focused}
+	<!-- Hidden until a keyboard reaches it: the one control left in focus. -->
+	<button type="button" class="leave segment border-2 border-ink" data-focus-leave onclick={leaveFocus}
+		>{m.reader_focus_leave()}</button
+	>
+{/if}
+
+<div class="bar chrome px-gutter pt-s-2" data-dim={dimmed} data-chrome>
 	<button type="button" class="segment border-2 border-ink" onclick={onNewText}>
 		{m.reader_new_text()}
 	</button>
@@ -251,7 +341,7 @@ function onKeydown(event: KeyboardEvent) {
 	{/await}
 {/if}
 
-<section class="poster chrome controls pt-s-3" data-testid="controls" data-dim={dimmed}>
+<section class="poster chrome controls pt-s-3" data-testid="controls" data-dim={dimmed} data-chrome>
 	{#if usesWpm}
 		<div class="poster-head">
 			<WpmSlider wpm={settings.wpm} onchange={setWpm} />
@@ -281,8 +371,22 @@ function onKeydown(event: KeyboardEvent) {
 			{#if chapters.length > 0}
 				<ChapterList engine={reading.engine} {chapters} />
 			{/if}
+			<button
+				type="button"
+				class="segment border-2 border-ink"
+				aria-keyshortcuts="F"
+				onclick={enterFocus}>{m.reader_focus()}</button
+			>
 			<Shortcuts bind:open={helpOpen} />
 		</div>
+		<label class="check label">
+			<input
+				type="checkbox"
+				checked={focusOnPlay}
+				onchange={(event) => setFocusOnPlay(event.currentTarget.checked)}
+			/>
+			{m.reader_focus_on_play()}
+		</label>
 		{#if failed}
 			<p role="status" class="label text-red-ink">{m.reader_rebuild_failed()}</p>
 		{/if}
@@ -331,6 +435,38 @@ function onKeydown(event: KeyboardEvent) {
 
 	.controls {
 		padding-bottom: var(--spacing-s-4);
+	}
+
+	.check {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-s-1);
+		min-height: 44px;
+	}
+
+	.check input {
+		width: 1.25rem;
+		height: 1.25rem;
+		accent-color: var(--color-ink);
+	}
+
+	/* Off screen until the keyboard reaches it, then pinned top left over the text. */
+	.leave {
+		position: fixed;
+		top: var(--spacing-s-1);
+		left: var(--spacing-gutter);
+		z-index: 10;
+		background: var(--color-paper);
+	}
+
+	.leave:not(:focus-visible) {
+		clip-path: inset(50%);
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		white-space: nowrap;
+		padding: 0;
+		border: 0;
 	}
 
 	/* Reading chrome drops to 35% while a Session runs and returns on hover, on keyboard

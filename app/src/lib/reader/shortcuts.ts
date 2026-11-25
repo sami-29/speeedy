@@ -7,6 +7,7 @@ export type ReaderCommand =
 	| { kind: "back"; unit: BackUnit }
 	| { kind: "speed"; delta: number }
 	| { kind: "mode"; step: 1 | -1 }
+	| { kind: "focus" }
 	| { kind: "help" };
 
 /** The part of the event target that decides whether a key is ours. */
@@ -50,6 +51,7 @@ export function commandForKey(event: KeyInput): ReaderCommand | undefined {
 		return { kind: "mode", step: shiftKey ? -1 : 1 };
 	}
 	if (key === "c" || key === "C") return { kind: "back", unit: "chapter" };
+	if (key === "f" || key === "F") return { kind: "focus" };
 	if (key === "?") return { kind: "help" };
 
 	if (ARROWS.has(key) && event.target?.role === "slider") return undefined;
@@ -73,6 +75,7 @@ export type ShortcutId =
 	| "speed"
 	| "speed_big"
 	| "mode"
+	| "focus"
 	| "help";
 
 /** The shortcuts the list shows, in order. The reader supplies the wording. */
@@ -84,6 +87,7 @@ export const SHORTCUTS: readonly { id: ShortcutId; keys: string[] }[] = [
 	{ id: "speed", keys: ["↑", "↓"] },
 	{ id: "speed_big", keys: ["Shift", "↑", "↓"] },
 	{ id: "mode", keys: ["M"] },
+	{ id: "focus", keys: ["F"] },
 	{ id: "help", keys: ["?"] },
 ];
 
