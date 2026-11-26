@@ -4,20 +4,25 @@ import type { BackUnit } from "@speeedy/engine";
 import { onMount, tick, untrack } from "svelte";
 import { audio } from "#lib/audio/instance.ts";
 import { attachReadingSound } from "#lib/audio/reading-sound.ts";
-import SoundSettings from "#lib/audio/SoundSettings.svelte";
 import { m } from "#lib/paraglide/messages.js";
 import { deviceStorage } from "../device-storage.ts";
 import ChapterList from "./ChapterList.svelte";
 import { modeName, rewindName, shortcutName } from "./copy.ts";
 import { loadFocusOnPlay, saveFocusOnPlay } from "./focus.ts";
-import { pausesWhenHidden, readerModes } from "./modes.ts";
+import {
+	DEFAULT_MODE_ID,
+	type ModeId,
+	pausesWhenHidden,
+	readerModes,
+} from "./modes.ts";
 import type { Chapter } from "./navigation.ts";
 import ProgressChart from "./ProgressChart.svelte";
 import { pauseWhenHidden } from "./pacer/hidden.ts";
-import ReadingSettings from "./ReadingSettings.svelte";
+import { saveReaderSettings } from "./prefs.ts";
+import type { Preset } from "./presets.ts";
 import type { Reading } from "./reading.ts";
+import SettingsPanel from "./SettingsPanel.svelte";
 import Shortcuts from "./Shortcuts.svelte";
-import SpeedZones from "./SpeedZones.svelte";
 import { enginePatch, type ReaderSettings } from "./settings.ts";
 import {
 	commandForKey,
@@ -55,7 +60,7 @@ let {
 } = $props();
 
 const modes = readerModes.modes();
-let modeId = $state(modes[0]?.id ?? "rsvp");
+let modeId = $state(modes[0]?.id ?? DEFAULT_MODE_ID);
 const mode = $derived(readerModes.get(modeId));
 // A mode that is paced by a voice has no reading speed: the controls for it are left out.
 const usesWpm = $derived(mode?.settingsUsed.includes("wpm") ?? true);
@@ -65,6 +70,8 @@ let autoplay = $state(source !== "share");
 
 let playing = $state(false);
 let helpOpen = $state(false);
+let settingsOpen = $state(false);
+let settingsButton: HTMLButtonElement | undefined = $state();
 let awake = $state(false);
 let toggle: HTMLButtonElement | undefined;
 
@@ -77,6 +84,7 @@ let focusStart = $state<HTMLElement>();
 async function enterFocus() {
 	if (focused) return;
 	focused = true;
+	settingsOpen = false;
 	// The control that had keyboard focus is about to be hidden. Park focus just before the
 	// leave button: Space still plays or pauses, and the next Tab reaches that button. A bare
 	// blur would leave Tab starting from the hidden control.
@@ -181,6 +189,15 @@ $effect(() => {
 	};
 });
 
+// The page stylesheet fits the reader to the screen from this mark.
+$effect(() => {
+	const root = document.documentElement;
+	root.dataset.reader = "";
+	return () => {
+		delete root.dataset.reader;
+	};
+});
+
 // The header and footer sit outside this component; the page stylesheet hides them from
 // this mark.
 $effect(() => {
@@ -198,9 +215,22 @@ $effect(() => {
 	return pauseWhenHidden(reading.engine, { document });
 });
 
+/** A change the reader made: it applies at once and is kept on this device. */
 function setSettings(change: Partial<ReaderSettings>) {
 	settings = { ...settings, ...change };
 	reading.live.change(enginePatch(change));
+	saveReaderSettings(deviceStorage(), settings);
+}
+
+function closeSettings() {
+	settingsOpen = false;
+	settingsButton?.focus();
+}
+
+function applyPreset(preset: Preset) {
+	setSettings(preset.settings);
+	audio().setPrefs(preset.sound);
+	selectMode(preset.mode);
 }
 
 function setWpm(wpm: number) {
@@ -209,7 +239,7 @@ function setWpm(wpm: number) {
 	if (next !== settings.wpm) setSettings({ wpm: next });
 }
 
-function selectMode(id: string) {
+function selectMode(id: ModeId) {
 	if (id === modeId) return;
 	const next = readerModes.get(id);
 	if (!next) return;
@@ -270,6 +300,11 @@ function onKeydown(event: KeyboardEvent) {
 		void leaveFocus();
 		return;
 	}
+	if (event.key === "Escape" && settingsOpen) {
+		event.preventDefault();
+		closeSettings();
+		return;
+	}
 	if (event.key === "Escape" && helpOpen) {
 		helpOpen = false;
 		return;
@@ -322,6 +357,15 @@ function onKeydown(event: KeyboardEvent) {
 		<!-- Anyone can craft a Share Link, so its text is marked as not ours and waits for Play. -->
 		<p class="caption w-full text-ink-2" data-testid="shared-notice">{m.reader_shared_notice()}</p>
 	{/if}
+	<button
+		type="button"
+		class="segment border-2 border-ink"
+		aria-expanded={settingsOpen}
+		aria-controls="reader-settings"
+		bind:this={settingsButton}
+		onclick={() => (settingsOpen ? closeSettings() : (settingsOpen = true))}
+		>{m.reader_settings_open()}</button
+	>
 	<div role="group" aria-label={m.reader_mode_label()} class="segment-group">
 		{#each modes as entry (entry.id)}
 			<button
@@ -341,19 +385,23 @@ function onKeydown(event: KeyboardEvent) {
 			{doc}
 			{autoplay}
 			{language}
+			pauseView={settings.pauseView}
 			clock={reading.clocks[mode.clock] ?? reading.useClock(mode.clock)}
 		/>
 	{/await}
 {/if}
 
-<section class="poster chrome controls pt-s-3" data-testid="controls" data-dim={dimmed} data-chrome>
+<section class="poster chrome controls pt-s-3" data-testid="controls" data-dim={dimmed} data-chrome data-scroll>
 	{#if usesWpm}
 		<div class="poster-head">
 			<WpmSlider wpm={settings.wpm} onchange={setWpm} />
 		</div>
 	{/if}
 	<div class="stack" class:alone={!usesWpm}>
-		<ProgressChart engine={reading.engine} {doc} {chapters} recordSpeed={usesWpm} />
+		<!-- Hidden, not removed: the chart keeps recording the speed while it is off. -->
+		<div class="progress" hidden={!settings.showProgress}>
+			<ProgressChart engine={reading.engine} {doc} {chapters} recordSpeed={usesWpm} />
+		</div>
 		<div class="transport">
 			<button type="button" class="button-primary" bind:this={toggle} onclick={togglePlay}>
 				{playing ? m.reader_pause() : m.reader_play()}
@@ -384,24 +432,29 @@ function onKeydown(event: KeyboardEvent) {
 			>
 			<Shortcuts bind:open={helpOpen} />
 		</div>
-		<label class="check label">
-			<input
-				type="checkbox"
-				checked={focusOnPlay}
-				onchange={(event) => setFocusOnPlay(event.currentTarget.checked)}
-			/>
-			{m.reader_focus_on_play()}
-		</label>
 		{#if failed}
 			<p role="status" class="label text-red-ink">{m.reader_rebuild_failed()}</p>
 		{/if}
-		{#if usesWpm}
-			<SpeedZones wpm={settings.wpm} onpick={setWpm} />
-		{/if}
-		<ReadingSettings {settings} onchange={setSettings} used={mode?.settingsUsed ?? []} />
-		<SoundSettings silent={mode?.clock === "timer"} />
 	</div>
 </section>
+
+<div id="reader-settings">
+	<SettingsPanel
+		bind:open={() => settingsOpen, (open) => (open ? (settingsOpen = true) : closeSettings())}
+		{settings}
+		onchange={setSettings}
+		used={mode?.settingsUsed ?? []}
+		{modes}
+		{modeId}
+		onmode={selectMode}
+		onwpm={setWpm}
+		silent={mode?.clock === "timer"}
+		{focusOnPlay}
+		onfocusonplay={setFocusOnPlay}
+		snapshot={() => ({ settings, sound: audio().prefs, mode: modeId })}
+		onapply={applyPreset}
+	/>
+</div>
 
 <style>
 	.bar {
@@ -442,19 +495,8 @@ function onKeydown(event: KeyboardEvent) {
 		padding-bottom: var(--spacing-s-4);
 	}
 
-	.check {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-s-1);
-		min-height: 44px;
-		cursor: pointer;
-	}
-
-	.check input {
-		width: 24px;
-		height: 24px;
-		margin: 0;
-		accent-color: var(--color-ink);
+	.progress[hidden] {
+		display: none;
 	}
 
 	.focus-start {

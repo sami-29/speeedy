@@ -468,6 +468,18 @@ describe("AudioSystem: the per-word tick", () => {
 		expect(contexts.last.oscillators).toHaveLength(0);
 	});
 
+	it("sounds at the pitch the reader chose", async () => {
+		const { system, contexts } = setup();
+		await system.unlock();
+		system.tick();
+		system.setTickPitch(1.5);
+		system.tick();
+		const [first, second] = contexts.last.oscillators;
+		expect(first?.frequency.events.at(-1)?.value).toBe(880);
+		expect(second?.frequency.events.at(-1)?.value).toBe(1320);
+		expect(system.prefs.tickPitch).toBe(1.5);
+	});
+
 	it("is quiet when the cue volume is zero", async () => {
 		const { system, contexts } = setup();
 		await system.unlock();
@@ -493,6 +505,7 @@ describe("AudioSystem: device-only settings", () => {
 			},
 			ambient: "brown",
 			tick: true,
+			tickPitch: 1,
 		});
 		const again = setup({ storage });
 		expect(again.system.prefs).toEqual({
@@ -503,7 +516,21 @@ describe("AudioSystem: device-only settings", () => {
 			},
 			ambient: "brown",
 			tick: true,
+			tickPitch: 1,
 		});
+	});
+
+	it("takes a whole set at once, as a preset applies it", () => {
+		const { system, storage } = setup();
+		const set = {
+			volumes: { voice: 0.5, ambient: 0.4, cue: 0.8 },
+			ambient: "pink" as const,
+			tick: true,
+			tickPitch: 2,
+		};
+		system.setPrefs(set);
+		expect(system.prefs).toEqual(set);
+		expect(JSON.parse(storage.data.get(AUDIO_PREFS_KEY) ?? "{}")).toEqual(set);
 	});
 
 	it("tells subscribers when a setting changes", () => {

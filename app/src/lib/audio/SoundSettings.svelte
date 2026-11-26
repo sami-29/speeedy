@@ -2,7 +2,13 @@
 import { onMount } from "svelte";
 import { m } from "#lib/paraglide/messages.js";
 import { audio } from "./instance.ts";
-import { AMBIENT_KINDS, type AmbientKind, type BusName } from "./prefs.ts";
+import {
+	AMBIENT_KINDS,
+	type AmbientKind,
+	type BusName,
+	MAX_TICK_PITCH,
+	MIN_TICK_PITCH,
+} from "./prefs.ts";
 
 let {
 	silent,
@@ -21,6 +27,7 @@ onMount(() => {
 });
 
 const VOLUME_STEP = 0.1;
+const PITCH_STEP = 0.1;
 
 const kindName = (kind: AmbientKind) =>
 	({
@@ -104,6 +111,28 @@ const percent = (bus: BusName) =>
 				m.sound_tick_quieter(),
 				m.sound_tick_louder(),
 			)}
+			<div class="row">
+				<span id="tick-pitch-label" class="label">{m.sound_tick_pitch()}</span>
+				<span class="steps">
+					<button
+						type="button"
+						class="stepper"
+						aria-label={m.sound_tick_lower()}
+						disabled={prefs.tickPitch <= MIN_TICK_PITCH}
+						onclick={() => system.setTickPitch(prefs.tickPitch - PITCH_STEP)}>−</button
+					>
+					<output class="value" data-testid="tick-pitch" aria-labelledby="tick-pitch-label"
+						>{m.sound_tick_pitch_value({ pitch: prefs.tickPitch.toFixed(1) })}</output
+					>
+					<button
+						type="button"
+						class="stepper"
+						aria-label={m.sound_tick_higher()}
+						disabled={prefs.tickPitch >= MAX_TICK_PITCH}
+						onclick={() => system.setTickPitch(prefs.tickPitch + PITCH_STEP)}>+</button
+					>
+				</span>
+			</div>
 		{/if}
 	{:else}
 		{@render volume(

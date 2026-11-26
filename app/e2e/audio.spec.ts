@@ -214,12 +214,20 @@ async function startPasted(page: Page) {
 	await page.goto("/reader");
 	await page.getByRole("textbox", { name: "Text to read" }).fill(SENTENCES);
 	await page.getByRole("button", { name: "Start" }).click();
+	await openSettings(page);
+}
+
+/** The sound settings live in the settings panel. */
+async function openSettings(page: Page) {
+	await page.getByRole("button", { name: "Settings", exact: true }).click();
 	await page.getByRole("group", { name: "Sound" }).waitFor();
 }
 
+// The bar's switch; the panel repeats it below.
 const modeButton = (page: Page, name: string) =>
 	page
 		.getByRole("group", { name: "Reading Mode" })
+		.first()
 		.getByRole("button", { name });
 const ambient = (page: Page) =>
 	page.getByLabel("Ambient noise", { exact: true });
@@ -359,7 +367,7 @@ test.describe("sound", () => {
 		});
 		await page.reload();
 		// The reader comes back with the text it had.
-		await page.getByRole("group", { name: "Sound" }).waitFor();
+		await openSettings(page);
 		await expect(ambient(page)).toHaveValue("white");
 		await expect(page.getByLabel("Tick on each word")).toBeChecked();
 		await pause(page);
@@ -444,9 +452,12 @@ test.describe("sound", () => {
 				});
 				await startPasted(page);
 				// Paused, so the reading chrome is at full strength: while playing it fades to
-				// 35% on purpose, and axe would race the end of the text.
+				// 35% on purpose, and axe would race the end of the text. On a phone the sheet
+				// covers the transport, so it closes for the pause.
+				await page.keyboard.press("Escape");
 				await page.getByRole("button", { name: "Pause" }).click();
 				await modeButton(page, mode).click();
+				await openSettings(page);
 				const group = page.getByRole("group", { name: "Sound" });
 				await group.scrollIntoViewIfNeeded();
 				await expect(group).toBeVisible();

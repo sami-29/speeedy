@@ -10,11 +10,14 @@ let {
 	settings,
 	onchange,
 	used,
+	label = m.reader_settings_label(),
 }: {
 	settings: ReaderSettings;
 	onchange: (change: Partial<ReaderSettings>) => void;
 	/** The settings the open mode reads. Rows for the others are left out. */
 	used: readonly string[];
+	/** The group's accessible name. */
+	label?: string;
 } = $props();
 
 const all = $derived([
@@ -42,7 +45,7 @@ const chunk = $derived(used.includes("chunkSize"));
 </script>
 
 {#if chunk || switches.length > 0}
-<div role="group" aria-label={m.reader_settings_label()} class="settings">
+<div role="group" aria-label={label} class="settings">
 	{#if chunk}
 	<div class="row">
 		<span id="chunk-label" class="label">{m.reader_chunk_label()}</span>

@@ -13,7 +13,16 @@ export type ReaderSettings = {
 	punctuationPauses: boolean;
 	/** Start each stretch of reading slowly and build up to full speed. */
 	speedRamp: boolean;
+	/** What a paused RSVP shows: the word, its sentence, or the whole text. */
+	pauseView: PauseView;
+	/** The progress bar under the reading surface. */
+	showProgress: boolean;
+	/** Take inline citations such as "[4]" or "(Smith, 2020)" out of the next text opened. */
+	removeCitations: boolean;
 };
+
+export const PAUSE_VIEWS = ["focus", "context", "fulltext"] as const;
+export type PauseView = (typeof PAUSE_VIEWS)[number];
 
 export const DEFAULT_READER_SETTINGS: ReaderSettings = {
 	wpm: 250,
@@ -21,6 +30,9 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
 	smartSpeed: false,
 	punctuationPauses: true,
 	speedRamp: false,
+	pauseView: "focus",
+	showProgress: true,
+	removeCitations: false,
 };
 
 /**

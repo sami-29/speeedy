@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { Document, Position } from "@speeedy/contracts";
 import { onDestroy, onMount } from "svelte";
+import { deviceStorage } from "#lib/device-storage.ts";
 import { library } from "#lib/library/instance.ts";
 import {
 	createPositionSaver,
@@ -20,13 +21,10 @@ import {
 	createReaderLoader,
 	type ReaderSource,
 } from "#lib/reader/open.ts";
+import { loadReaderSettings } from "#lib/reader/prefs.ts";
 import ReaderShell from "#lib/reader/ReaderShell.svelte";
 import { type Reading, startReading } from "#lib/reader/reading.ts";
-import {
-	DEFAULT_READER_SETTINGS,
-	type ReaderSettings,
-	withPreset,
-} from "#lib/reader/settings.ts";
+import { type ReaderSettings, withPreset } from "#lib/reader/settings.ts";
 import { replaceState } from "$app/navigation";
 import { page } from "$app/state";
 
@@ -42,8 +40,9 @@ let text = $state("");
 let error = $state("");
 let opening = $state(false);
 let dragging = $state(false);
-// The reader's settings last for the visit, across texts.
-let settings = $state<ReaderSettings>({ ...DEFAULT_READER_SETTINGS });
+// The reader's settings are kept on this device, across texts and visits. The shell saves
+// each change the reader makes; a page preset below applies for this text only.
+let settings = $state<ReaderSettings>(loadReaderSettings(deviceStorage()));
 let failed = $state(false);
 let session = $state.raw<{
 	reading: Reading;

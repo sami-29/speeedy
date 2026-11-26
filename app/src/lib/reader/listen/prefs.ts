@@ -1,4 +1,5 @@
 import { baseLanguage } from "@speeedy/contracts";
+import { isRecord, readJson, writeJson } from "../../device-storage.ts";
 
 /**
  * What Listen remembers on this device: the voice speed, and one voice per language. Only
@@ -50,31 +51,22 @@ export function withVoice(
 	return { ...prefs, voices };
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
-
 /** The saved preferences, or the defaults for anything missing, damaged or out of reach. */
 export function loadPrefs(
 	storage: Pick<Storage, "getItem"> | undefined,
 ): ListenPrefs {
-	try {
-		const raw = storage?.getItem(LISTEN_PREFS_KEY);
-		if (!raw) return DEFAULT_PREFS;
-		const parsed: unknown = JSON.parse(raw);
-		if (!isRecord(parsed)) return DEFAULT_PREFS;
-		const voices: Record<string, string> = {};
-		if (isRecord(parsed.voices)) {
-			for (const [language, uri] of Object.entries(parsed.voices)) {
-				if (typeof uri === "string") voices[language] = uri;
-			}
+	const parsed = readJson(storage, LISTEN_PREFS_KEY);
+	if (!isRecord(parsed)) return DEFAULT_PREFS;
+	const voices: Record<string, string> = {};
+	if (isRecord(parsed.voices)) {
+		for (const [language, uri] of Object.entries(parsed.voices)) {
+			if (typeof uri === "string") voices[language] = uri;
 		}
-		return {
-			rate: typeof parsed.rate === "number" ? clampRate(parsed.rate) : 1,
-			voices,
-		};
-	} catch {
-		return DEFAULT_PREFS;
 	}
+	return {
+		rate: typeof parsed.rate === "number" ? clampRate(parsed.rate) : 1,
+		voices,
+	};
 }
 
 /** Keep the preferences. A blocked or full store is not an error: Listen works without it. */
@@ -82,12 +74,8 @@ export function savePrefs(
 	storage: Pick<Storage, "setItem"> | undefined,
 	prefs: ListenPrefs,
 ): void {
-	try {
-		storage?.setItem(
-			LISTEN_PREFS_KEY,
-			JSON.stringify({ rate: prefs.rate, voices: prefs.voices }),
-		);
-	} catch {
-		// Private window or storage blocked: the choice lasts for this visit only.
-	}
+	writeJson(storage, LISTEN_PREFS_KEY, {
+		rate: prefs.rate,
+		voices: prefs.voices,
+	});
 }

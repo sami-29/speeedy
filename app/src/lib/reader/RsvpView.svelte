@@ -1,9 +1,25 @@
 <script lang="ts">
 import type { Frame } from "@speeedy/engine";
+import { untrack } from "svelte";
 import { m } from "#lib/paraglide/messages.js";
 import type { ModeProps } from "./modes.ts";
+import PacerView from "./PacerView.svelte";
+import { frameRange } from "./pacer/follow.ts";
+import { type PausedSentence, pausedSentence } from "./paused.ts";
 
-let { engine, autoplay = true }: ModeProps = $props();
+let {
+	engine,
+	doc,
+	clock,
+	autoplay = true,
+	pauseView = "focus",
+}: ModeProps = $props();
+
+// Paused, the reader can see the word's sentence or the whole text in place of the word.
+// svelte-ignore state_referenced_locally
+let paused = $state(!autoplay);
+let sentence = $state.raw<PausedSentence | null>(null);
+const full = $derived(paused && pauseView === "fulltext");
 
 // The word is written straight into these nodes from the engine's frame events.
 // Nothing about the word is reactive state, so playing never re-renders the component.
@@ -26,14 +42,40 @@ $effect(() => {
 			word.style.setProperty("--words", next);
 		}
 	};
+	// The handlers run inside the effect when it plays: untrack keeps it off their state.
+	const place = () =>
+		untrack(() => {
+			sentence = current.frame
+				? pausedSentence(doc, frameRange(current.frame))
+				: null;
+		});
 	const stops = [
 		current.on("frameShown", ({ frame }) => show(frame)),
 		// A rewind or seek while paused moves the Cursor without a `frameShown`.
 		current.on("seek", () => {
 			if (current.frame) show(current.frame);
+			place();
 		}),
+		current.on("play", () =>
+			untrack(() => {
+				paused = false;
+			}),
+		),
+		current.on("pause", () =>
+			untrack(() => {
+				paused = true;
+				place();
+			}),
+		),
+		current.on("end", () =>
+			untrack(() => {
+				paused = true;
+				place();
+			}),
+		),
 	];
 	if (current.frame) show(current.frame);
+	place();
 	if (autoplay) current.play();
 	return () => {
 		current.pause();
@@ -42,10 +84,27 @@ $effect(() => {
 });
 </script>
 
-<section class="stage" data-testid="stage" aria-label={m.reader_stage_label()}>
+<!-- The word stays mounted under the full text: its nodes are written to directly. -->
+<section class="stage" data-testid="stage" aria-label={m.reader_stage_label()} hidden={full}>
 	<div class="axis" aria-hidden="true"></div>
 	<p class="word" data-testid="word" bind:this={word}><span class="side before" data-part="before" bind:this={before}></span><span class="pivot" data-part="pivot" bind:this={pivot}></span><span class="side after" data-part="after" bind:this={after}></span></p>
+	{#if paused && pauseView === "context" && sentence}
+		<p class="context" data-testid="paused-sentence" aria-label={m.reader_paused_sentence_label()}>
+			{sentence.before}<mark>{sentence.now}</mark>{sentence.after}
+		</p>
+	{/if}
 </section>
+{#if full}
+	<PacerView
+		{engine}
+		{doc}
+		still
+		autoplay={false}
+		{clock}
+		testid="paused-text"
+		label={m.reader_paused_text_label()}
+	/>
+{/if}
 
 <style>
 	/* The stage is as wide as <main>, so its 35% is the page's reading axis. */
@@ -102,5 +161,33 @@ $effect(() => {
 
 	.pivot {
 		color: var(--color-red);
+	}
+
+	.stage[hidden] {
+		display: none;
+	}
+
+	/* The sentence sits along the foot of the stage, so pausing never moves the page. */
+	.context {
+		position: absolute;
+		inset-inline: 0;
+		bottom: var(--spacing-s-2);
+		margin: 0;
+		max-width: 60ch;
+		padding-inline: var(--spacing-gutter);
+		font-size: 1.125rem;
+		line-height: 1.5;
+		color: var(--color-ink-2);
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.context mark {
+		background: none;
+		color: var(--color-ink);
+		box-shadow: inset 0 -3px 0 var(--color-red);
 	}
 </style>

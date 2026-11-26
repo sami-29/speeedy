@@ -8,6 +8,7 @@ import {
 	type ParserClient,
 } from "@speeedy/parsers";
 import ParserWorker from "@speeedy/parsers/worker?worker";
+import { removeCitations } from "./citations.ts";
 import { engineSettings, type ReaderSettings } from "./settings.ts";
 import {
 	createTimelineClient,
@@ -58,6 +59,23 @@ export type ReaderLoader = {
 	/** Stop both workers. Call when the reader goes away. */
 	dispose(): void;
 };
+
+/**
+ * The source with its inline citations taken out. Only plain text is touched: a book or a
+ * web page is parsed as it is, since its citations sit inside markup.
+ */
+async function withoutCitations(source: ReaderSource): Promise<ReaderSource> {
+	if (source.kind === "text") {
+		return { kind: "text", text: removeCitations(source.text) };
+	}
+	const { file } = source;
+	if (file.type !== "text/plain" && !/\.txt$/i.test(file.name)) return source;
+	const text = removeCitations(await file.text());
+	return {
+		kind: "file",
+		file: new File([text], file.name, { type: file.type }),
+	};
+}
 
 const BUILD_FAILED = "Speeedy could not prepare that text for reading.";
 
@@ -115,7 +133,10 @@ export function createReaderLoader(): ReaderLoader {
 	return {
 		async open(source, settings) {
 			const clients = start();
-			const outcome = await parse(clients, source);
+			const outcome = await parse(
+				clients,
+				settings.removeCitations ? await withoutCitations(source) : source,
+			);
 			if (!outcome.ok) return { ok: false, message: outcome.message };
 			const built = await build(
 				clients,

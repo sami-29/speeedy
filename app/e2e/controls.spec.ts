@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { settings } from "./settings-panel.ts";
 import { chooseTheme } from "./theme.ts";
 
 // 150 sentences of three words: "s7a s7b s7c." The letter gives the place inside the
@@ -202,7 +203,9 @@ test.describe("Speed Zones", () => {
 		page,
 	}) => {
 		await start(page);
-		const zones = page.getByRole("group", { name: "Speed Zones" });
+		const zones = (await settings(page)).getByRole("group", {
+			name: "Speed Zones",
+		});
 		await expect(zones.getByRole("button")).toHaveText([
 			/Study/,
 			/Read/,
@@ -222,7 +225,9 @@ test.describe("Speed Zones", () => {
 		page,
 	}) => {
 		await start(page);
-		const zones = page.getByRole("group", { name: "Speed Zones" });
+		const zones = (await settings(page)).getByRole("group", {
+			name: "Speed Zones",
+		});
 		await zones.getByRole("button", { name: /Skim/ }).click();
 		await expect(slider(page)).toHaveAttribute("aria-valuenow", "400");
 		await expect(zones.getByRole("button", { name: /Skim/ })).toHaveAttribute(
@@ -240,7 +245,7 @@ test.describe("Speed Zones", () => {
 		await slider(page).focus();
 		await page.keyboard.press("End");
 		await expect(
-			page
+			(await settings(page))
 				.getByRole("group", { name: "Speed Zones" })
 				.getByRole("button", { name: /Skim/ }),
 		).toHaveAttribute("aria-pressed", "true");
@@ -248,7 +253,14 @@ test.describe("Speed Zones", () => {
 
 	test("never promise a multiplier", async ({ page }) => {
 		await start(page);
-		const text = (await page.getByTestId("controls").textContent()) ?? "";
+		const zones = (await settings(page)).getByRole("group", {
+			name: "Speed Zones",
+		});
+		const text = [
+			await page.getByTestId("controls").textContent(),
+			await zones.textContent(),
+			await page.getByTestId("zone-note").textContent(),
+		].join(" ");
 		expect(text).not.toMatch(/\d\s?x\b|×|faster than|best/i);
 	});
 });
@@ -256,7 +268,7 @@ test.describe("Speed Zones", () => {
 test.describe("settings", () => {
 	test("chunk size shows several words in one flash", async ({ page }) => {
 		await start(page);
-		const group = page.getByRole("group", { name: "Reading settings" });
+		const group = await settings(page);
 		await expect(page.getByTestId("chunk")).toHaveText("1");
 		const before = await rebuilds(page);
 		await group.getByRole("button", { name: "More words per flash" }).click();
@@ -274,7 +286,7 @@ test.describe("settings", () => {
 		page,
 	}) => {
 		await start(page);
-		const group = page.getByRole("group", { name: "Reading settings" });
+		const group = await settings(page);
 		for (const [name, checked] of [
 			["Smart speed", false],
 			["Pause on punctuation", true],
@@ -294,8 +306,7 @@ test.describe("settings", () => {
 	test("keep playing while they change", async ({ page }) => {
 		await start(page);
 		const before = await rebuilds(page);
-		await page
-			.getByRole("group", { name: "Reading settings" })
+		await (await settings(page))
 			.getByRole("checkbox", { name: "Smart speed" })
 			.click();
 		await rebuiltAfter(page, before);
@@ -500,7 +511,11 @@ for (const viewport of [
 		test("with the shortcuts open and a Skim speed", async ({ page }) => {
 			await start(page);
 			await pause(page);
-			await page.getByRole("button", { name: /Skim/ }).click();
+			await (await settings(page))
+				.getByRole("button", { name: /Skim/ })
+				.click();
+			// The phone sheet covers the controls; close it first.
+			await page.keyboard.press("Escape");
 			await page.getByRole("button", { name: "Keyboard shortcuts" }).click();
 			await check(page);
 		});
@@ -580,11 +595,11 @@ test.describe("privacy", () => {
 		await page.waitForTimeout(800);
 		await slider(page).focus();
 		await page.keyboard.press("Shift+ArrowRight");
-		await page
+		await (await settings(page))
 			.getByRole("group", { name: "Speed Zones" })
 			.getByRole("button", { name: /Skim/ })
 			.click();
-		const group = page.getByRole("group", { name: "Reading settings" });
+		const group = await settings(page);
 		await group.getByRole("button", { name: "More words per flash" }).click();
 		await group.getByRole("checkbox", { name: "Smart speed" }).click();
 		await group.getByRole("checkbox", { name: "Speed ramp" }).click();
@@ -659,8 +674,7 @@ test.describe("rebuilds run off the main thread", () => {
 		const fullBefore = await page.evaluate(
 			() => performance.getEntriesByName("speeedy:rebuild-full").length,
 		);
-		await page
-			.getByRole("group", { name: "Reading settings" })
+		await (await settings(page))
 			.getByRole("button", { name: "More words per flash" })
 			.click();
 		await expect

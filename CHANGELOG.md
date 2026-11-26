@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Reader settings panel**: a sidebar on desktop and a sheet on phones, where every change applies at once. It holds Reading Mode, pacing, words, the paused view, the progress bar, remove-citations and sound, and your settings stay on this device.
+- **Presets**: save the current reader settings, sound and Reading Mode under a name, and apply them again in one step.
+- **Paused view**: while paused, RSVP can show the word, its sentence or the full text.
+- **Tick pitch**: set the pitch of the tick on each word.
+
 ## [1.3.0] - 2026-06-26
 
 ### Added

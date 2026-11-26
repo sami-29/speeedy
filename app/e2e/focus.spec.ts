@@ -108,8 +108,10 @@ test.describe("focus state", () => {
 		const choice = page.getByRole("checkbox", {
 			name: "Focus when I press Play",
 		});
+		await page.getByRole("button", { name: "Settings", exact: true }).click();
 		await expect(choice).not.toBeChecked();
 		await choice.check();
+		await page.keyboard.press("Escape");
 
 		await page.getByRole("button", { name: "Play" }).click();
 		await expectFocused(page);
@@ -133,9 +135,11 @@ test.describe("focus state", () => {
 		await page.reload();
 		await expectFocused(page);
 		await page.keyboard.press("Escape");
+		await page.getByRole("button", { name: "Settings", exact: true }).click();
 		await expect(choice).toBeChecked();
 
 		await choice.uncheck();
+		await page.keyboard.press("Escape");
 		await pause(page);
 		await page.getByRole("button", { name: "Play" }).click();
 		await expectChrome(page);
@@ -257,7 +261,7 @@ test.describe("focus state", () => {
 
 			// Every control is back and in the tab order again.
 			const back = [
-				page.getByRole("checkbox", { name: "Focus when I press Play" }),
+				page.getByRole("button", { name: "Settings", exact: true }),
 				page.getByRole("button", { name: "Focus", exact: true }),
 				modeButton(page, mode),
 			];

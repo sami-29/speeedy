@@ -1,3 +1,4 @@
+import { isRecord, readJson, writeJson } from "../device-storage.ts";
 /** The three buses every sound goes through. */
 export type BusName = "voice" | "ambient" | "cue";
 
@@ -15,6 +16,8 @@ export type AudioPrefs = {
 	ambient: AmbientKind;
 	/** A short tick on each word shown, in the modes that make no sound of their own. */
 	tick: boolean;
+	/** The tick's pitch, as a multiple of its note: 0.1 to 3, to a tenth. */
+	tickPitch: number;
 };
 
 export const AUDIO_PREFS_KEY = "speeedy.audio";
@@ -23,7 +26,20 @@ export const DEFAULT_AUDIO_PREFS: AudioPrefs = {
 	volumes: { voice: 1, ambient: 0.3, cue: 0.5 },
 	ambient: "none",
 	tick: false,
+	tickPitch: 1,
 };
+
+export const MIN_TICK_PITCH = 0.1;
+export const MAX_TICK_PITCH = 3;
+
+/** A pitch in range, to a tenth. Not a number is the tick's own note. */
+export function clampPitch(pitch: number): number {
+	if (!Number.isFinite(pitch)) return DEFAULT_AUDIO_PREFS.tickPitch;
+	return Math.min(
+		Math.max(Math.round(pitch * 10) / 10, MIN_TICK_PITCH),
+		MAX_TICK_PITCH,
+	);
+}
 
 /** A volume in range, to a twentieth. Not a number is no change (`fallback`). */
 export function clampVolume(volume: number, fallback = 1): number {
@@ -31,37 +47,41 @@ export function clampVolume(volume: number, fallback = 1): number {
 	return Math.min(Math.max(Math.round(volume * 20) / 20, 0), 1);
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-	typeof value === "object" && value !== null && !Array.isArray(value);
-
 const BUSES: readonly BusName[] = ["voice", "ambient", "cue"];
+
+/** A full set of preferences from anything: what is sound is kept, the rest is the default. */
+export function audioPrefsFrom(value: unknown): AudioPrefs {
+	if (!isRecord(value)) {
+		return {
+			...DEFAULT_AUDIO_PREFS,
+			volumes: { ...DEFAULT_AUDIO_PREFS.volumes },
+		};
+	}
+	const saved = isRecord(value.volumes) ? value.volumes : {};
+	const volumes = { ...DEFAULT_AUDIO_PREFS.volumes };
+	for (const bus of BUSES) {
+		const level = saved[bus];
+		if (typeof level === "number") {
+			volumes[bus] = clampVolume(level, volumes[bus]);
+		}
+	}
+	const ambient = AMBIENT_KINDS.find((kind) => kind === value.ambient);
+	return {
+		volumes,
+		ambient: ambient ?? "none",
+		tick: value.tick === true,
+		tickPitch:
+			typeof value.tickPitch === "number"
+				? clampPitch(value.tickPitch)
+				: DEFAULT_AUDIO_PREFS.tickPitch,
+	};
+}
 
 /** The saved preferences, or the defaults for anything missing, damaged or out of reach. */
 export function loadAudioPrefs(
 	storage: Pick<Storage, "getItem"> | undefined,
 ): AudioPrefs {
-	try {
-		const raw = storage?.getItem(AUDIO_PREFS_KEY);
-		if (!raw) return DEFAULT_AUDIO_PREFS;
-		const parsed: unknown = JSON.parse(raw);
-		if (!isRecord(parsed)) return DEFAULT_AUDIO_PREFS;
-		const saved = isRecord(parsed.volumes) ? parsed.volumes : {};
-		const volumes = { ...DEFAULT_AUDIO_PREFS.volumes };
-		for (const bus of BUSES) {
-			const value = saved[bus];
-			if (typeof value === "number") {
-				volumes[bus] = clampVolume(value, volumes[bus]);
-			}
-		}
-		const ambient = AMBIENT_KINDS.find((kind) => kind === parsed.ambient);
-		return {
-			volumes,
-			ambient: ambient ?? "none",
-			tick: parsed.tick === true,
-		};
-	} catch {
-		return DEFAULT_AUDIO_PREFS;
-	}
+	return audioPrefsFrom(readJson(storage, AUDIO_PREFS_KEY));
 }
 
 /** Keep the preferences. A blocked or full store is not an error: sound works without it. */
@@ -69,16 +89,10 @@ export function saveAudioPrefs(
 	storage: Pick<Storage, "setItem"> | undefined,
 	prefs: AudioPrefs,
 ): void {
-	try {
-		storage?.setItem(
-			AUDIO_PREFS_KEY,
-			JSON.stringify({
-				volumes: prefs.volumes,
-				ambient: prefs.ambient,
-				tick: prefs.tick,
-			}),
-		);
-	} catch {
-		// Private window or storage blocked: the choice lasts for this visit only.
-	}
+	writeJson(storage, AUDIO_PREFS_KEY, {
+		volumes: prefs.volumes,
+		ambient: prefs.ambient,
+		tick: prefs.tick,
+		tickPitch: prefs.tickPitch,
+	});
 }

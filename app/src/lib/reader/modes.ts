@@ -5,6 +5,7 @@ import {
 } from "@speeedy/contracts";
 import type { Clock, Engine } from "@speeedy/engine";
 import type { Component } from "svelte";
+import type { PauseView } from "./settings.ts";
 
 /** What every Reading Mode view receives from the reader shell. */
 export type ModeProps = {
@@ -21,7 +22,18 @@ export type ModeProps = {
 	clock: Clock;
 	/** BCP 47 tag of the text, `und` when it is not known. */
 	language?: string;
+	/** What a mode that shows one word at a time shows while paused (RSVP). */
+	pauseView?: PauseView;
 };
+
+/**
+ * A Reading Mode's id in the registry. Modes register at runtime, so the registry types it as
+ * a string; this names what the string is.
+ */
+export type ModeId = string;
+
+/** The Reading Mode the reader opens in, and the fallback for a preset with no mode. */
+export const DEFAULT_MODE_ID: ModeId = "rsvp";
 
 /** A mode's view is loaded on demand, so the registry carries no component code. */
 export type ModeView = () => Promise<{ default: Component<ModeProps> }>;
@@ -42,6 +54,7 @@ readerModes.register({
 		"smartSpeed",
 		"punctuationPauses",
 		"speedRamp",
+		"pauseView",
 	],
 });
 
