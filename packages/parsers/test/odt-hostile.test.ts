@@ -449,18 +449,26 @@ describe("odt hostile: no superlinear blowup", { timeout: 90_000 }, () => {
 
 	async function timed(bytes: Uint8Array): Promise<number> {
 		const started = performance.now();
-		await read(bytes);
-		return performance.now() - started;
+		const outcome = await read(bytes);
+		const elapsed = performance.now() - started;
+		// A too-big file times the size guards, not the parser. Text-free input that is read
+		// through to the end comes back empty, which still times the parser.
+		if (!outcome.ok && outcome.reason === "too-big") {
+			throw new Error(`refused before parsing: ${outcome.message}`);
+		}
+		return elapsed;
 	}
 
 	async function expectNoBlowup(body: string): Promise<void> {
 		const unit = "<text:p>lorem ipsum dolor sit amet</text:p>";
+		// Stored, not deflated: repetitive XML deflates past the zip guard's ratio.
 		const plain = odt({
 			body: unit.repeat(Math.ceil(body.length / unit.length)),
+			method: 0,
 		});
 		const first = await timed(plain);
 		const baseline = Math.max(first, await timed(plain));
-		const elapsed = await timed(odt({ body }));
+		const elapsed = await timed(odt({ body, method: 0 }));
 		expect(
 			elapsed,
 			`${elapsed.toFixed(0)} ms against a ${baseline.toFixed(0)} ms linear baseline`,
@@ -482,7 +490,11 @@ describe("odt hostile: no superlinear blowup", { timeout: 90_000 }, () => {
 
 	it("stray closers, unclosed openers and huge repeat counts", async () => {
 		await expectNoBlowup("</text:x>".repeat(400_000));
-		await expectNoBlowup("<text:p>".repeat(100_000));
+		// Unclosed openers stop at the nesting limit, so there is no walk to time.
+		expectError(
+			await read(odt({ body: "<text:p>".repeat(100_000), method: 0 })),
+			"too-big",
+		);
 		await expectNoBlowup(
 			`<text:p>${'a<text:s text:c="999999999"/>'.repeat(100_000)}</text:p>`,
 		);

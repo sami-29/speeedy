@@ -594,18 +594,26 @@ describe("epub hostile: no superlinear blowup", { timeout: 60_000 }, () => {
 
 	async function timed(bytes: Uint8Array): Promise<number> {
 		const started = performance.now();
-		await read(bytes);
-		return performance.now() - started;
+		const outcome = await read(bytes);
+		const elapsed = performance.now() - started;
+		// A too-big file times the size guards, not the parser. Text-free input that is read
+		// through to the end comes back empty, which still times the parser.
+		if (!outcome.ok && outcome.reason === "too-big") {
+			throw new Error(`refused before parsing: ${outcome.message}`);
+		}
+		return elapsed;
 	}
 
 	async function expectNoBlowup(body: string): Promise<void> {
 		const unit = "<p>lorem ipsum dolor sit amet</p>";
+		// Stored, not deflated: repetitive XML deflates past the zip guard's ratio.
 		const plain = epub({
 			chapters: [{ body: unit.repeat(Math.ceil(body.length / unit.length)) }],
+			method: 0,
 		});
 		const first = await timed(plain);
 		const baseline = Math.max(first, await timed(plain));
-		const elapsed = await timed(epub({ chapters: [{ body }] }));
+		const elapsed = await timed(epub({ chapters: [{ body }], method: 0 }));
 		expect(
 			elapsed,
 			`${elapsed.toFixed(0)} ms against a ${baseline.toFixed(0)} ms linear baseline`,
@@ -614,7 +622,13 @@ describe("epub hostile: no superlinear blowup", { timeout: 60_000 }, () => {
 
 	it("stray closers, unclosed openers and long attribute values", async () => {
 		await expectNoBlowup("</b>".repeat(500_000));
-		await expectNoBlowup("<b>".repeat(100_000));
+		// Unclosed openers stop at the nesting limit, so there is no walk to time.
+		expectError(
+			await read(
+				epub({ chapters: [{ body: "<b>".repeat(100_000) }], method: 0 }),
+			),
+			"too-big",
+		);
 		await expectNoBlowup(`<p class="${"a ".repeat(500_000)}">x</p>`);
 		await expectNoBlowup("<a href='x'>".repeat(100_000));
 	});
