@@ -328,3 +328,19 @@ describe("doc: 8-bit pieces from Word", () => {
 		expect(textsOf(outcome).join(" ")).toContain("ş");
 	});
 });
+
+describe("doc: pieces and symbol glyphs", () => {
+	it("turns a dangling surrogate half before an 8-bit piece into U+FFFD and keeps the 8-bit text", async () => {
+		const outcome = await read(
+			docFile({
+				pieces: [{ text: "a \ud83d" }, { text: "b\r", compressed: true }],
+			}),
+		);
+		expect(textsOf(outcome)).toEqual(["a �b"]);
+	});
+
+	it("still flags text that is mostly symbol-font glyphs", async () => {
+		const text = `${"".repeat(80)} and a few real words\r`;
+		expectError(await read(simpleDoc(text)), "encoding-suspect");
+	});
+});

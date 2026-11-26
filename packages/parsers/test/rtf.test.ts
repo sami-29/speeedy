@@ -498,3 +498,49 @@ describe("rtf: broken extraction is encoding-suspect", () => {
 		expect(error.message.toLowerCase()).toContain("paste");
 	});
 });
+
+describe("rtf: hidden text, deletions, OEM code pages and breaks", () => {
+	it("ends hidden text and tracked deletions at \\plain", async () => {
+		expect(textsOf(await read(rtf("{\\v gone\\plain kept}")))).toEqual([
+			"kept",
+		]);
+		expect(textsOf(await read(rtf("{\\deleted gone\\plain kept}")))).toEqual([
+			"kept",
+		]);
+	});
+
+	it("does not count hidden or deleted text towards encoding-suspect", async () => {
+		const junk = "\\u-3?".repeat(80);
+		expectSuccess(await read(rtf(`Real words here. {\\v ${junk}}`)));
+		expectSuccess(await read(rtf(`Real words here. {\\deleted ${junk}}`)));
+	});
+
+	it("leaves no image placeholder for a hidden or deleted picture", async () => {
+		for (const mark of ["\\v", "\\deleted"]) {
+			const outcome = await read(
+				rtf(`{${mark}{\\*\\shppict{\\pict\\pngblip 0102}}} t`),
+			);
+			expect(blocksOf(outcome).map((b) => b.kind)).toEqual(["paragraph"]);
+		}
+	});
+
+	it("tells code pages 437 and 850 apart where they differ", async () => {
+		// CP437.TXT: 0x9B = U+00A2 cent sign; CP850.TXT: 0x9B = U+00F8 o with stroke.
+		expect(textsOf(await read(bin("{\\rtf1\\pc \\'9b x}")))).toEqual(["¢ x"]);
+		expect(textsOf(await read(rtf("\\'9b x", "\\ansi\\ansicpg850")))).toEqual([
+			"ø x",
+		]);
+	});
+
+	it("parts the words around a column break", async () => {
+		expect(textsOf(await read(rtf("one\\column two")))).toEqual(["one two"]);
+	});
+
+	it("keeps a bullet glyph label unordered", async () => {
+		const outcome = await read(
+			rtf("\\pard{\\*\\listtext \\'b7\\tab}\\ls1 Item\\par"),
+		);
+		const block = blocksOf(outcome)[0];
+		expect(block?.kind === "list-item" && block.ordered).toBe(false);
+	});
+});

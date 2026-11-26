@@ -25,8 +25,10 @@ export { isCompoundFile };
  *   sheet and paragraph properties, which are not parsed. Table cells (ending in 0x07) become
  *   table-text blocks, every other paragraph a paragraph block, with no spans.
  * - Fields (0x13 begin, 0x14 separator, 0x15 end): the instruction (before the separator) is
- *   hidden, the result is kept. A paragraph mark inside an instruction cannot be valid, so it
- *   ends the damaged field instead of hiding the rest of the document.
+ *   hidden, the result is kept. A paragraph or cell mark inside an instruction cannot be valid,
+ *   so it ends the damaged field instead of hiding the rest of the document.
+ * - Pieces are ranges of one character stream, so a UTF-16 surrogate pair split between two
+ *   neighbouring pieces is joined.
  * - Password-protected files (the FIB's encrypted flag) are `drm`. Word 6 and 95 files are
  *   refused with a message to save them in a newer format.
  *
@@ -189,6 +191,7 @@ class WordText {
 					if (this.hidden === 0) this.flush("paragraph");
 					break;
 				case 0x07:
+					while (this.hidden > 0) this.popField();
 					if (this.hidden === 0) this.flush("table-text");
 					break;
 				default:
@@ -258,14 +261,26 @@ export function docToBlocks(bytes: Uint8Array, sink: BlockSink): void {
 
 	const stats = new SuspectCounter();
 	const text = new WordText(sink, stats);
+	// One streaming decoder across neighbouring UTF-16 pieces, so a pair split between them is
+	// joined; an 8-bit piece or the end first flushes a dangling half as U+FFFD.
 	const utf16 = new TextDecoder("utf-16le");
+	const flushUtf16 = (): void => {
+		const rest = utf16.decode();
+		if (rest !== "") text.add(rest);
+	};
 	for (const piece of pieces) {
 		const slice = word.subarray(
 			piece.offset,
 			piece.offset + piece.chars * (piece.compressed ? 1 : 2),
 		);
-		text.add(piece.compressed ? decodeWindows1252(slice) : utf16.decode(slice));
+		if (piece.compressed) {
+			flushUtf16();
+			text.add(decodeWindows1252(slice));
+		} else {
+			text.add(utf16.decode(slice, { stream: true }));
+		}
 	}
+	flushUtf16();
 	text.finish();
 	if (stats.suspect) throw brokenTextFailure("Word");
 }

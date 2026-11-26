@@ -3,6 +3,7 @@ import { clip, normalizeText, tidyLine } from "./clean";
 import { decodeWindows1252 } from "./cp1252";
 import { fieldHref } from "./docx";
 import { tidySpans } from "./html";
+import { decodeCp437, decodeCp850 } from "./oem";
 import { brokenTextFailure, SuspectCounter } from "./suspect";
 import { type BlockSink, ParseFailure } from "./types";
 
@@ -22,12 +23,15 @@ import { type BlockSink, ParseFailure } from "./types";
  *   label in `\listtext`), headings (a style named "heading N" or an outline level 0 to 5) and
  *   quotes (a style named Quote), bold and italic runs (also the complex-script `\ab` and `\ai`
  *   while a right-to-left run is active), and HYPERLINK fields (as link spans).
+ * - Code pages: the Windows ones and Mac Roman through TextDecoder, the IBM PC code pages 437
+ *   (`\pc`) and 850 (`\pca`) by table (oem.ts), and 866 through TextDecoder's `ibm866`.
  * - The document title (`\info` then `\title`).
  *
- * What it leaves out, on purpose: font, colour, style and list tables, headers, footers,
- * footnotes, comments, text boxes and any group marked `\*` that it does not know. A picture
- * becomes an image placeholder with no alt text and its data is skipped, `\binN` raw data
- * included.
+ * What it leaves out, on purpose: hidden text (`\v` until `\v0`, `\plain` or the group's end)
+ * and tracked deletions (`\deleted`), as the DOCX parser does; tracked insertions are kept.
+ * Also font, colour, style and list tables, headers, footers, footnotes, comments, text boxes
+ * and any group marked `\*` that it does not know. A picture becomes an image placeholder with
+ * no alt text and its data is skipped, `\binN` raw data included.
  *
  * Hostile input:
  * - Group depth is capped (MAX_DEPTH), so a million `{` is a typed error, not a stack overflow.
@@ -116,6 +120,10 @@ const CHARSET_CODE_PAGE: Record<number, number> = {
 	238: 1250,
 };
 
+/** Labels for the code pages decoded by table (oem.ts), which TextDecoder does not know. */
+const CP437 = "x-cp437";
+const CP850 = "x-cp850";
+
 function codePageLabel(codePage: number): string {
 	if (codePage >= 1250 && codePage <= 1258) return `windows-${codePage}`;
 	switch (codePage) {
@@ -133,8 +141,14 @@ function codePageLabel(codePage: number): string {
 			return "macintosh";
 		case 65001:
 			return "utf-8";
+		case 437:
+			return CP437;
+		case 850:
+			return CP850;
+		case 866:
+			return "ibm866";
 		default:
-			// 437, 850 and the rest have no TextDecoder label; Windows-1252 is the nearest.
+			// The rest have no TextDecoder label; Windows-1252 is the nearest.
 			return "windows-1252";
 	}
 }
@@ -144,6 +158,8 @@ const decoders = new Map<string, TextDecoder>();
 /** Decode bytes in a code page. `stream` keeps a half-read double-byte pair for the next call. */
 function decodeRun(label: string, bytes: Uint8Array, stream: boolean): string {
 	if (label === "windows-1252") return decodeWindows1252(bytes);
+	if (label === CP437) return decodeCp437(bytes);
+	if (label === CP850) return decodeCp850(bytes);
 	return decoderFor(label).decode(bytes, { stream });
 }
 
@@ -250,6 +266,9 @@ const SYMBOLS: Record<string, string> = {
 	zwnj: "‌",
 	tab: "\t",
 	line: " ",
+	// Page and column breaks end a line of text, so at least they part the words around them.
+	page: " ",
+	column: " ",
 };
 
 // What a group captures instead of putting it in the paragraph.
@@ -280,6 +299,9 @@ type State = {
 	ab: boolean;
 	ai: boolean;
 	cs: boolean;
+	/** Hidden text (`\v`) and tracked deletions (`\deleted`): read, never shown. */
+	hidden: boolean;
+	deleted: boolean;
 	href: string | null;
 	fieldHref: string | null;
 	star: boolean;
@@ -290,7 +312,7 @@ type State = {
 
 type Font = { charset: number; cpg: number };
 
-const ORDERED_LABEL = /^[0-9A-Za-z]{1,5}[.)]$/;
+const ORDERED_LABEL = /^(?:[0-9A-Za-z]{1,5}[.)]|\([0-9A-Za-z]{1,5}\))$/;
 const HEADING_NAME = /^heading\s*([1-9])$/i;
 const QUOTE_NAME = /^(?:quote|block quote|block text|intense quote)$/i;
 
@@ -429,6 +451,8 @@ export function rtfToBlocks(bytes: Uint8Array, sink: BlockSink): RtfMeta {
 		ab: false,
 		ai: false,
 		cs: false,
+		hidden: false,
+		deleted: false,
 		href: null,
 		fieldHref: null,
 		star: false,
@@ -444,6 +468,7 @@ export function rtfToBlocks(bytes: Uint8Array, sink: BlockSink): RtfMeta {
 
 	const append = (text: string, from: "body" | "capture"): void => {
 		if (from === "body") {
+			if (state.hidden || state.deleted) return;
 			stats.add(text);
 			paragraph.append(
 				text,
@@ -687,7 +712,7 @@ export function rtfToBlocks(bytes: Uint8Array, sink: BlockSink): RtfMeta {
 				}
 				return;
 			case "pict":
-				if (!state.skip) paragraph.images++;
+				if (!state.skip && !state.hidden && !state.deleted) paragraph.images++;
 				state.skip = true;
 				return;
 			case "fldinst":
@@ -779,6 +804,14 @@ export function rtfToBlocks(bytes: Uint8Array, sink: BlockSink): RtfMeta {
 				state.i = false;
 				state.ab = false;
 				state.ai = false;
+				state.hidden = false;
+				state.deleted = false;
+				return;
+			case "v":
+				state.hidden = param !== 0;
+				return;
+			case "deleted":
+				state.deleted = param !== 0;
 				return;
 			case "s":
 				if (param === null) return;

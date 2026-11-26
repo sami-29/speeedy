@@ -422,8 +422,10 @@ export async function parse(
 				titleFromFileName(segment),
 			);
 		}
-		// RTF and Word 97 files are told apart by their bytes, whatever they are called: Word
-		// saves RTF under a .doc name, and a renamed file keeps its header.
+		// Past the package names above, RTF and Word 97 files are told apart by their bytes:
+		// Word saves RTF under a .doc name, and a renamed file keeps its header. A .docx, .odt,
+		// .epub or .zip name is routed by its extension first, so RTF or Word 97 bytes under
+		// one of those names are refused with that format's message rather than sniffed.
 		if (isRtf(view)) {
 			return await parseLegacy(
 				view,

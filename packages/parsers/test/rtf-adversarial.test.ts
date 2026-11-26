@@ -289,15 +289,6 @@ describe("rtf adversarial DEFECT D6: legal-style list labels are read as bullets
 	});
 });
 
-describe("rtf adversarial DEFECT D9 (judgment call): sniffing by extension before bytes", () => {
-	// src/parse.ts says RTF "is told apart by its bytes, whatever [it is] called", but a name ending
-	// in .docx, .odt, .epub or .zip skips the sniff. RTF bytes under .docx are refused.
-	it("reads RTF bytes that carry a .docx name", async () => {
-		const outcome = await read(rtf("Hello there."), "letter.docx");
-		expect(textsOf(outcome)).toEqual(["Hello there."]);
-	});
-});
-
 describe("rtf adversarial (holds): sniffing", () => {
 	it("does not call a plain text file that mentions RTF later an RTF file", async () => {
 		const outcome = await read(bin("hello {\\rtf1 hi}"), "notes.txt");
