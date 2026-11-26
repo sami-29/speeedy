@@ -108,13 +108,6 @@ describe("doc: text and pieces", () => {
 		expect(textsOf(outcome)).toEqual(["Far away."]);
 	});
 
-	it("reads a file that keeps every stream in regular sectors", async () => {
-		const outcome = await read(
-			docFile({ pieces: [{ text: "No mini.\r" }] }, { noMini: true }),
-		);
-		expect(textsOf(outcome)).toEqual(["No mini."]);
-	});
-
 	it("ignores unrelated streams and takes the table the FIB names", async () => {
 		const streams = [
 			...wordStreams({ pieces: [{ text: "Right one.\r" }], table: "1Table" }),

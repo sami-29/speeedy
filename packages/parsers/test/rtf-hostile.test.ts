@@ -192,14 +192,14 @@ describe("rtf hostile: tables that grow without bound", () => {
 describe("rtf hostile: block and size ceilings", () => {
 	it("stops with too-big instead of building millions of paragraphs", async () => {
 		const outcome = await read(
-			bin(`{\\rtf1\\ansi ${"a\\par".repeat(1_200_000)}}`),
+			bin(`{\\rtf1\\ansi ${"a\\par ".repeat(1_200_000)}}`),
 		);
 		expectError(outcome, "too-big");
 	}, 60_000);
 
 	it("honours a lower block ceiling", async () => {
 		const outcome = await read(
-			bin(`{\\rtf1\\ansi ${"a\\par".repeat(2_000)}}`),
+			bin(`{\\rtf1\\ansi ${"a\\par ".repeat(2_000)}}`),
 			{
 				maxBlocks: 100,
 			},

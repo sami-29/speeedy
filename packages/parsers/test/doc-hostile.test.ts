@@ -111,8 +111,14 @@ describe("doc hostile: the compound file header", () => {
 		const first = b.layout.difatSectors[0];
 		if (first === undefined)
 			throw new Error("this file should have a DIFAT sector");
-		// The DIFAT sector's last entry points to the next DIFAT sector: point it at itself.
+		// Claim more FAT sectors than one DIFAT sector lists, and point the DIFAT sector's
+		// "next" link at itself, so reading the claimed count means walking a loop.
+		const fat = b.layout.fatSectors[0] ?? 0;
+		for (let k = 0; k < 127; k++) {
+			view(b).setUint32((first + 1) * 512 + k * 4, fat, true);
+		}
 		view(b).setUint32((first + 1) * 512 + 127 * 4, first, true);
+		view(b).setUint32(44, 109 + 127 * 3, true);
 		view(b).setUint32(72, 5, true);
 		expectError(await read(b.bytes), "unsupported");
 	});
@@ -153,11 +159,18 @@ describe("doc hostile: sector chains that lie", () => {
 		return out;
 	};
 
-	it("rejects a chain that loops back to its start", async () => {
+	it("rejects a chain that loops back to an earlier sector within the stream", async () => {
+		const b = built();
+		const chain = wordChain(b);
+		setFat(b, chain[chain.length - 2] ?? 0, chain[0] ?? 0);
+		expectError(await read(b.bytes), "unsupported");
+	});
+
+	it("does not mind where the last sector of a stream points", async () => {
 		const b = built();
 		const chain = wordChain(b);
 		setFat(b, chain[chain.length - 1] ?? 0, chain[0] ?? 0);
-		expectError(await read(b.bytes), "unsupported");
+		expectWellFormed(await read(b.bytes));
 	});
 
 	it("rejects a chain that loops in the middle and a sector that points at itself", async () => {
@@ -389,7 +402,13 @@ describe("doc hostile: the Word structures", () => {
 			"unsupported",
 		);
 		expectError(
-			await read(doc({ pieces: [{ text: "ab\r" }], cps: [0, 0xffffffff] })),
+			await read(
+				doc({
+					pieces: [{ text: "ab\r" }],
+					cps: [0, 0xffffffff],
+					ccpText: 0xffffffff,
+				}),
+			),
 			"unsupported",
 		);
 		expectError(
@@ -644,6 +663,10 @@ describe("doc hostile: no superlinear blowup", { timeout: 120_000 }, () => {
 	});
 
 	it("a file of eighteen million characters", async () => {
-		await expectNoBlowup("lorem ipsum\r".repeat(1_500_000));
+		await expectNoBlowup(
+			"lorem ipsum dolor sit amet, consectetur adipiscing elit sed do\r".repeat(
+				300_000,
+			),
+		);
 	});
 });

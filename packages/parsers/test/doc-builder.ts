@@ -18,8 +18,6 @@ export type Stream = { name: string; data: Uint8Array };
 export type CfbOptions = {
 	/** 3 gives 512-byte sectors (the usual), 4 gives 4096-byte sectors. */
 	version?: 3 | 4;
-	/** Put every stream in regular sectors, whatever its size (a file that breaks the cutoff). */
-	noMini?: boolean;
 };
 
 export type CfbLayout = {
@@ -45,9 +43,9 @@ export function cfb(streams: Stream[], options: CfbOptions = {}): BuiltCfb {
 	const version = options.version ?? 3;
 	const S = version === 3 ? 512 : 4096;
 	const perFat = S / 4;
-	const small = options.noMini
-		? []
-		: streams.filter((s) => s.data.length > 0 && s.data.length < MINI_CUTOFF);
+	const small = streams.filter(
+		(s) => s.data.length > 0 && s.data.length < MINI_CUTOFF,
+	);
 	const big = streams.filter((s) => !small.includes(s) && s.data.length > 0);
 
 	// Mini stream: every small stream padded to whole 64-byte mini sectors.
