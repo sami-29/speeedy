@@ -71,11 +71,20 @@ const pausedName = (view: PauseView) =>
 
 const usesWpm = $derived(used.includes("wpm"));
 const words = $derived(used.filter((id) => id === "chunkSize"));
-const pacing = $derived(
-	used.filter((id) =>
-		["smartSpeed", "punctuationPauses", "speedRamp"].includes(id),
-	),
-);
+const PACING_IDS: readonly string[] = [
+	"smartSpeed",
+	"punctuationPauses",
+	"sentencePause",
+	"paragraphPause",
+	"commaPause",
+	"asidePause",
+	"speedRamp",
+	"rampTarget",
+	"rampLength",
+	"rewindStep",
+	"countdown",
+];
+const pacing = $derived(used.filter((id) => PACING_IDS.includes(id)));
 
 // Presets are kept on this device; every change is saved at once.
 let presets = $state.raw<Preset[]>(loadPresets(deviceStorage()));

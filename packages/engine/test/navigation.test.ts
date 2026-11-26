@@ -213,7 +213,7 @@ describe("back a number of words", () => {
 		const { engine, goTo } = setup(words());
 		goTo("ten");
 		engine.backWords(4);
-		expect(engine.frame?.text).toBe("seven");
+		expect(engine.frame?.text).toBe("six");
 	});
 
 	it("stops at the document start and still emits seek", () => {

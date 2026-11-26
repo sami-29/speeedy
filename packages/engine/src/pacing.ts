@@ -122,15 +122,19 @@ export const punctuationRule: PacingRule = (frame, { settings }) => {
 	return multiplier;
 };
 
-/** Starts at `rampStart` of full speed and builds linearly to full speed over the span. */
+/**
+ * Starts at `rampStart` of the speed and builds linearly to `rampEnd` of it over the span,
+ * then stays there. Both are fractions of the set speed, so the rule never reads the speed
+ * itself: a ramp from the set speed to a target is `rampStart` 1 and `rampEnd` target / speed.
+ */
 export const rampRule: PacingRule = (
 	_frame,
 	{ settings, wordsSinceAnchor },
 ) => {
-	const { rampSpanWords, rampStart } = settings;
+	const { rampSpanWords, rampStart, rampEnd } = settings;
 	if (rampSpanWords <= 0 || wordsSinceAnchor < 0) return 1;
 	const progress = Math.min(wordsSinceAnchor / rampSpanWords, 1);
-	return 1 / (rampStart + (1 - rampStart) * progress);
+	return 1 / (rampStart + (rampEnd - rampStart) * progress);
 };
 
 /** Reads the last words of every sprint period faster. */

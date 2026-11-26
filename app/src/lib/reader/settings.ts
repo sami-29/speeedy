@@ -1,5 +1,5 @@
 import type { EngineSettings } from "@speeedy/engine";
-import { clampWpm } from "./wpm.ts";
+import { clampWpm, WPM_MAX, WPM_MIN } from "./wpm.ts";
 
 /** What the reader controls. The engine's settings are derived from these. */
 export type ReaderSettings = {
@@ -45,15 +45,15 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
 	chunkSize: 1,
 	smartSpeed: false,
 	punctuationPauses: true,
-	sentencePause: 0,
-	paragraphPause: 0,
-	commaPause: true,
-	asidePause: false,
+	sentencePause: 2,
+	paragraphPause: 1.8,
+	commaPause: false,
+	asidePause: true,
 	speedRamp: false,
-	rampTarget: 0,
-	rampLength: 0,
-	rewindStep: 0,
-	countdown: true,
+	rampTarget: 500,
+	rampLength: 30,
+	rewindStep: 5,
+	countdown: false,
 	pauseView: "focus",
 	showProgress: true,
 	removeCitations: false,
@@ -81,18 +81,112 @@ export function withPreset(
 export const MIN_CHUNK_SIZE = 1;
 export const MAX_CHUNK_SIZE = 5;
 
-/** The ramp takes this many words to reach full speed. */
-const RAMP_SPAN_WORDS = 30;
-/** And starts at this fraction of full speed. */
-const RAMP_START = 0.5;
+/** A number setting's range, its step in the panel and the decimals it keeps. */
+export type NumberRange = {
+	min: number;
+	max: number;
+	step: number;
+	decimals: number;
+};
+
+/** 1.x's ranges: a sentence pause of 1x to 10x, a paragraph pause of 1x to 3x. */
+export const SENTENCE_PAUSE_RANGE: NumberRange = {
+	min: 1,
+	max: 10,
+	step: 0.5,
+	decimals: 1,
+};
+export const PARAGRAPH_PAUSE_RANGE: NumberRange = {
+	min: 1,
+	max: 3,
+	step: 0.1,
+	decimals: 1,
+};
+/** The ramp builds to a speed in the reader's own range. */
+export const RAMP_TARGET_RANGE: NumberRange = {
+	min: WPM_MIN,
+	max: WPM_MAX,
+	step: 25,
+	decimals: 0,
+};
+export const RAMP_LENGTH_RANGE: NumberRange = {
+	min: 10,
+	max: 200,
+	step: 10,
+	decimals: 0,
+};
+export const REWIND_STEP_RANGE: NumberRange = {
+	min: 1,
+	max: 50,
+	step: 1,
+	decimals: 0,
+};
+
+/** `value` rounded to the range's decimals and held between its ends. NaN is its minimum. */
+export function clampRange(range: NumberRange, value: number): number {
+	if (Number.isNaN(value)) return range.min;
+	const scale = 10 ** range.decimals;
+	const rounded = Math.round(value * scale) / scale;
+	return Math.min(Math.max(rounded, range.min), range.max);
+}
+
+const PAUSE_KEYS = [
+	"punctuationPauses",
+	"sentencePause",
+	"paragraphPause",
+	"commaPause",
+	"asidePause",
+] as const satisfies readonly (keyof ReaderSettings)[];
+
+/** The four pause rules for the pauses as the reader has them. The switch off means none. */
+function pausePatch(settings: ReaderSettings): Partial<EngineSettings> {
+	if (!settings.punctuationPauses) {
+		return {
+			sentencePauseMultiplier: 0,
+			paragraphPauseMultiplier: 1,
+			commaAsPause: false,
+			contextPauseOnClose: false,
+		};
+	}
+	return {
+		sentencePauseMultiplier: clampRange(
+			SENTENCE_PAUSE_RANGE,
+			settings.sentencePause,
+		),
+		paragraphPauseMultiplier: clampRange(
+			PARAGRAPH_PAUSE_RANGE,
+			settings.paragraphPause,
+		),
+		commaAsPause: settings.commaPause,
+		contextPauseOnClose: settings.asidePause,
+	};
+}
+
+/**
+ * The ramp, from the set speed to the target. The Engine's ramp is in fractions of the speed
+ * (no pacing rule reads the speed, so a change of speed stays instant), so the target is
+ * sent as the target over the speed, and goes again when the speed changes.
+ */
+function rampPatch(settings: ReaderSettings): Partial<EngineSettings> {
+	if (!settings.speedRamp) return { rampSpanWords: 0 };
+	return {
+		rampSpanWords: clampRange(RAMP_LENGTH_RANGE, settings.rampLength),
+		rampStart: 1,
+		rampEnd:
+			clampRange(RAMP_TARGET_RANGE, settings.rampTarget) /
+			clampWpm(settings.wpm),
+	};
+}
 
 /**
  * The engine settings for the reader settings in `change`, and only those: a change of
- * speed does not resend the pauses. An empty change gives an empty patch.
+ * speed does not resend the pauses. An empty change gives an empty patch. `settings` are
+ * the reader's settings with `change` already in, for the engine settings that are worked
+ * out from several of them: the four pauses, and the ramp from its target and the speed.
  */
 export function enginePatch(
 	change: Partial<ReaderSettings>,
-	_settings: ReaderSettings = DEFAULT_READER_SETTINGS,
+	settings: ReaderSettings = DEFAULT_READER_SETTINGS,
 ): Partial<EngineSettings> {
 	const patch: Partial<EngineSettings> = {};
 	if (change.wpm !== undefined) patch.wpm = clampWpm(change.wpm);
@@ -103,21 +197,16 @@ export function enginePatch(
 		);
 	}
 	if (change.smartSpeed !== undefined) patch.smartSpeed = change.smartSpeed;
-	if (change.punctuationPauses !== undefined) {
-		if (change.punctuationPauses) {
-			patch.sentencePauseMultiplier = 2;
-			patch.paragraphPauseMultiplier = 1.8;
-			patch.contextPauseOnClose = true;
-		} else {
-			patch.sentencePauseMultiplier = 0;
-			patch.paragraphPauseMultiplier = 1;
-			patch.contextPauseOnClose = false;
-		}
+	if (PAUSE_KEYS.some((key) => change[key] !== undefined)) {
+		Object.assign(patch, pausePatch(settings));
 	}
-	if (change.speedRamp !== undefined) {
-		patch.rampSpanWords = change.speedRamp ? RAMP_SPAN_WORDS : 0;
-		if (change.speedRamp) patch.rampStart = RAMP_START;
-	}
+	const rampChanged =
+		change.speedRamp !== undefined ||
+		(settings.speedRamp &&
+			(change.rampTarget !== undefined ||
+				change.rampLength !== undefined ||
+				change.wpm !== undefined));
+	if (rampChanged) Object.assign(patch, rampPatch(settings));
 	return patch;
 }
 

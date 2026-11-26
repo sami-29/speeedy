@@ -89,6 +89,7 @@ test.describe("rewind", () => {
 		await goToEnd(page);
 		const rewind = page.getByRole("group", { name: "Rewind" });
 		await expect(rewind.getByRole("button")).toHaveText([
+			/5 words/,
 			/Sentence/,
 			/Paragraph/,
 			/Chapter/,

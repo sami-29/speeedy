@@ -13,13 +13,16 @@ let {
 	clock,
 	autoplay = true,
 	pauseView = "focus",
+	count = null,
 }: ModeProps = $props();
 
 // Paused, the reader can see the word's sentence or the whole text in place of the word.
 // svelte-ignore state_referenced_locally
 let paused = $state(!autoplay);
 let sentence = $state.raw<PausedSentence | null>(null);
-const full = $derived(paused && pauseView === "fulltext");
+// The start countdown shows its number where the word will be: nothing else is on the stage.
+const counting = $derived(count !== null);
+const full = $derived(paused && !counting && pauseView === "fulltext");
 
 // The word is written straight into these nodes from the engine's frame events.
 // Nothing about the word is reactive state, so playing never re-renders the component.
@@ -87,8 +90,11 @@ $effect(() => {
 <!-- The word stays mounted under the full text: its nodes are written to directly. -->
 <section class="stage" data-testid="stage" aria-label={m.reader_stage_label()} hidden={full}>
 	<div class="axis" aria-hidden="true"></div>
-	<p class="word" data-testid="word" bind:this={word}><span class="side before" data-part="before" bind:this={before}></span><span class="pivot" data-part="pivot" bind:this={pivot}></span><span class="side after" data-part="after" bind:this={after}></span></p>
-	{#if paused && pauseView === "context" && sentence}
+	<p class="word" class:counting data-testid="word" bind:this={word}><span class="side before" data-part="before" bind:this={before}></span><span class="pivot" data-part="pivot" bind:this={pivot}></span><span class="side after" data-part="after" bind:this={after}></span></p>
+	{#if counting}
+		<p class="count numeral" data-testid="countdown" role="status">{count}</p>
+	{/if}
+	{#if paused && !counting && pauseView === "context" && sentence}
 		<p class="context" data-testid="paused-sentence" aria-label={m.reader_paused_sentence_label()}>
 			{sentence.before}<mark>{sentence.now}</mark>{sentence.after}
 		</p>
@@ -149,6 +155,23 @@ $effect(() => {
 		font-variation-settings: "wdth" 100;
 		line-height: 1.1;
 		white-space: nowrap;
+	}
+
+	/* The number stands where the word will be, so the word keeps its room and does not shift. */
+	.word.counting {
+		visibility: hidden;
+	}
+
+	.count {
+		position: absolute;
+		inset-block: 0;
+		left: 0;
+		display: grid;
+		place-items: center;
+		width: calc(70% + 3px);
+		margin: 0;
+		font-size: clamp(4rem, 2rem + 8vw, 8rem);
+		line-height: 1;
 	}
 
 	.before {

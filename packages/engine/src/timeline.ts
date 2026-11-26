@@ -33,6 +33,9 @@ export const DEFAULT_SETTINGS: EngineSettings = {
 const MIN_WPM = 1;
 const MAX_WPM = 3000;
 const MAX_CHUNK_SIZE = 10;
+/** A ramp may start or end at a sixteenth of the speed, or sixteen times it. */
+const MIN_RAMP_FRACTION = 1 / 16;
+const MAX_RAMP_FRACTION = 16;
 
 const finiteOr = (value: unknown, fallback: number): number =>
 	typeof value === "number" && !Number.isNaN(value) ? value : fallback;
@@ -73,13 +76,13 @@ export function resolveSettings(
 		rampSpanWords: Math.max(Math.floor(finiteOr(settings.rampSpanWords, 0)), 0),
 		rampStart: clamp(
 			finiteOr(settings.rampStart, DEFAULT_SETTINGS.rampStart),
-			0.1,
-			1,
+			MIN_RAMP_FRACTION,
+			MAX_RAMP_FRACTION,
 		),
 		rampEnd: clamp(
 			finiteOr(settings.rampEnd, DEFAULT_SETTINGS.rampEnd),
-			0.1,
-			1,
+			MIN_RAMP_FRACTION,
+			MAX_RAMP_FRACTION,
 		),
 		sprintEveryWords,
 		sprintWords: clamp(

@@ -4,7 +4,12 @@ import {
 	type Position,
 } from "@speeedy/contracts";
 import type { Clock } from "./clock";
-import { type BackUnit, backTarget, startIndexes } from "./navigation";
+import {
+	type BackUnit,
+	backTarget,
+	backWordsTarget,
+	startIndexes,
+} from "./navigation";
 import { buildTimeline, rebuildTimeline, resolveSettings } from "./timeline";
 import type { EngineSettings, Frame, Timeline } from "./types";
 
@@ -347,8 +352,9 @@ export function createEngine(options: EngineOptions): Engine {
 			if (frames.length === 0) return;
 			moveTo(backTarget(startsFor(unit), index));
 		},
-		backWords(_words) {
-			// Not built yet.
+		backWords(words) {
+			if (frames.length === 0) return;
+			moveTo(backWordsTarget(frames, index, words));
 		},
 		updateSettings(patch) {
 			if (!document) {

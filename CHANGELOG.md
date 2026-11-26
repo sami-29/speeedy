@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Presets**: save the current reader settings, sound and Reading Mode under a name, and apply them again in one step.
 - **Paused view**: while paused, RSVP can show the word, its sentence or the full text.
 - **Tick pitch**: set the pitch of the tick on each word.
+- **Pacing settings**: set the sentence pause (1 to 10), the paragraph pause (1 to 3), a comma pause and the pause after a closing aside, as in 1.x. The speed ramp now builds from your speed to a target speed over a length you choose.
+- **Rewind step and start countdown**: a Words button and the J key go back by a number of words you set (5 to start with), beside the sentence, paragraph and chapter rewinds. RSVP can count 3, 2, 1 before it starts.
 
 ## [1.3.0] - 2026-06-26
 

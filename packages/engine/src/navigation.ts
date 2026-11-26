@@ -115,3 +115,23 @@ export function backTarget(starts: readonly number[], index: number): number {
 	}
 	return before;
 }
+
+/**
+ * The Frame to land on when going back `words` words from `index`: the Frame that starts at
+ * least that many words before the current one, counting each Frame as the words it holds.
+ * At least one Frame back, and never before Frame 0.
+ */
+export function backWordsTarget(
+	frames: readonly Frame[],
+	index: number,
+	words: number,
+): number {
+	const wanted = Math.max(Math.floor(Number.isFinite(words) ? words : 1), 1);
+	let target = Math.min(index, frames.length);
+	let counted = 0;
+	while (target > 0 && counted < wanted) {
+		target--;
+		counted += (frames[target] as Frame).words;
+	}
+	return target;
+}
