@@ -481,9 +481,16 @@
 		background-color var(--motion-quick) var(--motion-ease),
 		color var(--motion-quick) var(--motion-ease);
 
-	&:hover {
+	&:hover:not(:disabled) {
 		background: var(--color-accent-hover);
 		color: var(--color-on-accent);
+	}
+
+	/* DESIGN.md button-primary-disabled: paper-2 with ink-3 text. */
+	&:disabled {
+		background: var(--color-paper-2);
+		color: var(--color-ink-3);
+		cursor: default;
 	}
 }
 

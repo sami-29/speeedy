@@ -15,6 +15,7 @@ export type PublicPage = {
  */
 export const PUBLIC_PAGES: PublicPage[] = [
 	{ path: "/", lastmod: "2026-11-03" },
+	{ path: "/reading-speed-test", lastmod: "2026-11-26" },
 	{ path: "/pdf-speed-reader", lastmod: "2026-11-03" },
 	{ path: "/epub-speed-reader", lastmod: "2026-11-03" },
 	{ path: "/adhd-reading-tool", lastmod: "2026-11-03" },

@@ -7,6 +7,7 @@ const routes = [
 	"/pdf-speed-reader",
 	"/epub-speed-reader",
 	"/adhd-reading-tool",
+	"/reading-speed-test",
 	"/text-to-speech-reader",
 	"/spreeder-alternative",
 	"/learn",
