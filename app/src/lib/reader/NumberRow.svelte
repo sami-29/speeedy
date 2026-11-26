@@ -16,7 +16,7 @@ let {
 	id: string;
 	label: string;
 	note?: string;
-	/** What the number counts, set after the field: "×", "WPM", "words". */
+	/** What the number counts, set after the label: "WPM", "words". */
 	unit?: string;
 	value: number;
 	range: NumberRange;
@@ -41,7 +41,9 @@ const step = (direction: 1 | -1) =>
 </script>
 
 <div class="row" class:sub>
-	<label class="label name" for={id}>{label}</label>
+	<label class="label name" for={id}
+		>{label}{#if unit}{" "}<span class="unit text-ink-2">{unit}</span>{/if}</label
+	>
 	<span class="steps">
 		<button
 			type="button"
@@ -69,7 +71,6 @@ const step = (direction: 1 | -1) =>
 			disabled={value >= range.max}
 			onclick={() => step(1)}>+</button
 		>
-		{#if unit}<span class="unit caption text-ink-2" aria-hidden="true">{unit}</span>{/if}
 	</span>
 	{#if note}<p id="{id}-note" class="caption note text-ink-2">{note}</p>{/if}
 </div>
@@ -118,8 +119,9 @@ const step = (direction: 1 | -1) =>
 		margin: 0;
 	}
 
+	/* What the number counts, in the label's line and a step lighter than the name. */
 	.unit {
-		min-width: 3ch;
+		font-weight: 600;
 	}
 
 	.note {

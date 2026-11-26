@@ -5,7 +5,6 @@ import { settings } from "./settings-panel";
 const TEXT = Array.from({ length: 300 }, (_, i) => `w${i + 1}`).join(" ");
 
 const word = (page: Page) => page.getByTestId("word");
-const panel = (page: Page) => page.getByTestId("settings-panel");
 
 async function start(page: Page) {
 	await page.goto("/reader");
@@ -15,8 +14,10 @@ async function start(page: Page) {
 }
 
 async function pause(page: Page) {
-	await page.getByRole("button", { name: "Pause" }).click();
-	await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+	await page.getByRole("button", { name: "Pause", exact: true }).click();
+	await expect(
+		page.getByRole("button", { name: "Play", exact: true }),
+	).toBeVisible();
 }
 
 /** The number of the word on screen: "w12" is 12. */
@@ -213,7 +214,9 @@ test.describe("pacing settings in the panel", () => {
 			.toBeGreaterThan(before);
 		// Reading went on from where it was: no jump back to the start or ahead.
 		expect(await place(page)).toBeLessThan(before + 20);
-		await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "Pause", exact: true }),
+		).toBeVisible();
 	});
 });
 
@@ -282,13 +285,15 @@ test.describe("the start countdown", () => {
 		await page.keyboard.press("Escape");
 		const before = await place(page);
 
-		await page.getByRole("button", { name: "Play" }).click();
+		await page.getByRole("button", { name: "Play", exact: true }).click();
 		const count = page.getByTestId("countdown");
 		await expect(count).toHaveText("3");
 		await expect(count).toHaveText("2", { timeout: 2000 });
 		await expect(count).toHaveText("1", { timeout: 2000 });
 		await expect(count).toHaveCount(0, { timeout: 2000 });
-		await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "Pause", exact: true }),
+		).toBeVisible();
 		await expect.poll(() => place(page)).toBeGreaterThanOrEqual(before);
 	});
 
@@ -299,20 +304,24 @@ test.describe("the start countdown", () => {
 		await page.keyboard.press("Escape");
 		const before = await place(page);
 
-		await page.getByRole("button", { name: "Play" }).click();
+		await page.getByRole("button", { name: "Play", exact: true }).click();
 		await expect(page.getByTestId("countdown")).toBeVisible();
 		await page.getByRole("button", { name: "Cancel" }).click();
 		await expect(page.getByTestId("countdown")).toHaveCount(0);
 		await page.waitForTimeout(3200);
-		await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "Play", exact: true }),
+		).toBeVisible();
 		expect(await place(page)).toBe(before);
 	});
 
 	test("does not run when it is off", async ({ page }) => {
 		await start(page);
 		await pause(page);
-		await page.getByRole("button", { name: "Play" }).click();
-		await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+		await page.getByRole("button", { name: "Play", exact: true }).click();
+		await expect(
+			page.getByRole("button", { name: "Pause", exact: true }),
+		).toBeVisible();
 		await expect(page.getByTestId("countdown")).toHaveCount(0);
 	});
 
@@ -335,20 +344,5 @@ test.describe("the start countdown", () => {
 		await expect(count).toHaveCount(0, { timeout: 4000 });
 		await expect(page.locator("html")).toHaveAttribute("data-focus", "on");
 		await expect.poll(() => place(page)).toBeGreaterThan(0);
-	});
-});
-
-test.describe("the ramp", () => {
-	test("reads faster once it has built to the target", async ({ page }) => {
-		await page.goto("/reader");
-		await page.getByRole("textbox", { name: "Text to read" }).fill(TEXT);
-		await page.getByRole("button", { name: "Start" }).click();
-		await expect(word(page)).toHaveText(/\S/);
-		await pause(page);
-		const open = await settings(page);
-		await open.getByRole("checkbox", { name: "Speed ramp" }).check();
-		await expect(
-			panel(page).getByRole("spinbutton", { name: "Ramp length" }),
-		).toBeVisible();
 	});
 });

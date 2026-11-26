@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+	clampRange,
 	DEFAULT_READER_SETTINGS,
 	enginePatch,
 	engineSettings,
+	PARAGRAPH_PAUSE_RANGE,
+	RAMP_TARGET_RANGE,
+	REWIND_STEP_RANGE,
 	type ReaderSettings,
+	SENTENCE_PAUSE_RANGE,
 } from "../src/lib/reader/settings.ts";
 
 const settings = (change: Partial<ReaderSettings> = {}): ReaderSettings => ({
@@ -184,5 +189,33 @@ describe("reader settings", () => {
 	it("keep the chunk size between 1 and 5", () => {
 		expect(enginePatch({ chunkSize: 0 })).toEqual({ chunkSize: 1 });
 		expect(enginePatch({ chunkSize: 9 })).toEqual({ chunkSize: 5 });
+	});
+});
+
+describe("number ranges", () => {
+	it("round to the range's decimals and hold between its ends", () => {
+		expect(clampRange(SENTENCE_PAUSE_RANGE, 2.26)).toBe(2.3);
+		expect(clampRange(SENTENCE_PAUSE_RANGE, 0)).toBe(1);
+		expect(clampRange(SENTENCE_PAUSE_RANGE, 11)).toBe(10);
+		expect(clampRange(PARAGRAPH_PAUSE_RANGE, 1.84)).toBe(1.8);
+		expect(clampRange(REWIND_STEP_RANGE, 7.5)).toBe(8);
+		expect(clampRange(RAMP_TARGET_RANGE, 9000)).toBe(1600);
+	});
+
+	it("take the minimum for a value that is not a number", () => {
+		expect(clampRange(REWIND_STEP_RANGE, Number.NaN)).toBe(1);
+	});
+
+	it("step by a pause's own step without drifting", () => {
+		let tenths = 1;
+		for (let n = 0; n < 20; n++) {
+			tenths = clampRange(PARAGRAPH_PAUSE_RANGE, tenths + 0.1);
+		}
+		expect(tenths).toBe(3);
+		let halves = 1;
+		for (let n = 0; n < 4; n++) {
+			halves = clampRange(SENTENCE_PAUSE_RANGE, halves + 0.5);
+		}
+		expect(halves).toBe(3);
 	});
 });

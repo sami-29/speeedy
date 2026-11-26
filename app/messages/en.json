@@ -263,7 +263,6 @@
 	"reader_number_less": "Decrease {label}",
 	"reader_number_more": "Increase {label}",
 	"reader_unit_words": "words",
-	"reader_unit_times": "×",
 	"reader_rewind_one_word": "1 word",
 	"reader_rewind_n_words": "{count} words",
 	"reader_rewind_back_one_word": "Back 1 word",

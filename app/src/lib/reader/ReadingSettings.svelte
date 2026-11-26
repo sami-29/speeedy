@@ -40,7 +40,7 @@ type Count = {
 	id: keyof ReaderSettings & string;
 	label: string;
 	note?: string;
-	unit: string;
+	unit?: string;
 	value: number;
 	range: NumberRange;
 	sub?: boolean;
@@ -57,7 +57,6 @@ const pauseRows = $derived<Row[]>(
 					id: "sentencePause",
 					label: m.reader_sentence_pause(),
 					note: m.reader_sentence_pause_note(),
-					unit: m.reader_unit_times(),
 					value: settings.sentencePause,
 					range: SENTENCE_PAUSE_RANGE,
 					sub: true,
@@ -67,7 +66,6 @@ const pauseRows = $derived<Row[]>(
 					id: "paragraphPause",
 					label: m.reader_paragraph_pause(),
 					note: m.reader_paragraph_pause_note(),
-					unit: m.reader_unit_times(),
 					value: settings.paragraphPause,
 					range: PARAGRAPH_PAUSE_RANGE,
 					sub: true,
