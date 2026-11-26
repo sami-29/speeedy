@@ -17,6 +17,11 @@ type Extras = {
 	testid?: string;
 	/** Controls that belong to the mode, shown under the text. */
 	below?: Snippet;
+	/**
+	 * Only show the text and follow the Cursor: never play or pause the Engine. RSVP's
+	 * paused full text, which another view owns the Engine for.
+	 */
+	still?: boolean;
 };
 
 let {
@@ -27,6 +32,7 @@ let {
 	label,
 	testid = "pacer",
 	below,
+	still = false,
 }: ModeProps & Extras = $props();
 
 let pane: HTMLElement | undefined;
@@ -53,9 +59,10 @@ $effect(() => {
 	const observer = new ResizeObserver(() => view.reveal());
 	observer.observe(pane);
 	// Playing runs the Engine's listeners here; whatever they read must not restart the view.
-	if (untrack(() => autoplay)) untrack(() => current.play());
+	const owns = !untrack(() => still);
+	if (owns && untrack(() => autoplay)) untrack(() => current.play());
 	return () => {
-		current.pause();
+		if (owns) current.pause();
 		observer.disconnect();
 		stop();
 		view.dispose();
@@ -111,6 +118,33 @@ $effect(() => {
 		border-block: var(--rule-heavy) solid var(--color-ink);
 		padding-block: var(--spacing-s-3);
 		scroll-behavior: auto;
+	}
+
+	/* On a phone the page fits the screen (app.css), so the pane gives up height to the
+	   controls below it rather than push the page into a scroll. */
+	@media (max-width: 860px) {
+		/* The pane and the controls below it become rows of the page's column. */
+		:global(:root[data-reader]:not([data-focus="on"])) .pacer {
+			display: contents;
+		}
+
+		/* It starts at its usual height and gives way down to 8rem. */
+		:global(:root[data-reader]:not([data-focus="on"])) .pane {
+			flex: 0 1 clamp(16rem, 46vh, 38rem);
+			height: auto;
+			min-height: 8rem;
+			margin-top: var(--spacing-s-2);
+		}
+
+		/* The gutter the poster row gave them. */
+		:global(:root[data-reader]:not([data-focus="on"])) :is(.pane, .below) {
+			margin-inline: var(--spacing-gutter);
+		}
+
+		:global(:root[data-reader]:not([data-focus="on"])) .below {
+			flex-shrink: 0;
+			margin-top: var(--spacing-s-3);
+		}
 	}
 
 	.text {

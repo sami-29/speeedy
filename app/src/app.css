@@ -586,6 +586,36 @@ header {
 	overflow: hidden;
 }
 
+/* Out of the focus state the reader fits the screen as well. The header, the bar and the
+   reading surface keep their place, and the controls, marked `data-scroll`, scroll in the
+   room left below them. The reader sets `data-reader` on the root (ReaderShell). */
+:root[data-reader]:not([data-focus="on"]) body {
+	display: flex;
+	flex-direction: column;
+	height: 100dvh;
+	overflow: hidden;
+}
+
+:root[data-reader]:not([data-focus="on"]) main {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	padding-bottom: 0;
+}
+
+:root[data-reader]:not([data-focus="on"]) main > * {
+	flex-shrink: 0;
+}
+
+:root[data-reader]:not([data-focus="on"]) main > [data-scroll] {
+	/* The controls give way faster than the reading surface. */
+	flex-shrink: 3;
+	min-height: 7rem;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+
 /* Reduced motion has to beat every utility and component rule, hence !important. */
 @media (prefers-reduced-motion: reduce) {
 	*,

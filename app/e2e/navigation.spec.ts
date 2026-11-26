@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { settings } from "./settings-panel.ts";
 import { chooseTheme } from "./theme.ts";
 
 // Three chapters of three paragraphs of three sentences of three words. A word like `c2p3s1b`
@@ -365,7 +366,7 @@ test.describe("the speed chart", () => {
 		await expect(bars.first()).toHaveAttribute("data-band", "read");
 		await expect(bars.first()).toHaveAttribute("data-wpm", "250");
 
-		await page
+		await (await settings(page))
 			.getByRole("group", { name: "Speed Zones" })
 			.getByRole("button", { name: /Skim/ })
 			.click();

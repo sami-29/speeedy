@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	AMBIENT_KINDS,
 	AUDIO_PREFS_KEY,
+	clampPitch,
 	clampVolume,
 	DEFAULT_AUDIO_PREFS,
 	loadAudioPrefs,
@@ -25,6 +26,7 @@ describe("audio preferences", () => {
 			volumes: { voice: 0.7, ambient: 0.2, cue: 0.9 },
 			ambient: "pink" as const,
 			tick: true,
+			tickPitch: 1.7,
 		};
 		saveAudioPrefs(storage, prefs);
 		expect(loadAudioPrefs(storage)).toEqual(prefs);
@@ -34,7 +36,12 @@ describe("audio preferences", () => {
 		const storage = memoryStorage();
 		saveAudioPrefs(storage, DEFAULT_AUDIO_PREFS);
 		const saved = JSON.parse(storage.data.get(AUDIO_PREFS_KEY) ?? "{}");
-		expect(Object.keys(saved).sort()).toEqual(["ambient", "tick", "volumes"]);
+		expect(Object.keys(saved).sort()).toEqual([
+			"ambient",
+			"tick",
+			"tickPitch",
+			"volumes",
+		]);
 	});
 
 	it("fall back to the defaults for anything missing, damaged or out of range", () => {
@@ -50,6 +57,7 @@ describe("audio preferences", () => {
 				volumes: { voice: 4, ambient: "loud", cue: -1 },
 				ambient: "rain",
 				tick: "yes",
+				tickPitch: "high",
 			}),
 		});
 		expect(loadAudioPrefs(odd)).toEqual({
@@ -60,7 +68,20 @@ describe("audio preferences", () => {
 			},
 			ambient: "none",
 			tick: false,
+			tickPitch: 1,
 		});
+	});
+
+	it("keep the tick's pitch between 0.1 and 3 times its note, to a tenth", () => {
+		const pitch = (tickPitch: unknown) =>
+			loadAudioPrefs(
+				memoryStorage({ [AUDIO_PREFS_KEY]: JSON.stringify({ tickPitch }) }),
+			).tickPitch;
+		expect(DEFAULT_AUDIO_PREFS.tickPitch).toBe(1);
+		expect(pitch(1.46)).toBe(1.5);
+		expect(pitch(0)).toBe(0.1);
+		expect(pitch(9)).toBe(3);
+		expect(clampPitch(Number.NaN)).toBe(1);
 	});
 
 	it("survive a store that throws", () => {

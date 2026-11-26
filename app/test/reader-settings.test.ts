@@ -6,13 +6,16 @@ import {
 } from "../src/lib/reader/settings.ts";
 
 describe("reader settings", () => {
-	it("default to 250 WPM, one word, pauses on, smart speed and ramp off", () => {
+	it("default to 250 WPM, one word, pauses on, smart speed and ramp off; the paused view, progress bar and citations as in 1.x", () => {
 		expect(DEFAULT_READER_SETTINGS).toEqual({
 			wpm: 250,
 			chunkSize: 1,
 			smartSpeed: false,
 			punctuationPauses: true,
 			speedRamp: false,
+			pauseView: "focus",
+			showProgress: true,
+			removeCitations: false,
 		});
 	});
 

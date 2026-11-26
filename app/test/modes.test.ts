@@ -35,7 +35,10 @@ it("drives Pacer with the timer Clock and the same pacing rules as RSVP", () => 
 	const rsvp = readerModes.get("rsvp");
 	const pacer = readerModes.get("pacer");
 	expect(pacer?.pacingRules).toEqual(rsvp?.pacingRules);
-	expect(pacer?.settingsUsed).toEqual(rsvp?.settingsUsed);
+	// The same settings, less the paused view: Pacer always shows the whole text.
+	expect(pacer?.settingsUsed).toEqual(
+		rsvp?.settingsUsed.filter((id) => id !== "pauseView"),
+	);
 	expect(typeof pacer?.view).toBe("function");
 });
 

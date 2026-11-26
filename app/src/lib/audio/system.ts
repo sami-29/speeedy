@@ -4,7 +4,9 @@ import {
 	AMBIENT_KINDS,
 	type AmbientKind,
 	type AudioPrefs,
+	audioPrefsFrom,
 	type BusName,
+	clampPitch,
 	clampVolume,
 	DEFAULT_AUDIO_PREFS,
 	loadAudioPrefs,
@@ -134,6 +136,10 @@ export interface AudioSystem {
 	setVolume(bus: BusName, volume: number): void;
 	setAmbient(kind: AmbientKind): void;
 	setTick(on: boolean): void;
+	/** The tick's pitch, as a multiple of its note. */
+	setTickPitch(pitch: number): void;
+	/** Every preference at once, as a preset applies them. */
+	setPrefs(next: AudioPrefs): void;
 	/** The reader is reading: the ambient noise plays while this is true. */
 	setReading(reading: boolean): void;
 	/** A voice is speaking: the ambient bed ducks under it. */
@@ -398,6 +404,26 @@ export function createAudioSystem(options: AudioSystemOptions): AudioSystem {
 			change({ ...prefs, tick: on });
 			kickoff();
 		},
+		setTickPitch(pitch) {
+			const next = clampPitch(pitch);
+			if (next === prefs.tickPitch) return;
+			change({ ...prefs, tickPitch: next });
+		},
+		setPrefs(next) {
+			const sound = audioPrefsFrom(next);
+			change(sound);
+			if (graph) {
+				for (const bus of Object.keys(sound.volumes) as BusName[]) {
+					graph.buses[bus].gain.setTargetAtTime(
+						gainFor(sound.volumes[bus]),
+						graph.context.currentTime,
+						VOLUME_TC,
+					);
+				}
+			}
+			kickoff();
+			syncAmbient();
+		},
 		setReading(next) {
 			reading = next;
 			kickoff();
@@ -416,7 +442,7 @@ export function createAudioSystem(options: AudioSystemOptions): AudioSystem {
 			const now = context.currentTime;
 			const oscillator = context.createOscillator();
 			oscillator.type = "sine";
-			oscillator.frequency.setValueAtTime(TICK_HZ, now);
+			oscillator.frequency.setValueAtTime(TICK_HZ * prefs.tickPitch, now);
 			const envelope = context.createGain();
 			envelope.gain.setValueAtTime(0, now);
 			envelope.gain.linearRampToValueAtTime(1, now + TICK_ATTACK_S);
