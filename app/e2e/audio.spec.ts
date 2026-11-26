@@ -455,7 +455,7 @@ test.describe("sound", () => {
 				// 35% on purpose, and axe would race the end of the text. On a phone the sheet
 				// covers the transport, so it closes for the pause.
 				await page.keyboard.press("Escape");
-				await page.getByRole("button", { name: "Pause" }).click();
+				await page.getByRole("button", { name: "Pause", exact: true }).click();
 				await modeButton(page, mode).click();
 				await openSettings(page);
 				const group = page.getByRole("group", { name: "Sound" });

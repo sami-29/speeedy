@@ -225,7 +225,7 @@ test.describe("rewind by words", () => {
 		page,
 	}) => {
 		await start(page);
-		await pauseAfter(page, 12);
+		await pauseAfter(page, 20);
 		const from = await place(page);
 		await page.keyboard.press("j");
 		await expect.poll(() => place(page)).toBe(from - 5);

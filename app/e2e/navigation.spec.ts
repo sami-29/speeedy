@@ -41,7 +41,7 @@ async function openBook(page: Page, book: string = BOOK) {
 		buffer: Buffer.from(book),
 	});
 	await expect(word(page)).toHaveText(/\S/);
-	await page.getByRole("button", { name: "Pause" }).click();
+	await page.getByRole("button", { name: "Pause", exact: true }).click();
 }
 
 /** Takes the focus off every control, so keys go to the page. */
@@ -135,11 +135,15 @@ test.describe("rewind", () => {
 		await page.getByRole("button", { name: "Gamma", exact: true }).click();
 		await page.getByRole("button", { name: "Play" }).click();
 		await page.getByRole("button", { name: "Back one chapter" }).click();
-		await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "Pause", exact: true }),
+		).toBeVisible();
 		await expect(word(page)).toHaveText(/^(Beta|c2|Gamma|c3)/);
 		const here = (await word(page).textContent()) ?? "";
 		await expect(word(page)).not.toHaveText(here, { timeout: 3000 });
-		await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "Pause", exact: true }),
+		).toBeVisible();
 	});
 
 	test("a text with no headings has no chapters to go back to", async ({
@@ -278,7 +282,7 @@ test.describe("the progress bar", () => {
 		await expect(word(page)).toHaveText("Beta");
 		await page.reload();
 		await expect(word(page)).toHaveText(/\S/);
-		await page.getByRole("button", { name: "Pause" }).click();
+		await page.getByRole("button", { name: "Pause", exact: true }).click();
 		await expect(word(page)).toHaveText(/^(Beta|c2p)/);
 	});
 });
@@ -376,7 +380,7 @@ test.describe("the speed chart", () => {
 		);
 		await expect(fast.first()).toBeVisible({ timeout: 10_000 });
 		await expect(fast.first()).toHaveAttribute("data-wpm", "400");
-		await page.getByRole("button", { name: "Pause" }).click();
+		await page.getByRole("button", { name: "Pause", exact: true }).click();
 
 		const slowBox = (await bars.first().boundingBox()) as { height: number };
 		const fastBox = (await fast.first().boundingBox()) as { height: number };
@@ -390,7 +394,7 @@ test.describe("the speed chart", () => {
 		await page.getByRole("button", { name: "Play" }).click();
 		const bar = chart(page).getByTestId("trace-bar").first();
 		await expect(bar).toBeVisible({ timeout: 10_000 });
-		await page.getByRole("button", { name: "Pause" }).click();
+		await page.getByRole("button", { name: "Pause", exact: true }).click();
 		const colours = await page.evaluate(() => {
 			const bar = document.querySelector('[data-testid="trace-bar"]');
 			const mark = document.querySelector('[data-testid="playhead"]');
@@ -481,7 +485,7 @@ for (const viewport of [
 			await expect(chart(page).getByTestId("trace-bar").first()).toBeVisible({
 				timeout: 10_000,
 			});
-			await page.getByRole("button", { name: "Pause" }).click();
+			await page.getByRole("button", { name: "Pause", exact: true }).click();
 			await check(page);
 		});
 
@@ -538,7 +542,7 @@ test.describe("privacy", () => {
 		await page.keyboard.press("c");
 		await page.getByRole("button", { name: "Play" }).click();
 		await page.waitForTimeout(1500);
-		await page.getByRole("button", { name: "Pause" }).click();
+		await page.getByRole("button", { name: "Pause", exact: true }).click();
 		// Leave the reader, so any queued batch is sent, then give timers time to fire.
 		await page.getByRole("link", { name: "Library" }).click();
 		await expect(page).toHaveURL(/\/library$/);
