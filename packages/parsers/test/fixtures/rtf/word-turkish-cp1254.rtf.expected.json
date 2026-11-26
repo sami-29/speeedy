@@ -1,0 +1,20 @@
+{
+	"outcome": "document",
+	"format": "rtf",
+	"encoding": null,
+	"title": "Fener Defteri",
+	"language": "tr",
+	"blocks": 3,
+	"kinds": [
+		"heading",
+		"paragraph",
+		"paragraph"
+	],
+	"spans": 2,
+	"first": "Fener Defteri\nÇok güzel bir gün. İstanbul'da ğüşıöç",
+	"last": "merdivenleri çıkardı.",
+	"words": [
+		19,
+		19
+	]
+}

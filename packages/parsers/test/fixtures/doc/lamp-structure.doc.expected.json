@@ -1,0 +1,29 @@
+{
+	"outcome": "document",
+	"format": "doc",
+	"title": "lamp-structure",
+	"encoding": null,
+	"language": "en",
+	"blocks": 12,
+	"kinds": [
+		"paragraph",
+		"paragraph",
+		"paragraph",
+		"paragraph",
+		"paragraph",
+		"paragraph",
+		"paragraph",
+		"table-text",
+		"table-text",
+		"table-text",
+		"table-text",
+		"paragraph"
+	],
+	"spans": 0,
+	"first": "The Lamp Room\nThe keeper climbed",
+	"last": "Last line of the page.",
+	"words": [
+		48,
+		50
+	]
+}

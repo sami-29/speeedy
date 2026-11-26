@@ -1,0 +1,20 @@
+{
+	"outcome": "document",
+	"format": "rtf",
+	"encoding": null,
+	"title": "المنارة",
+	"language": "ar",
+	"blocks": 3,
+	"kinds": [
+		"heading",
+		"paragraph",
+		"paragraph"
+	],
+	"spans": 0,
+	"first": "المنارة\nكان الحارس",
+	"last": "كان البحر هادئا وفضيا.",
+	"words": [
+		18,
+		18
+	]
+}

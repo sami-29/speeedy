@@ -1,0 +1,20 @@
+{
+	"outcome": "document",
+	"format": "rtf",
+	"encoding": null,
+	"title": "Fener",
+	"language": "tr",
+	"blocks": 3,
+	"kinds": [
+		"heading",
+		"paragraph",
+		"paragraph"
+	],
+	"spans": 0,
+	"first": "Bölüm 1: Giriş\nÇok güzel bir gün.",
+	"last": "Gözleri ışığa alışmıştı.",
+	"words": [
+		25,
+		25
+	]
+}

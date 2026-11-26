@@ -1,0 +1,19 @@
+{
+	"outcome": "document",
+	"format": "rtf",
+	"encoding": null,
+	"title": "word-russian-cp1251",
+	"language": "ru",
+	"blocks": 2,
+	"kinds": [
+		"paragraph",
+		"paragraph"
+	],
+	"spans": 0,
+	"first": "Привет, мир! Это тестовый абзац",
+	"last": "Море было серебряным и тихим.",
+	"words": [
+		13,
+		13
+	]
+}

@@ -112,6 +112,39 @@ test.describe("drop to read", () => {
 		});
 		await expect(page.getByTestId("word")).toHaveText("alpha");
 	});
+
+	test("choosing an RTF with the file picker reads its words", async ({
+		page,
+	}) => {
+		await page.goto("/reader");
+		await page.getByLabel("Choose a file").setInputFiles({
+			name: "letter.rtf",
+			mimeType: "application/rtf",
+			buffer: Buffer.from(
+				"{\\rtf1\\ansi\\deff0 {\\fonttbl{\\f0 Arial;}}\\pard Caf\\'e9 {\\b bold} words stay.\\par}",
+			),
+		});
+		await expect(page.getByTestId("word")).toHaveText("Café");
+	});
+
+	test("a Word file with scrambled text says so and leaves the paste box to use", async ({
+		page,
+	}) => {
+		await page.goto("/reader");
+		await page.getByLabel("Choose a file").setInputFiles({
+			name: "broken.rtf",
+			mimeType: "application/rtf",
+			buffer: Buffer.from(`{\\rtf1\\ansi ${"\\u-3?".repeat(80)} words\\par}`),
+		});
+		const alert = page.getByRole("alert");
+		await expect(alert).toContainText("looks scrambled");
+		await expect(alert).toContainText("paste");
+		const box = page.getByRole("textbox", { name: "Text to read" });
+		await expect(box).toBeVisible();
+		await box.fill("alpha beta gamma delta");
+		await page.getByRole("button", { name: "Start" }).click();
+		await expect(page.getByTestId("word")).toHaveText("alpha");
+	});
 });
 
 test.describe("the word", () => {

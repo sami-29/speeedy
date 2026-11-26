@@ -6,6 +6,7 @@ import {
 import { clip, normalizeText, scanControls, tidyLine } from "./clean";
 import { csvToBlocks } from "./csv";
 import { decodeBytes } from "./decode";
+import { docToBlocks, isCompoundFile } from "./doc";
 import { docxToBlocks } from "./docx";
 import { epubToBlocks } from "./epub";
 import { htmlToBlocks } from "./html";
@@ -13,6 +14,7 @@ import { detectLanguage, normalizeLanguageTag } from "./language";
 import { type MarkdownMeta, markdownToBlocks } from "./markdown";
 import { odtToBlocks } from "./odt";
 import { plainTextToBlocks } from "./plain";
+import { isRtf, rtfToBlocks } from "./rtf";
 import {
 	BlockSink,
 	type DetectedLanguage,
@@ -24,6 +26,7 @@ import {
 	type ParseOutcome,
 	type SourceFormat,
 } from "./types";
+import { isZip } from "./zip";
 
 const TITLE_MAX = 200;
 /** Above this share of control characters the file is binary, not text. */
@@ -64,8 +67,6 @@ const BINARY_EXTENSIONS = new Set([
  * name, so a saved web page is never read as if its tags were the text.
  */
 const NOT_YET_EXTENSIONS = new Set([
-	"doc",
-	"rtf",
 	"xhtml",
 	"mhtml",
 	"mobi",
@@ -81,7 +82,6 @@ const MAGIC: [string, number[]][] = [
 	["a PNG image", [0x89, 0x50, 0x4e, 0x47]],
 	["a JPEG image", [0xff, 0xd8, 0xff]],
 	["a GIF image", [0x47, 0x49, 0x46, 0x38]],
-	["an Office 97 document", [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]],
 	["a gzip archive", [0x1f, 0x8b]],
 	["a RAR archive", [0x52, 0x61, 0x72, 0x21, 0x1a, 0x07]],
 ];
@@ -356,6 +356,25 @@ async function parseBook(
 	});
 }
 
+async function parseLegacy(
+	bytes: Uint8Array,
+	extension: "doc" | "rtf",
+	hints: Hints,
+	fileTitle: string | null,
+): Promise<ParseOutcome> {
+	const sink = new BlockSink(hints.maxBlocks);
+	let title: string | null = null;
+	if (extension === "rtf") title = rtfToBlocks(bytes, sink).title;
+	else docToBlocks(bytes, sink);
+	return finish(sink, {
+		title: title ?? fileTitle,
+		format: extension,
+		encoding: null,
+		hinted: hints.language,
+		metadataLanguage: null,
+	});
+}
+
 function toOutcome(error: unknown): ParseOutcome {
 	if (error instanceof ParseFailure)
 		return failure(error.reason, error.message);
@@ -401,6 +420,39 @@ export async function parse(
 				extension,
 				options,
 				titleFromFileName(segment),
+			);
+		}
+		// Past the package names above, RTF and Word 97 files are told apart by their bytes:
+		// Word saves RTF under a .doc name, and a renamed file keeps its header. A .docx, .odt,
+		// .epub or .zip name is routed by its extension first, so RTF or Word 97 bytes under
+		// one of those names are refused with that format's message rather than sniffed.
+		if (isRtf(view)) {
+			return await parseLegacy(
+				view,
+				"rtf",
+				options,
+				titleFromFileName(segment),
+			);
+		}
+		if (isCompoundFile(view)) {
+			return await parseLegacy(
+				view,
+				"doc",
+				options,
+				titleFromFileName(segment),
+			);
+		}
+		if (extension === "rtf") {
+			return failure("unsupported", "This file is not an RTF document.");
+		}
+		if (extension === "doc") {
+			// A .docx saved under a .doc name is still a package.
+			if (isZip(view)) {
+				return await parseDocx(view, options, titleFromFileName(segment));
+			}
+			return failure(
+				"unsupported",
+				"This file is not a Word 97-2003 document. Open it in Word and save it as .docx.",
 			);
 		}
 		if (NOT_YET_EXTENSIONS.has(extension)) {
