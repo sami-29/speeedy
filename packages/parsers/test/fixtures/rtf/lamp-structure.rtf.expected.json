@@ -1,0 +1,29 @@
+{
+	"outcome": "document",
+	"format": "rtf",
+	"encoding": null,
+	"title": "Lamp notes",
+	"language": "en",
+	"blocks": 12,
+	"kinds": [
+		"heading",
+		"paragraph",
+		"heading",
+		"list-item",
+		"list-item",
+		"list-item",
+		"list-item",
+		"table-text",
+		"table-text",
+		"table-text",
+		"table-text",
+		"paragraph"
+	],
+	"spans": 3,
+	"first": "The Lamp Room\nThe keeper climbed",
+	"last": "Last line of the page.",
+	"words": [
+		48,
+		50
+	]
+}

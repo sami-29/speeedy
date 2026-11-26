@@ -6,6 +6,7 @@ import {
 import { clip, normalizeText, scanControls, tidyLine } from "./clean";
 import { csvToBlocks } from "./csv";
 import { decodeBytes } from "./decode";
+import { docToBlocks } from "./doc";
 import { docxToBlocks } from "./docx";
 import { epubToBlocks } from "./epub";
 import { htmlToBlocks } from "./html";
@@ -13,6 +14,7 @@ import { detectLanguage, normalizeLanguageTag } from "./language";
 import { type MarkdownMeta, markdownToBlocks } from "./markdown";
 import { odtToBlocks } from "./odt";
 import { plainTextToBlocks } from "./plain";
+import { rtfToBlocks } from "./rtf";
 import {
 	BlockSink,
 	type DetectedLanguage,
@@ -64,8 +66,6 @@ const BINARY_EXTENSIONS = new Set([
  * name, so a saved web page is never read as if its tags were the text.
  */
 const NOT_YET_EXTENSIONS = new Set([
-	"doc",
-	"rtf",
 	"xhtml",
 	"mhtml",
 	"mobi",
@@ -356,6 +356,25 @@ async function parseBook(
 	});
 }
 
+async function parseLegacy(
+	bytes: Uint8Array,
+	extension: "doc" | "rtf",
+	hints: Hints,
+	fileTitle: string | null,
+): Promise<ParseOutcome> {
+	const sink = new BlockSink(hints.maxBlocks);
+	let title: string | null = null;
+	if (extension === "rtf") title = rtfToBlocks(bytes, sink).title;
+	else docToBlocks(bytes, sink);
+	return finish(sink, {
+		title: title ?? fileTitle,
+		format: extension,
+		encoding: null,
+		hinted: hints.language,
+		metadataLanguage: null,
+	});
+}
+
 function toOutcome(error: unknown): ParseOutcome {
 	if (error instanceof ParseFailure)
 		return failure(error.reason, error.message);
@@ -397,6 +416,14 @@ export async function parse(
 		}
 		if (extension === "epub" || extension === "zip" || extension === "odt") {
 			return await parseBook(
+				view,
+				extension,
+				options,
+				titleFromFileName(segment),
+			);
+		}
+		if (extension === "doc" || extension === "rtf") {
+			return await parseLegacy(
 				view,
 				extension,
 				options,

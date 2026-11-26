@@ -1,0 +1,20 @@
+{
+	"outcome": "document",
+	"format": "doc",
+	"title": "libreoffice-hebrew",
+	"encoding": null,
+	"language": "he",
+	"blocks": 3,
+	"kinds": [
+		"paragraph",
+		"paragraph",
+		"paragraph"
+	],
+	"spans": 0,
+	"first": "המגדלור\nהשומר עלה",
+	"last": "הים היה כסוף ושקט.",
+	"words": [
+		16,
+		16
+	]
+}

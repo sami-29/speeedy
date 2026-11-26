@@ -45,6 +45,8 @@ export type SourceFormat =
 	| "docx"
 	| "epub"
 	| "odt"
+	| "rtf"
+	| "doc"
 	| "pasted"
 	| "pdf";
 

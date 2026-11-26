@@ -1,0 +1,20 @@
+{
+	"outcome": "document",
+	"format": "doc",
+	"title": "libreoffice-arabic",
+	"encoding": null,
+	"language": "ar",
+	"blocks": 3,
+	"kinds": [
+		"paragraph",
+		"paragraph",
+		"paragraph"
+	],
+	"spans": 0,
+	"first": "المنارة\nكان الحارس",
+	"last": "كان البحر هادئا وفضيا.",
+	"words": [
+		18,
+		18
+	]
+}

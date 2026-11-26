@@ -30,3 +30,13 @@ Every file under `fixtures/epub/` and `fixtures/odt/` was made for this reposito
 - `password-protected.odt` was written by LibreOffice through its API with a document password, so it is a real ODF encrypted package (every part except `mimetype` and the manifest is encrypted). Its text is "Sealed" and one sentence; the password is not needed or kept.
 
 Hostile ZIP, XML and OPF cases are built in test code, not stored as files.
+
+## RTF and DOC fixtures
+
+Every file under `fixtures/rtf/` and `fixtures/doc/` was made for this repository; the text is original.
+
+- `fixtures/rtf/lamp-structure.rtf`, `libreoffice-turkish.rtf`, `libreoffice-cyrillic.rtf`, `libreoffice-arabic.rtf` and `libreoffice-hebrew.rtf` were converted from small hand-written HTML pages with LibreOffice 24.2.7.2 (`soffice --headless --convert-to rtf`). `lamp-structure.rtf` holds headings, bold and italic runs, a link, bullet and numbered lists and a table.
+- `fixtures/doc/` holds the same five pages converted with `soffice --headless --convert-to doc:"MS Word 97"`. LibreOffice writes only UTF-16 pieces, so these files do not cover the 8-bit pieces Word writes; those are covered by files built in test code (`doc-builder.ts`). A Word-made `.doc` with 8-bit Turkish text has not turned up, and its test is skipped.
+- `fixtures/rtf/word-turkish-cp1254.rtf`, `word-russian-cp1251.rtf`, `unicode-uc0.rtf` and `unicode-uc1.rtf` were written by hand in the style of Word's RTF (`\ansicpg`, `\fcharset`, `\'hh` escapes and `\uN` with and without fallback characters). The `\'hh` bytes were produced by encoding the text with the matching Windows code page.
+
+Hostile RTF and compound-file cases are built in test code (`doc-builder.ts`, inline strings), not stored as files.
