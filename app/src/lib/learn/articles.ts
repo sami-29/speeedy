@@ -315,6 +315,14 @@ export const ARTICLES: readonly Article[] = [
 							labelKey: "learn_avg_half_more_link",
 						},
 					},
+					{
+						kind: "frame",
+						key: "learn_avg_test",
+						link: {
+							href: "/reading-speed-test",
+							labelKey: "learn_avg_test_link",
+						},
+					},
 				],
 			},
 		],

@@ -4,7 +4,8 @@ import ZoneBands from "#lib/reader/ZoneBands.svelte";
 import { chartTop } from "#lib/reader/zones.ts";
 import type { ChartPoint } from "./view.ts";
 
-let { points }: { points: ChartPoint[] } = $props();
+// `label` replaces the screen-reader description, for a chart of something other than Sessions.
+let { points, label }: { points: ChartPoint[]; label?: string } = $props();
 
 /** The top of the plot: room above the fastest dot, never below 500 WPM. */
 const top = $derived(chartTop(Math.max(...points.map((p) => p.wpm))));
@@ -16,7 +17,8 @@ const latest = $derived(points[points.length - 1]);
 	class="chart"
 	data-testid="speed-chart"
 	role="img"
-	aria-label={m.stats_speed_label({ count: points.length, latest: latest?.wpm ?? 0 })}
+	aria-label={label ??
+		m.stats_speed_label({ count: points.length, latest: latest?.wpm ?? 0 })}
 >
 	<ZoneBands {top} />
 	<div class="plot">
