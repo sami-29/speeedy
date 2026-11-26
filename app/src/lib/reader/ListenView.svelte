@@ -16,8 +16,9 @@ import {
 } from "#lib/voice/kokoro-speaker.ts";
 import type { OnDeviceState, OnDeviceVoice } from "#lib/voice/on-device.ts";
 import { voiceRating } from "#lib/voice/rating.ts";
+import { deviceStorage } from "../device-storage.ts";
 import ListenControls from "./ListenControls.svelte";
-import { browserSpeech, listenStorage } from "./listen/browser.ts";
+import { browserSpeech } from "./listen/browser.ts";
 import { createListener, type Listener } from "./listen/listener.ts";
 import {
 	type ListenPrefs,
@@ -43,7 +44,7 @@ const SEEK_SETTLE_MS = 150;
 const speech = browserSpeech(window, () =>
 	gainFor(audio().prefs.volumes.voice),
 );
-const storage = listenStorage();
+const storage = deviceStorage();
 
 let prefs = $state<ListenPrefs>(loadPrefs(storage));
 let voices = $state.raw<readonly VoiceLike[]>([]);

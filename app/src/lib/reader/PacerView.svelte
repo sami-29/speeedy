@@ -77,7 +77,7 @@ $effect(() => {
 		<div class="text" bind:this={text}></div>
 	</section>
 	{#if below}
-		<div class="below">{@render below()}</div>
+		<div class="below" data-chrome>{@render below()}</div>
 	{/if}
 </div>
 
@@ -95,6 +95,11 @@ $effect(() => {
 
 	.below {
 		min-width: 0;
+	}
+
+	/* In the focus state the page takes the room app.css gives the reading surface. */
+	:global(:root[data-focus="on"]) .pane {
+		height: var(--focus-surface-height);
 	}
 
 	/* A heavy rule above and below frames the stretch of text, as the stage's track does. */
