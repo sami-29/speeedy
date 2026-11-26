@@ -9,10 +9,26 @@ export type ReaderSettings = {
 	chunkSize: number;
 	/** Quicken short and common words, slow long ones. */
 	smartSpeed: boolean;
-	/** Stretch the flash on sentence ends and at paragraph starts. */
+	/** Stretch the flash on punctuation. Off holds every pause at none. */
 	punctuationPauses: boolean;
-	/** Start each stretch of reading slowly and build up to full speed. */
+	/** How strongly a sentence end holds its word: 1 is the usual pause, 10 ten times it. */
+	sentencePause: number;
+	/** How much longer the first word of a paragraph stays up: 1 is no longer. */
+	paragraphPause: number;
+	/** Pause on commas and semicolons like on a sentence end. */
+	commaPause: boolean;
+	/** A short extra pause on the word that closes a bracket or quotation. */
+	asidePause: boolean;
+	/** Start each stretch of reading at the set speed and build up to the target speed. */
 	speedRamp: boolean;
+	/** The speed the ramp builds to, in words per minute. */
+	rampTarget: number;
+	/** The words the ramp takes to reach the target, counted from Play. */
+	rampLength: number;
+	/** Words the rewind-by-words key and button go back. */
+	rewindStep: number;
+	/** Count 3, 2, 1 before RSVP starts. */
+	countdown: boolean;
 	/** What a paused RSVP shows: the word, its sentence, or the whole text. */
 	pauseView: PauseView;
 	/** The progress bar under the reading surface. */
@@ -29,7 +45,15 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
 	chunkSize: 1,
 	smartSpeed: false,
 	punctuationPauses: true,
+	sentencePause: 0,
+	paragraphPause: 0,
+	commaPause: true,
+	asidePause: false,
 	speedRamp: false,
+	rampTarget: 0,
+	rampLength: 0,
+	rewindStep: 0,
+	countdown: true,
 	pauseView: "focus",
 	showProgress: true,
 	removeCitations: false,
@@ -68,6 +92,7 @@ const RAMP_START = 0.5;
  */
 export function enginePatch(
 	change: Partial<ReaderSettings>,
+	_settings: ReaderSettings = DEFAULT_READER_SETTINGS,
 ): Partial<EngineSettings> {
 	const patch: Partial<EngineSettings> = {};
 	if (change.wpm !== undefined) patch.wpm = clampWpm(change.wpm);
@@ -99,4 +124,4 @@ export function enginePatch(
 /** The engine settings for a full set of reader settings. */
 export const engineSettings = (
 	settings: ReaderSettings,
-): Partial<EngineSettings> => enginePatch(settings);
+): Partial<EngineSettings> => enginePatch(settings, settings);

@@ -197,3 +197,68 @@ describe("back one chapter", () => {
 		]);
 	});
 });
+
+describe("back a number of words", () => {
+	const words = () =>
+		paragraphs("one two three four five six seven eight", "nine ten");
+
+	it("goes back that many words from the current one", () => {
+		const { engine, goTo } = setup(words());
+		goTo("eight");
+		engine.backWords(5);
+		expect(engine.frame?.text).toBe("three");
+	});
+
+	it("crosses blocks", () => {
+		const { engine, goTo } = setup(words());
+		goTo("ten");
+		engine.backWords(4);
+		expect(engine.frame?.text).toBe("seven");
+	});
+
+	it("stops at the document start and still emits seek", () => {
+		const { engine, goTo, seeks } = setup(words());
+		goTo("three");
+		engine.backWords(50);
+		expect(engine.frame?.text).toBe("one");
+		expect(seeks).toEqual([{ block: 0, offset: 0 }]);
+	});
+
+	it("goes back at least one word, whatever the count", () => {
+		const { engine, goTo } = setup(words());
+		goTo("five");
+		engine.backWords(0);
+		expect(engine.frame?.text).toBe("four");
+	});
+
+	it("counts the words of a chunk, not its Frames", () => {
+		const engine = createEngine({
+			clock: createManualClock(),
+			timeline: buildTimeline(words(), { wpm: 300, chunkSize: 3 }),
+		});
+		const frames = engine.timeline.frames;
+		engine.seek(frames[frames.length - 1]?.position ?? { block: 0, offset: 0 });
+		const before = engine.index;
+		// Frames of three words: back 5 words takes two Frames (6 words), not five.
+		engine.backWords(5);
+		expect(engine.index).toBe(before - 2);
+	});
+
+	it("resumes playing from the landing Frame", () => {
+		const { clock, engine, goTo } = setup(words());
+		goTo("eight");
+		engine.play();
+		clock.advance(10);
+		engine.backWords(5);
+		expect(engine.playing).toBe(true);
+		expect(engine.frame?.text).toBe("three");
+	});
+
+	it("does nothing for an empty Timeline", () => {
+		const engine = createEngine({
+			clock: createManualClock(),
+			timeline: buildTimeline({ version: 1, blocks: [] }, { wpm: 300 }),
+		});
+		expect(() => engine.backWords(5)).not.toThrow();
+	});
+});

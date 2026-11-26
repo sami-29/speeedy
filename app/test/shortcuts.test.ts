@@ -5,6 +5,7 @@ import {
 	nextMode,
 	REWINDS,
 	SHORTCUTS,
+	WORD_REWIND,
 } from "../src/lib/reader/shortcuts.ts";
 
 const press = (key: string, extra: Partial<KeyInput> = {}): KeyInput => ({
@@ -71,6 +72,17 @@ describe("reader keys", () => {
 			kind: "speed",
 			delta: 50,
 		});
+	});
+
+	it("J goes back by the rewind step, whatever the case", () => {
+		expect(commandForKey(press("j"))).toEqual({ kind: "back-words" });
+		expect(commandForKey(press("J", { shiftKey: true }))).toEqual({
+			kind: "back-words",
+		});
+		expect(commandForKey(press("j", { ctrlKey: true }))).toBeUndefined();
+		expect(
+			commandForKey(press("j", { target: { tagName: "INPUT" } })),
+		).toBeUndefined();
 	});
 
 	it("M switches the Reading Mode and ? opens the shortcuts", () => {
@@ -175,6 +187,14 @@ describe("rewinds", () => {
 		expect(entry("back")?.keys).toEqual(["←"]);
 		expect(entry("back_paragraph")?.keys).toEqual(["Shift", "←"]);
 		expect(entry("back_chapter")?.keys).toEqual(["C"]);
+		expect(entry("back_words")?.keys).toEqual(["J"]);
+	});
+
+	it("name the key of the rewind by words, for assistive technology", () => {
+		expect(WORD_REWIND.keyshortcuts).toBe("J");
+		expect(SHORTCUTS.map((shortcut) => shortcut.id)).toContain(
+			WORD_REWIND.shortcut,
+		);
 	});
 });
 

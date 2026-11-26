@@ -27,6 +27,7 @@ export const shortcutName = (id: ShortcutId): string =>
 		back: m.shortcut_back,
 		back_paragraph: m.shortcut_back_paragraph,
 		back_chapter: m.shortcut_back_chapter,
+		back_words: m.shortcut_back_words,
 		speed: m.shortcut_speed,
 		speed_big: m.shortcut_speed_big,
 		mode: m.shortcut_mode,

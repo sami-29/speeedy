@@ -5,6 +5,7 @@ import { WPM_BIG_STEP, WPM_STEP } from "./wpm.ts";
 export type ReaderCommand =
 	| { kind: "toggle" }
 	| { kind: "back"; unit: BackUnit }
+	| { kind: "back-words" }
 	| { kind: "speed"; delta: number }
 	| { kind: "mode"; step: 1 | -1 }
 	| { kind: "focus" }
@@ -72,6 +73,7 @@ export type ShortcutId =
 	| "back"
 	| "back_paragraph"
 	| "back_chapter"
+	| "back_words"
 	| "speed"
 	| "speed_big"
 	| "mode"
@@ -108,6 +110,12 @@ export const REWINDS: readonly {
 	},
 	{ unit: "chapter", shortcut: "back_chapter", keyshortcuts: "C" },
 ];
+
+/** The rewind by the reader's own number of words: a button and a key beside the units. */
+export const WORD_REWIND: { shortcut: ShortcutId; keyshortcuts: string } = {
+	shortcut: "back_words",
+	keyshortcuts: "",
+};
 
 /** The id of the mode `step` places after `current`, wrapping around. */
 export function nextMode(
