@@ -30,6 +30,8 @@ export type SessionTrackerOptions = {
 	clock: Clock;
 	/** Called with each finished Session. */
 	save: (record: SessionRecord) => void;
+	/** Called once as each Session starts: when reading first begins, and again after each save. */
+	onStart?: (startedAt: number) => void;
 	/** Wall-clock time in epoch milliseconds. Defaults to `Date.now`. */
 	now?: () => number;
 	/** IANA time zone for Session dates. Defaults to the reader's own. */
@@ -64,6 +66,7 @@ export function createSessionTracker({
 	engine,
 	clock,
 	save,
+	onStart,
 	now = Date.now,
 	timeZone,
 	page = browserPage(),
@@ -78,7 +81,10 @@ export function createSessionTracker({
 	const openSegment = () => {
 		if (hidden || segmentStart !== undefined) return;
 		segmentStart = clock.now();
-		startedAt ??= now();
+		if (startedAt === undefined) {
+			startedAt = now();
+			onStart?.(startedAt);
+		}
 	};
 
 	const closeSegment = () => {

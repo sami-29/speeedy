@@ -8,7 +8,9 @@ import {
 	type ParserClient,
 } from "@speeedy/parsers";
 import ParserWorker from "@speeedy/parsers/worker?worker";
+import { trackEvent } from "#lib/telemetry.ts";
 import { removeCitations } from "./citations.ts";
+import { reportParse, type TrackIntake } from "./intake-events.ts";
 import { engineSettings, type ReaderSettings } from "./settings.ts";
 import {
 	createTimelineClient,
@@ -85,7 +87,9 @@ const BUILD_FAILED = "Speeedy could not prepare that text for reading.";
  * start on the first `open` and are reused until `dispose`. The Timeline worker keeps the
  * text it built, so a later settings change is a rebuild there, not here.
  */
-export function createReaderLoader(): ReaderLoader {
+export function createReaderLoader(
+	track: TrackIntake = trackEvent,
+): ReaderLoader {
 	let parser: ParserClient | undefined;
 	let parserWorker: Worker | undefined;
 	let timelineWorker: Worker | undefined;
@@ -105,10 +109,17 @@ export function createReaderLoader(): ReaderLoader {
 	const parse = async (
 		clients: ReturnType<typeof start>,
 		source: ReaderSource,
-	): Promise<ParseOutcome> =>
-		source.kind === "text"
-			? clients.parser.parseText(source.text)
-			: clients.parser.parse(await source.file.arrayBuffer(), source.file.name);
+	): Promise<ParseOutcome> => {
+		const outcome =
+			source.kind === "text"
+				? await clients.parser.parseText(source.text)
+				: await clients.parser.parse(
+						await source.file.arrayBuffer(),
+						source.file.name,
+					);
+		reportParse(source, outcome, track);
+		return outcome;
+	};
 
 	const build = async (
 		clients: ReturnType<typeof start>,

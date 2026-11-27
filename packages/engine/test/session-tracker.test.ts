@@ -17,10 +17,12 @@ function setup({
 	text = SIX,
 	startEpoch = Date.UTC(2026, 2, 10, 12, 0, 0),
 	timeZone,
+	onStart,
 }: {
 	text?: string;
 	startEpoch?: number;
 	timeZone?: string;
+	onStart?: (startedAt: number) => void;
 } = {}) {
 	const clock = createManualClock();
 	const engine = createEngine({
@@ -43,6 +45,7 @@ function setup({
 		...(timeZone ? { timeZone } : {}),
 		page: { window, document },
 		save: (record) => saved.push(record),
+		...(onStart ? { onStart } : {}),
 	});
 	const hide = () => {
 		document.visibilityState = "hidden";
@@ -269,5 +272,61 @@ describe("Session tracker flushing", () => {
 		tracker.dispose();
 		window.dispatchEvent(new Event("pagehide"));
 		expect(saved).toEqual([]);
+	});
+});
+
+describe("Session starts", () => {
+	it("calls onStart once, when reading first begins, with the start time", () => {
+		const starts: number[] = [];
+		const { engine, advance, tracker } = setup({
+			startEpoch: 5_000,
+			onStart: (at) => starts.push(at),
+		});
+		expect(starts).toEqual([]);
+		engine.play();
+		advance(300);
+		// Pausing and playing again stays inside the Session.
+		engine.pause();
+		advance(5_000);
+		engine.play();
+		advance(300);
+		engine.pause();
+		expect(starts).toEqual([5_000]);
+		tracker.flush();
+	});
+
+	it("does not call onStart for a play that never reads", () => {
+		const starts: number[] = [];
+		const { tracker } = setup({ onStart: (at) => starts.push(at) });
+		tracker.flush();
+		expect(starts).toEqual([]);
+	});
+
+	it("starts a new Session after a flush while playing", () => {
+		const starts: number[] = [];
+		const { engine, advance, tracker, saved } = setup({
+			onStart: (at) => starts.push(at),
+		});
+		engine.play();
+		advance(400);
+		tracker.flush();
+		advance(400);
+		engine.pause();
+		tracker.flush();
+		expect(saved).toHaveLength(2);
+		expect(starts).toHaveLength(2);
+	});
+
+	it("starts a new Session when the tab comes back to a playing Engine", () => {
+		const starts: number[] = [];
+		const { engine, advance, hide, show } = setup({
+			onStart: (at) => starts.push(at),
+		});
+		engine.play();
+		advance(300);
+		hide();
+		show();
+		advance(300);
+		expect(starts).toHaveLength(2);
 	});
 });

@@ -1,3 +1,4 @@
+export * from "./activation.ts";
 export * from "./analytics.ts";
 export * from "./backup.ts";
 export * from "./daily-goal.ts";

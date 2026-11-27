@@ -279,3 +279,61 @@ describe("cookies", () => {
 		}
 	});
 });
+
+describe("POST /api/e with the activation events", () => {
+	const START = {
+		source: "own",
+		surface: "web",
+		ref: "hn",
+		first_this_month: true,
+		days_since_first: "0",
+		lifetime_sessions: "1",
+	};
+
+	it("forwards session_started, file_uploaded and parse_failed", async () => {
+		const response = await post({
+			visit: VISIT,
+			events: [
+				{ event: "session_started", properties: START },
+				{ event: "file_uploaded", properties: { format: "epub" } },
+				{ event: "parse_failed", properties: { reason: "scanned-pdf" } },
+			],
+		});
+
+		expect(response.status).toBe(202);
+		expect(
+			captured[0].body.batch.map((e: { event: string }) => e.event),
+		).toEqual(["session_started", "file_uploaded", "parse_failed"]);
+		expect(captured[0].body.batch[0].properties).toMatchObject({
+			...START,
+			distinct_id: VISIT,
+			$process_person_profile: false,
+		});
+	});
+
+	it.each([
+		["a ref off the list", { ...START, ref: "twitter" }],
+		["a URL as the ref", { ...START, ref: "https://example.com/?q=1" }],
+		["an exact Session count", { ...START, lifetime_sessions: "37" }],
+		[
+			"an undeclared first Session date",
+			{ ...START, first_session: "2026-01-01" },
+		],
+	])("rejects session_started with %s", async (_name, properties) => {
+		const response = await post(batch(properties, "session_started"));
+
+		expect(response.status).toBe(400);
+		expect(captured).toHaveLength(0);
+	});
+
+	it("rejects a file name as the format and a message as the reason", async () => {
+		expect(
+			(await post(batch({ format: "notes.pdf" }, "file_uploaded"))).status,
+		).toBe(400);
+		expect(
+			(await post(batch({ reason: "This PDF is a scan." }, "parse_failed")))
+				.status,
+		).toBe(400);
+		expect(captured).toHaveLength(0);
+	});
+});
