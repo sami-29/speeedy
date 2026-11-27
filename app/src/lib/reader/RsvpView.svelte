@@ -43,6 +43,7 @@ $effect(() => {
 		if (word && next !== words) {
 			words = next;
 			word.style.setProperty("--words", next);
+			word.toggleAttribute("data-chunk", frame.words > 1);
 		}
 	};
 	// The handlers run inside the effect when it plays: untrack keeps it off their state.
@@ -138,7 +139,10 @@ $effect(() => {
 	}
 
 	/* A box centred on the axis, with the pivot letter in the middle column. The word is
-	   cut in and out: no transition, no animation, no opacity. */
+	   cut in and out: no transition, no animation, no opacity.
+	   `pre`, not `nowrap`: in a chunk the gap between words can start the after part
+	   ("a" | " book"), and nowrap drops a space at the edge of a grid cell. Keep the three
+	   spans on one line in the markup: with `pre`, whitespace between them is a grid item. */
 	.word {
 		position: relative;
 		display: grid;
@@ -154,7 +158,26 @@ $effect(() => {
 		font-weight: 600;
 		font-variation-settings: "wdth" 100;
 		line-height: 1.1;
-		white-space: nowrap;
+		white-space: pre;
+	}
+
+	/* A chunk is wide, and its after part (" workplace.") often outgrows the right column,
+	   which moves the pivot off the axis. So a chunk's box runs to the stage's right edge,
+	   and the after part also spans the fourth column, the stage beyond the old box. While
+	   the chunk fits the stage, both outer columns stay equal and the pivot stays on the
+	   axis. When it doesn't, the after column grows past half and the pivot moves left, as
+	   on a single word, so no letter is cut off while the chunk fits the screen. A single
+	   word keeps the old box: it has no gap between words to show, and its drift on
+	   narrow screens predates this rule. */
+	.word:global([data-chunk]) {
+		width: 100%;
+		grid-template-columns: 1fr auto 1fr calc(30% - 3px);
+	}
+
+	/* An item that spans a flexible column has no automatic minimum, so give it one. */
+	.word:global([data-chunk]) .after {
+		grid-column: 3 / 5;
+		min-width: max-content;
 	}
 
 	/* The number stands where the word will be, so the word keeps its room and does not shift. */

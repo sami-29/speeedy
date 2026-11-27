@@ -41,6 +41,71 @@ const rebuiltAfter = async (page: Page, before: number) => {
 		.toBeGreaterThan(before);
 };
 
+/** A flash's text, and the text the reader sees once CSS has collapsed whitespace. */
+type Flash = { text: string; shown: string };
+
+/** Where a flash sat: the ORP letter's offset from the axis, and the edges of its text. */
+type Placement = {
+	offset: number;
+	left: number;
+	right: number;
+	stageLeft: number;
+	stageRight: number;
+};
+
+/**
+ * Reads `text` at 390px with two words per flash and returns where each of `flashes` sat.
+ * Measured in the page as each flash is shown, so no flash is missed.
+ */
+async function placements(
+	page: Page,
+	text: string,
+	flashes: string[],
+): Promise<Record<string, Placement>> {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await start(page, text.repeat(20).trim());
+	await page.evaluate(() => document.fonts.ready);
+	const group = await settings(page);
+	const before = await rebuilds(page);
+	await group.getByRole("button", { name: "More words per flash" }).click();
+	await rebuiltAfter(page, before);
+
+	await page.evaluate(() => {
+		const seen: Record<string, Placement> = {};
+		(window as unknown as { __seen: Record<string, Placement> }).__seen = seen;
+		const stage = document.querySelector('[data-testid="stage"]') as Element;
+		const word = document.querySelector('[data-testid="word"]') as Element;
+		const pivot = word.querySelector('[data-part="pivot"]') as Element;
+		const range = document.createRange();
+		new MutationObserver(() => {
+			const area = stage.getBoundingClientRect();
+			const box = pivot.getBoundingClientRect();
+			range.selectNodeContents(word);
+			const ink = range.getBoundingClientRect();
+			seen[word.textContent ?? ""] = {
+				offset: box.x + box.width / 2 - (area.x + area.width * 0.35 + 1.5),
+				left: ink.left,
+				right: ink.right,
+				stageLeft: area.left,
+				stageRight: area.right,
+			};
+		}).observe(word, {
+			subtree: true,
+			childList: true,
+			characterData: true,
+		});
+	});
+
+	const seen = () =>
+		page.evaluate(
+			() => (window as unknown as { __seen: Record<string, Placement> }).__seen,
+		);
+	await expect
+		.poll(async () => Object.keys(await seen()), { timeout: 10_000 })
+		.toEqual(expect.arrayContaining(flashes));
+	return seen();
+}
+
 async function pause(page: Page): Promise<string> {
 	await page.getByRole("button", { name: "Pause", exact: true }).click();
 	return (await page.getByTestId("word").textContent()) ?? "";
@@ -280,6 +345,95 @@ test.describe("settings", () => {
 		});
 		await group.getByRole("button", { name: "Fewer words per flash" }).click();
 		await expect(page.getByTestId("chunk")).toHaveText("1");
+	});
+
+	// #23: a chunk's ORP comes from its first word, so after a one- or two-letter first word
+	// the gap between words starts the after part ("a" | " book"). It must still show.
+	test("a flash of several words keeps the space beside the ORP letter", async ({
+		page,
+	}) => {
+		// "the organization" is the example from the issue. It joined on 1.x, where the pivot
+		// came from the whole chunk.
+		await start(
+			page,
+			"the organization of a book. a book of the day. ".repeat(20).trim(),
+		);
+		const group = await settings(page);
+		const before = await rebuilds(page);
+		await group.getByRole("button", { name: "More words per flash" }).click();
+		await rebuiltAfter(page, before);
+
+		// Recorded in the page, so no flash is missed. The text repeats, so recording from here
+		// still sees every pair. innerText follows CSS whitespace collapsing, so it drops a space
+		// the reader cannot see; textContent keeps it.
+		await page.evaluate(() => {
+			const seen: Flash[] = [];
+			(window as unknown as { __flashes: Flash[] }).__flashes = seen;
+			const word = document.querySelector(
+				'[data-testid="word"]',
+			) as HTMLElement;
+			new MutationObserver(() => {
+				const text = word.textContent ?? "";
+				if (!text || text === seen[seen.length - 1]?.text) return;
+				const parts = word.querySelectorAll<HTMLElement>("[data-part]");
+				// biome-ignore lint/performance/useDomNodeTextContent: the collapsed text is the point
+				const shown = Array.from(parts, (part) => part.innerText).join("");
+				seen.push({ text, shown });
+			}).observe(word, {
+				subtree: true,
+				childList: true,
+				characterData: true,
+			});
+		});
+
+		const flashes = () =>
+			page.evaluate(
+				() => (window as unknown as { __flashes: Flash[] }).__flashes,
+			);
+		const pairs = ["the organization", "of a", "a book", "of the"];
+		await expect
+			.poll(async () => (await flashes()).map((flash) => flash.text), {
+				timeout: 10_000,
+			})
+			.toEqual(expect.arrayContaining(pairs));
+		const shown = (await flashes()).filter((flash) =>
+			pairs.includes(flash.text),
+		);
+		expect(shown.map((flash) => flash.shown)).toEqual(
+			shown.map((flash) => flash.text),
+		);
+	});
+
+	// The space shown for #23 widens the after part. At 390px that made "a workplace." wider
+	// than its column, and the grid moved the ORP letter left to fit it.
+	test("a flash of several words keeps its ORP letter on the axis at 390px", async ({
+		page,
+	}) => {
+		const seen = await placements(page, "a workplace. a book. ", [
+			"a workplace.",
+			"a book.",
+		]);
+		for (const pair of ["a workplace.", "a book."]) {
+			expect(Math.abs(seen[pair]?.offset as number), pair).toBeLessThanOrEqual(
+				1,
+			);
+		}
+	});
+
+	// Centring a chunk on the axis must not push its end past the stage edge, where it is cut off.
+	test("a flash of several words too long for the axis stays whole at 390px", async ({
+		page,
+	}) => {
+		const chunk = "underestimated responsibilities.";
+		const single = "internationalization.";
+		const seen = await placements(page, `${chunk} ${single} `, [chunk, single]);
+		const long = seen[chunk] as Placement;
+		expect(long.left, chunk).toBeGreaterThanOrEqual(long.stageLeft - 0.5);
+		expect(long.right, chunk).toBeLessThanOrEqual(long.stageRight + 0.5);
+		// A single word keeps its old grid, where a long one moves left and stays whole.
+		const word = seen[single] as Placement;
+		expect(word.left, single).toBeGreaterThanOrEqual(word.stageLeft - 0.5);
+		expect(word.right, single).toBeLessThanOrEqual(word.stageRight + 0.5);
 	});
 
 	test("smart speed, punctuation pauses and speed ramp are switches that rebuild", async ({

@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Pacing settings**: set the sentence pause (1 to 10), the paragraph pause (1 to 3), a comma pause and the pause after a closing aside, as in 1.x. The speed ramp now builds from your speed to a target speed over a length you choose.
 - **Rewind step and start countdown**: a Words button and the J key go back by a number of words you set (5 to start with), beside the sentence, paragraph and chapter rewinds. RSVP can count 3, 2, 1 before it starts.
 
+### Fixed
+- **Joined words with 2+ words per flash** — the space next to the highlighted letter no longer disappears, so "a book" no longer shows as "abook". ([#23](https://github.com/sami-29/speeedy/issues/23))
+- **Multi-word flashes on narrow screens** — a flash of several words now keeps its highlighted letter on the reading axis. A flash too long for that moves left so it stays whole, as long as it fits the screen at all. ([#23](https://github.com/sami-29/speeedy/issues/23))
+
 ## [1.3.0] - 2026-06-26
 
 ### Added
