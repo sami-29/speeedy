@@ -30,6 +30,8 @@ export type SessionTrackerOptions = {
 	clock: Clock;
 	/** Called with each finished Session. */
 	save: (record: SessionRecord) => void;
+	/** Called once as each Session starts: when reading first begins, and again after each save. */
+	onStart?: (startedAt: number) => void;
 	/** Wall-clock time in epoch milliseconds. Defaults to `Date.now`. */
 	now?: () => number;
 	/** IANA time zone for Session dates. Defaults to the reader's own. */

@@ -9,8 +9,9 @@ import {
 	type SessionRecord,
 	streaks,
 } from "@speeedy/engine";
-import type { LibraryStore } from "#lib/library/store.ts";
+import type { DocumentSource, LibraryStore } from "#lib/library/store.ts";
 import { trackEvent } from "#lib/telemetry.ts";
+import type { VisitContext } from "#lib/visit.ts";
 
 export type SessionRecording = {
 	/** Save the Session so far and start a fresh one. */
@@ -36,6 +37,11 @@ export type RecordSessionsOptions = {
 	now?: () => number;
 	timeZone?: string;
 	page?: PageTargets;
+	/**
+	 * Sends `session_started` as each Session starts, with where the document came from and
+	 * the Visit's surface and `ref`. Without it no start event is sent.
+	 */
+	start?: { source: DocumentSource; visit: () => VisitContext };
 };
 
 /**
