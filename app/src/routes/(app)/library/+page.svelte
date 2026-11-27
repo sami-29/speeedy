@@ -6,7 +6,7 @@ import { startLauncherReceiver } from "#lib/launcher/receiver.ts";
 import { saveLauncherPage } from "#lib/launcher/save.ts";
 import BackupPanel from "#lib/library/BackupPanel.svelte";
 import IntakePanel from "#lib/library/IntakePanel.svelte";
-import { library } from "#lib/library/instance.ts";
+import { library, recoverPositions } from "#lib/library/instance.ts";
 import { LANGUAGES, languageName } from "#lib/library/languages.ts";
 import { SAMPLES, type Sample } from "#lib/library/samples.ts";
 import {
@@ -50,6 +50,7 @@ const lastRead = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 
 async function refresh() {
 	try {
+		await recoverPositions();
 		docs = await library().list();
 		error = "";
 	} catch {
