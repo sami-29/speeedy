@@ -12,6 +12,11 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createLiveTimeline } from "../src/lib/reader/live-timeline.ts";
 import {
+	DEFAULT_READER_SETTINGS,
+	enginePatch,
+	type ReaderSettings,
+} from "../src/lib/reader/settings.ts";
+import {
 	createTimelineClient,
 	type WorkerLike,
 } from "../src/lib/reader/timeline-client.ts";
@@ -477,5 +482,107 @@ describe("Live Timeline", () => {
 		worker.release();
 		await vi.advanceTimersByTimeAsync(10);
 		expect(engine.settings.chunkSize).toBe(1);
+	});
+});
+
+describe("Live Timeline with the reader's pacing settings", () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	const reader = (change: Partial<ReaderSettings> = {}): ReaderSettings => ({
+		...DEFAULT_READER_SETTINGS,
+		wpm: 300,
+		...change,
+	});
+
+	it("rebuilds the pauses from the Cursor on, without moving the Position", async () => {
+		const { client, engine, document } = await setup(
+			{},
+			{ document: SENTENCES },
+		);
+		engine.seek({ block: 1, offset: 0 });
+		const before = engine.timeline;
+		const index = engine.index;
+		const position = engine.position;
+		const live = createLiveTimeline({ client, engine });
+		const after = reader({ sentencePause: 5, commaPause: true });
+		live.change(enginePatch({ sentencePause: 5 }, after));
+		await vi.advanceTimersByTimeAsync(300);
+		await live.settled();
+		const expected = rebuildTimeline(document, before, index, {
+			wpm: 300,
+			sentencePauseMultiplier: 5,
+			paragraphPauseMultiplier: 1.8,
+			commaAsPause: true,
+			contextPauseOnClose: true,
+		});
+		expect(engine.timeline.frames).toEqual(expected.frames);
+		expect(engine.position).toEqual(position);
+		// The Frames before the Cursor keep the pauses they were read with.
+		expect(engine.timeline.frames.slice(0, index)).toEqual(
+			before.frames.slice(0, index),
+		);
+		expect(engine.timeline.totalMs).toBeGreaterThan(before.totalMs);
+	});
+
+	it("builds a ramp from the set speed to the target over its length", async () => {
+		const { client, engine } = await setup();
+		const live = createLiveTimeline({ client, engine });
+		const ramp = reader({ speedRamp: true, rampTarget: 600, rampLength: 10 });
+		live.change(enginePatch({ speedRamp: true }, ramp));
+		await vi.advanceTimersByTimeAsync(300);
+		await live.settled();
+		const frames = engine.timeline.frames;
+		// 300 WPM is 200 ms a word; the target, 600 WPM, is 100 ms.
+		expect(frames[0]?.durationMs).toBeCloseTo(200, 3);
+		expect(frames[10]?.durationMs).toBeCloseTo(100, 3);
+		expect(frames[40]?.durationMs).toBeCloseTo(100, 3);
+	});
+
+	it("keeps the ramp on the target when the reader changes their speed", async () => {
+		const { client, engine } = await setup();
+		const live = createLiveTimeline({ client, engine });
+		const ramp = reader({ speedRamp: true, rampTarget: 600, rampLength: 10 });
+		live.change(enginePatch({ speedRamp: true }, ramp));
+		await vi.advanceTimersByTimeAsync(300);
+		await live.settled();
+
+		const faster = reader({
+			speedRamp: true,
+			rampTarget: 600,
+			rampLength: 10,
+			wpm: 400,
+		});
+		live.change(enginePatch({ wpm: 400 }, faster));
+		expect(engine.settings.wpm).toBe(400);
+		await vi.advanceTimersByTimeAsync(300);
+		await live.settled();
+		const rate = engine.settings.wpm / engine.timelineWpm;
+		const real = (index: number) =>
+			(engine.timeline.frames[index]?.durationMs ?? 0) / rate;
+		// The first word is at the new set speed (150 ms at 400 WPM), the rest at the target.
+		expect(real(0)).toBeCloseTo(150, 2);
+		expect(real(40)).toBeCloseTo(100, 2);
+	});
+
+	it("rebuilds a ramp from where the reader pressed play", async () => {
+		const { client, engine } = await setup();
+		const live = createLiveTimeline({ client, engine });
+		const ramp = reader({ speedRamp: true, rampTarget: 600, rampLength: 10 });
+		live.change(enginePatch({ speedRamp: true }, ramp));
+		await vi.advanceTimersByTimeAsync(300);
+		await live.settled();
+
+		live.anchor(at(21));
+		await vi.advanceTimersByTimeAsync(300);
+		await live.settled();
+		const frames = engine.timeline.frames;
+		// Frames before the anchor are left as built; from it the ramp starts over at 300.
+		expect(frames[20]?.durationMs).toBeCloseTo(200, 3);
+		expect(frames[30]?.durationMs).toBeCloseTo(100, 3);
 	});
 });

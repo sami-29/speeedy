@@ -4,7 +4,12 @@ import {
 	type Position,
 } from "@speeedy/contracts";
 import type { Clock } from "./clock";
-import { type BackUnit, backTarget, startIndexes } from "./navigation";
+import {
+	type BackUnit,
+	backTarget,
+	backWordsTarget,
+	startIndexes,
+} from "./navigation";
 import { buildTimeline, rebuildTimeline, resolveSettings } from "./timeline";
 import type { EngineSettings, Frame, Timeline } from "./types";
 
@@ -72,6 +77,12 @@ export type Engine = {
 	 * the previous one when the Cursor is already on a start. Emits `seek`.
 	 */
 	back(unit?: BackUnit): void;
+	/**
+	 * Rewind by a number of words: to the Frame that starts that many words before the
+	 * current one (at least one word back, and never before the first Frame). A chunk counts
+	 * as the words it holds. Emits `seek`.
+	 */
+	backWords(words: number): void;
 	on<E extends EngineEventName>(
 		event: E,
 		listener: (payload: EngineEvents[E]) => void,
@@ -340,6 +351,10 @@ export function createEngine(options: EngineOptions): Engine {
 		back(unit = "sentence") {
 			if (frames.length === 0) return;
 			moveTo(backTarget(startsFor(unit), index));
+		},
+		backWords(words) {
+			if (frames.length === 0) return;
+			moveTo(backWordsTarget(frames, index, words));
 		},
 		updateSettings(patch) {
 			if (!document) {

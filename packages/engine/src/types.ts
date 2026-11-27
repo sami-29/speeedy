@@ -65,6 +65,8 @@ export type EngineSettings = {
 	rampSpanWords: number;
 	/** The ramp's starting speed, as a fraction of `wpm` (0.5 starts at half speed). */
 	rampStart: number;
+	/** Where the ramp ends, as a fraction of `wpm`: 1 ends at the set speed, 2 at twice it. */
+	rampEnd: number;
 	/** A sprint repeats every this many words. 0 turns sprints off. */
 	sprintEveryWords: number;
 	/** The last this many words of each sprint period are read faster. */

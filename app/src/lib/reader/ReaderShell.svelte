@@ -7,7 +7,14 @@ import { attachReadingSound } from "#lib/audio/reading-sound.ts";
 import { m } from "#lib/paraglide/messages.js";
 import { deviceStorage } from "../device-storage.ts";
 import ChapterList from "./ChapterList.svelte";
-import { modeName, rewindName, shortcutName } from "./copy.ts";
+import {
+	backWordsName,
+	modeName,
+	rewindName,
+	rewindWordsName,
+	shortcutName,
+} from "./copy.ts";
+import { createCountdown } from "./countdown.ts";
 import { loadFocusOnPlay, saveFocusOnPlay } from "./focus.ts";
 import {
 	DEFAULT_MODE_ID,
@@ -29,6 +36,7 @@ import {
 	nextMode,
 	REWINDS,
 	type ReaderCommand,
+	WORD_REWIND,
 } from "./shortcuts.ts";
 import WpmSlider from "./WpmSlider.svelte";
 import { clampWpm } from "./wpm.ts";
@@ -68,6 +76,19 @@ const usesWpm = $derived(mode?.settingsUsed.includes("wpm") ?? true);
 // svelte-ignore state_referenced_locally
 let autoplay = $state(source !== "share");
 
+// Only RSVP counts in: the count takes the place of its word.
+const usesCountdown = $derived(
+	mode?.settingsUsed.includes("countdown") ?? false,
+);
+// The number on show while the start countdown runs, or null.
+let count = $state<number | null>(null);
+const countdown = createCountdown({
+	oncount: (next) => {
+		count = next;
+	},
+	ondone: () => reading.engine.play(),
+});
+
 let playing = $state(false);
 let helpOpen = $state(false);
 let settingsOpen = $state(false);
@@ -101,6 +122,8 @@ async function enterFocus() {
  */
 async function leaveFocus(by: "key" | "pointer" = "key") {
 	if (!focused) return;
+	// Bringing the controls back stops a count that was started in the focus state.
+	countdown.cancel();
 	const needsRefocus =
 		by === "key" &&
 		(document.activeElement === document.body ||
@@ -147,6 +170,7 @@ onMount(() => {
 		engine.on("play", () =>
 			untrack(() => {
 				playing = true;
+				countdown.cancel();
 				if (focusOnPlay) void enterFocus();
 			}),
 		),
@@ -175,6 +199,7 @@ onMount(() => {
 	toggle?.focus();
 	return () => {
 		for (const stop of stops) stop();
+		countdown.cancel();
 		clearTimeout(wakeTimer);
 	};
 });
@@ -218,7 +243,7 @@ $effect(() => {
 /** A change the reader made: it applies at once and is kept on this device. */
 function setSettings(change: Partial<ReaderSettings>) {
 	settings = { ...settings, ...change };
-	reading.live.change(enginePatch(change));
+	reading.live.change(enginePatch(change, settings));
 	saveReaderSettings(deviceStorage(), settings);
 }
 
@@ -244,6 +269,7 @@ function selectMode(id: ModeId) {
 	const next = readerModes.get(id);
 	if (!next) return;
 	autoplay = reading.engine.playing;
+	countdown.cancel();
 	// Each Clock keeps its own time, so the Engine stops before it changes Clock and the next
 	// mode plays on from the same Position.
 	reading.engine.pause();
@@ -254,13 +280,24 @@ function selectMode(id: ModeId) {
 function togglePlay() {
 	const engine = reading.engine;
 	if (engine.playing) engine.pause();
-	else engine.play();
+	else if (countdown.running) countdown.cancel();
+	else if (settings.countdown && usesCountdown) {
+		// With focus on Play the chrome goes now, not when the words start: the stage must
+		// not move between the count and the first word.
+		if (focusOnPlay) void enterFocus();
+		countdown.start();
+	} else engine.play();
 }
 
 /** Rewind. There is nowhere to go back to without chapters, so that rewind does nothing. */
 function rewind(unit: BackUnit) {
 	if (unit === "chapter" && chapters.length === 0) return;
 	reading.engine.back(unit);
+}
+
+/** Rewind by the reader's own number of words. */
+function rewindWords() {
+	reading.engine.backWords(settings.rewindStep);
 }
 
 function run(command: ReaderCommand) {
@@ -270,6 +307,9 @@ function run(command: ReaderCommand) {
 			break;
 		case "back":
 			rewind(command.unit);
+			break;
+		case "back-words":
+			rewindWords();
 			break;
 		case "speed":
 			setWpm(settings.wpm + command.delta);
@@ -386,6 +426,7 @@ function onKeydown(event: KeyboardEvent) {
 			{autoplay}
 			{language}
 			pauseView={settings.pauseView}
+			{count}
 			clock={reading.clocks[mode.clock] ?? reading.useClock(mode.clock)}
 		/>
 	{/await}
@@ -404,9 +445,19 @@ function onKeydown(event: KeyboardEvent) {
 		</div>
 		<div class="transport">
 			<button type="button" class="button-primary" bind:this={toggle} onclick={togglePlay}>
-				{playing ? m.reader_pause() : m.reader_play()}
+				{playing ? m.reader_pause() : count !== null ? m.reader_countdown_cancel() : m.reader_play()}
 			</button>
 			<div role="group" aria-label={m.reader_rewind_label()} class="rewinds">
+				<button
+					type="button"
+					class="segment border-2 border-ink"
+					aria-label={backWordsName(settings.rewindStep)}
+					aria-keyshortcuts={WORD_REWIND.keyshortcuts}
+					onclick={rewindWords}
+				>
+					<span aria-hidden="true">←</span>
+					{rewindWordsName(settings.rewindStep)}
+				</button>
 				{#each REWINDS as entry (entry.unit)}
 					<button
 						type="button"

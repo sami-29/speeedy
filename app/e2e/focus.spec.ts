@@ -22,7 +22,7 @@ async function start(page: Page) {
 }
 
 async function pause(page: Page) {
-	await page.getByRole("button", { name: "Pause" }).click();
+	await page.getByRole("button", { name: "Pause", exact: true }).click();
 	await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
 }
 
@@ -97,7 +97,9 @@ test.describe("focus state", () => {
 		await expectFocused(page);
 		await page.mouse.click(10, 10);
 		await expectChrome(page);
-		await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "Pause", exact: true }),
+		).toBeVisible();
 	});
 
 	test("Play enters it when the reader turns that on, and the choice is remembered", async ({

@@ -387,3 +387,85 @@ describe("chunk size", () => {
 		expect(frames[1]?.position).toEqual({ block: 0, offset: 12 });
 	});
 });
+
+describe("ramp to a target", () => {
+	// Starts at the speed (1) and builds to twice it over four words.
+	const toTarget = { rampSpanWords: 4, rampStart: 1, rampEnd: 2 };
+
+	it("ends at the end fraction of the speed, and stays there", () => {
+		expect(rampRule(frame("word"), context(toTarget, 4))).toBeCloseTo(0.5, 6);
+		expect(rampRule(frame("word"), context(toTarget, 400))).toBeCloseTo(0.5, 6);
+	});
+
+	it("builds linearly from the start fraction to the end fraction", () => {
+		expect(rampRule(frame("word"), context(toTarget, 0))).toBe(1);
+		expect(rampRule(frame("word"), context(toTarget, 2))).toBeCloseTo(
+			1 / 1.5,
+			6,
+		);
+	});
+
+	it("can slow down: a target below the speed lengthens the Frames", () => {
+		const down = { rampSpanWords: 4, rampStart: 1, rampEnd: 0.5 };
+		expect(rampRule(frame("word"), context(down, 4))).toBeCloseTo(2, 6);
+	});
+
+	it("ends at full speed when no end is given, as before", () => {
+		const warmUp = { rampSpanWords: 4, rampStart: 0.5 };
+		expect(rampRule(frame("word"), context(warmUp, 4))).toBe(1);
+	});
+
+	it("shortens the Frames of a Timeline from the anchor on", () => {
+		const text = Array.from({ length: 12 }, (_, i) => `w${i}`).join(" ");
+		const flat = durations(text);
+		const ramped = durations(text, {
+			rampSpanWords: 4,
+			rampStart: 1,
+			rampEnd: 2,
+		});
+		expect(ramped[0]).toBeCloseTo(flat[0] ?? 0, 3);
+		expect(ramped[4]).toBeCloseTo((flat[4] ?? 0) / 2, 3);
+		expect(ramped[11]).toBeCloseTo((flat[11] ?? 0) / 2, 3);
+	});
+});
+
+describe("pause settings in a Timeline", () => {
+	const sentence = "Alpha beta. Gamma delta";
+	const base = durations(sentence, {
+		sentencePauseMultiplier: 0,
+		paragraphPauseMultiplier: 1,
+	});
+
+	it("scale the sentence-end Frame by the sentence pause", () => {
+		const two = durations(sentence, { sentencePauseMultiplier: 2 });
+		const five = durations(sentence, { sentencePauseMultiplier: 5 });
+		expect(two[1]).toBeCloseTo((base[1] ?? 0) * 3, 3);
+		expect(five[1]).toBeCloseTo((base[1] ?? 0) * 6, 3);
+		expect(five[0]).toBeCloseTo(base[0] ?? 0, 3);
+	});
+
+	it("scale the first Frame of a paragraph by the paragraph pause", () => {
+		const doc = paragraphs("one two", "three four");
+		const at = (paragraphPauseMultiplier: number) =>
+			buildTimeline(doc, {
+				wpm: 300,
+				sentencePauseMultiplier: 0,
+				paragraphPauseMultiplier,
+			}).frames.map((f) => f.durationMs);
+		expect((at(2.5)[2] ?? 0) / (at(1)[2] ?? 1)).toBeCloseTo(2.5, 3);
+		expect(at(2.5)[3]).toBeCloseTo(at(1)[3] ?? 0, 3);
+	});
+
+	it("stretch commas like a sentence end when comma pause is on", () => {
+		const off = durations("one, two", { commaAsPause: false });
+		const on = durations("one, two", { commaAsPause: true });
+		expect(on[0]).toBeGreaterThan(off[0] ?? 0);
+	});
+
+	it("add the fixed 1.15 pause on a closing aside only when it is on", () => {
+		const on = durations("one (two) three", { contextPauseOnClose: true });
+		const off = durations("one (two) three", { contextPauseOnClose: false });
+		expect((on[1] ?? 0) / (off[1] ?? 1)).toBeCloseTo(1.15, 3);
+		expect(on[0]).toBeCloseTo(off[0] ?? 0, 3);
+	});
+});

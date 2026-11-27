@@ -24,6 +24,8 @@ export type ModeProps = {
 	language?: string;
 	/** What a mode that shows one word at a time shows while paused (RSVP). */
 	pauseView?: PauseView;
+	/** The number on show while the start countdown runs, or null (RSVP). */
+	count?: number | null;
 };
 
 /**
@@ -53,7 +55,15 @@ readerModes.register({
 		"chunkSize",
 		"smartSpeed",
 		"punctuationPauses",
+		"sentencePause",
+		"paragraphPause",
+		"commaPause",
+		"asidePause",
 		"speedRamp",
+		"rampTarget",
+		"rampLength",
+		"rewindStep",
+		"countdown",
 		"pauseView",
 	],
 });
@@ -70,7 +80,14 @@ readerModes.register({
 		"chunkSize",
 		"smartSpeed",
 		"punctuationPauses",
+		"sentencePause",
+		"paragraphPause",
+		"commaPause",
+		"asidePause",
 		"speedRamp",
+		"rampTarget",
+		"rampLength",
+		"rewindStep",
 	],
 });
 

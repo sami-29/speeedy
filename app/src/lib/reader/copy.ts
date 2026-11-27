@@ -27,6 +27,7 @@ export const shortcutName = (id: ShortcutId): string =>
 		back: m.shortcut_back,
 		back_paragraph: m.shortcut_back_paragraph,
 		back_chapter: m.shortcut_back_chapter,
+		back_words: m.shortcut_back_words,
 		speed: m.shortcut_speed,
 		speed_big: m.shortcut_speed_big,
 		mode: m.shortcut_mode,
@@ -49,3 +50,13 @@ export const rewindName = (unit: BackUnit): string =>
 		paragraph: m.reader_rewind_paragraph,
 		chapter: m.reader_rewind_chapter,
 	})[unit]();
+
+/** The short label of the rewind-by-words button: "5 words". */
+export const rewindWordsName = (count: number): string =>
+	count === 1 ? m.reader_rewind_one_word() : m.reader_rewind_n_words({ count });
+
+/** The button's accessible name: "Back 5 words". */
+export const backWordsName = (count: number): string =>
+	count === 1
+		? m.reader_rewind_back_one_word()
+		: m.reader_rewind_back_n_words({ count });

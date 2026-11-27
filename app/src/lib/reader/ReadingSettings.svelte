@@ -1,9 +1,16 @@
 <script lang="ts">
 import { m } from "#lib/paraglide/messages.js";
+import NumberRow from "./NumberRow.svelte";
 import {
 	MAX_CHUNK_SIZE,
 	MIN_CHUNK_SIZE,
+	type NumberRange,
+	PARAGRAPH_PAUSE_RANGE,
+	RAMP_LENGTH_RANGE,
+	RAMP_TARGET_RANGE,
+	REWIND_STEP_RANGE,
 	type ReaderSettings,
+	SENTENCE_PAUSE_RANGE,
 } from "./settings.ts";
 
 let {
@@ -20,31 +27,141 @@ let {
 	label?: string;
 } = $props();
 
-const all = $derived([
+type Switch = {
+	kind: "switch";
+	id: keyof ReaderSettings & string;
+	label: string;
+	note: string;
+	checked: boolean;
+	sub?: boolean;
+};
+type Count = {
+	kind: "number";
+	id: keyof ReaderSettings & string;
+	label: string;
+	note?: string;
+	unit?: string;
+	value: number;
+	range: NumberRange;
+	sub?: boolean;
+};
+type Row = Switch | Count;
+
+// The rows in the order they show. A row for a number that belongs to a switch (the pause
+// lengths, the ramp's target) is there only while that switch is on.
+const pauseRows = $derived<Row[]>(
+	settings.punctuationPauses
+		? [
+				{
+					kind: "number",
+					id: "sentencePause",
+					label: m.reader_sentence_pause(),
+					note: m.reader_sentence_pause_note(),
+					unit: m.reader_unit_times(),
+					value: settings.sentencePause,
+					range: SENTENCE_PAUSE_RANGE,
+					sub: true,
+				},
+				{
+					kind: "number",
+					id: "paragraphPause",
+					label: m.reader_paragraph_pause(),
+					note: m.reader_paragraph_pause_note(),
+					unit: m.reader_unit_times(),
+					value: settings.paragraphPause,
+					range: PARAGRAPH_PAUSE_RANGE,
+					sub: true,
+				},
+				{
+					kind: "switch",
+					id: "commaPause",
+					label: m.reader_comma_pause(),
+					note: m.reader_comma_pause_note(),
+					checked: settings.commaPause,
+					sub: true,
+				},
+				{
+					kind: "switch",
+					id: "asidePause",
+					label: m.reader_aside_pause(),
+					note: m.reader_aside_pause_note(),
+					checked: settings.asidePause,
+					sub: true,
+				},
+			]
+		: [],
+);
+const rampRows = $derived<Row[]>(
+	settings.speedRamp
+		? [
+				{
+					kind: "number",
+					id: "rampTarget",
+					label: m.reader_ramp_target(),
+					unit: m.reader_wpm_unit(),
+					value: settings.rampTarget,
+					range: RAMP_TARGET_RANGE,
+					sub: true,
+				},
+				{
+					kind: "number",
+					id: "rampLength",
+					label: m.reader_ramp_length(),
+					note: m.reader_ramp_length_note(),
+					unit: m.reader_unit_words(),
+					value: settings.rampLength,
+					range: RAMP_LENGTH_RANGE,
+					sub: true,
+				},
+			]
+		: [],
+);
+const all = $derived<Row[]>([
 	{
-		id: "smartSpeed" as const,
+		kind: "switch",
+		id: "smartSpeed",
 		label: m.reader_smart(),
 		note: m.reader_smart_note(),
 		checked: settings.smartSpeed,
 	},
 	{
-		id: "punctuationPauses" as const,
+		kind: "switch",
+		id: "punctuationPauses",
 		label: m.reader_punctuation(),
 		note: m.reader_punctuation_note(),
 		checked: settings.punctuationPauses,
 	},
+	...pauseRows,
 	{
-		id: "speedRamp" as const,
+		kind: "switch",
+		id: "speedRamp",
 		label: m.reader_ramp(),
 		note: m.reader_ramp_note(),
 		checked: settings.speedRamp,
 	},
+	...rampRows,
+	{
+		kind: "number",
+		id: "rewindStep",
+		label: m.reader_rewind_step(),
+		note: m.reader_rewind_step_note(),
+		unit: m.reader_unit_words(),
+		value: settings.rewindStep,
+		range: REWIND_STEP_RANGE,
+	},
+	{
+		kind: "switch",
+		id: "countdown",
+		label: m.reader_countdown(),
+		note: m.reader_countdown_note(),
+		checked: settings.countdown,
+	},
 ]);
-const switches = $derived(all.filter((item) => used.includes(item.id)));
+const rows = $derived(all.filter((item) => used.includes(item.id)));
 const chunk = $derived(used.includes("chunkSize"));
 </script>
 
-{#if chunk || switches.length > 0}
+{#if chunk || rows.length > 0}
 <div role="group" aria-label={label} class="settings">
 	{#if chunk}
 	<div class="row">
@@ -70,21 +187,34 @@ const chunk = $derived(used.includes("chunkSize"));
 		</span>
 	</div>
 	{/if}
-	{#each switches as item (item.id)}
-		<div class="row">
-			<label class="check label" for="setting-{item.id}">{item.label}</label>
-			<input
+	{#each rows as item (item.id)}
+		{#if item.kind === "number"}
+			<NumberRow
 				id="setting-{item.id}"
-				type="checkbox"
-				checked={item.checked}
-				aria-describedby="setting-{item.id}-note"
-				onchange={(event) =>
-					onchange({
-						[item.id]: event.currentTarget.checked,
-					} as Partial<ReaderSettings>)}
+				label={item.label}
+				note={item.note}
+				unit={item.unit}
+				value={item.value}
+				range={item.range}
+				sub={item.sub}
+				onchange={(value) => onchange({ [item.id]: value } as Partial<ReaderSettings>)}
 			/>
-			<p id="setting-{item.id}-note" class="caption note text-ink-2">{item.note}</p>
-		</div>
+		{:else}
+			<div class="row" class:sub={item.sub}>
+				<label class="check label name" for="setting-{item.id}">{item.label}</label>
+				<input
+					id="setting-{item.id}"
+					type="checkbox"
+					checked={item.checked}
+					aria-describedby="setting-{item.id}-note"
+					onchange={(event) =>
+						onchange({
+							[item.id]: event.currentTarget.checked,
+						} as Partial<ReaderSettings>)}
+				/>
+				<p id="setting-{item.id}-note" class="caption note text-ink-2">{item.note}</p>
+			</div>
+		{/if}
 	{/each}
 </div>
 {/if}
@@ -125,6 +255,11 @@ const chunk = $derived(used.includes("chunkSize"));
 	input[type="checkbox"] {
 		width: 24px;
 		height: 24px;
+	}
+
+	.sub .name,
+	.sub .note {
+		padding-inline-start: var(--spacing-s-2);
 	}
 
 	.note {

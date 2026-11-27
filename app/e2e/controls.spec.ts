@@ -42,7 +42,7 @@ const rebuiltAfter = async (page: Page, before: number) => {
 };
 
 async function pause(page: Page): Promise<string> {
-	await page.getByRole("button", { name: "Pause" }).click();
+	await page.getByRole("button", { name: "Pause", exact: true }).click();
 	return (await page.getByTestId("word").textContent()) ?? "";
 }
 
@@ -310,7 +310,9 @@ test.describe("settings", () => {
 			.getByRole("checkbox", { name: "Smart speed" })
 			.click();
 		await rebuiltAfter(page, before);
-		await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "Pause", exact: true }),
+		).toBeVisible();
 	});
 });
 
@@ -323,7 +325,9 @@ test.describe("keyboard", () => {
 		await page.keyboard.press("Space");
 		await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
 		await page.keyboard.press("k");
-		await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "Pause", exact: true }),
+		).toBeVisible();
 	});
 
 	test("ArrowLeft goes back to the start of the sentence, then the one before", async ({

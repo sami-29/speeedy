@@ -31,7 +31,7 @@ async function reload(page: Page) {
 }
 
 async function pause(page: Page) {
-	await page.getByRole("button", { name: "Pause" }).click();
+	await page.getByRole("button", { name: "Pause", exact: true }).click();
 	await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
 }
 

@@ -35,9 +35,10 @@ it("drives Pacer with the timer Clock and the same pacing rules as RSVP", () => 
 	const rsvp = readerModes.get("rsvp");
 	const pacer = readerModes.get("pacer");
 	expect(pacer?.pacingRules).toEqual(rsvp?.pacingRules);
-	// The same settings, less the paused view: Pacer always shows the whole text.
+	// The same settings, less the paused view (Pacer always shows the whole text) and the
+	// start countdown (a count needs the single word's stage).
 	expect(pacer?.settingsUsed).toEqual(
-		rsvp?.settingsUsed.filter((id) => id !== "pauseView"),
+		rsvp?.settingsUsed.filter((id) => id !== "pauseView" && id !== "countdown"),
 	);
 	expect(typeof pacer?.view).toBe("function");
 });
@@ -75,4 +76,29 @@ it("paces Listen by the voice: no pacing rules, and no reading speed among its s
 	expect(listen?.settingsUsed).toEqual(
 		expect.arrayContaining(["voice", "voiceRate"]),
 	);
+});
+
+it("gives RSVP and Pacer every pacing setting: the pauses, the ramp with its target and length, the rewind step", () => {
+	for (const id of ["rsvp", "pacer"]) {
+		expect(readerModes.get(id)?.settingsUsed, id).toEqual(
+			expect.arrayContaining([
+				"smartSpeed",
+				"punctuationPauses",
+				"sentencePause",
+				"paragraphPause",
+				"commaPause",
+				"asidePause",
+				"speedRamp",
+				"rampTarget",
+				"rampLength",
+				"rewindStep",
+			]),
+		);
+	}
+});
+
+it("offers the start countdown in RSVP only", () => {
+	expect(readerModes.get("rsvp")?.settingsUsed).toContain("countdown");
+	expect(readerModes.get("pacer")?.settingsUsed).not.toContain("countdown");
+	expect(readerModes.get("listen")?.settingsUsed).not.toContain("countdown");
 });
