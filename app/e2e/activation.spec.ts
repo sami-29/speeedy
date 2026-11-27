@@ -23,8 +23,16 @@ async function capture(page: Page) {
 	return { events, bodies, urls };
 }
 
-const named = (events: Sent[], name: string) =>
-	events.filter((e) => e.event === name);
+/** The events of one name, without the `exp_` variants every event carries beside its own properties. */
+const named = (events: Sent[], name: string): Sent[] =>
+	events
+		.filter((e) => e.event === name)
+		.map((e) => ({
+			event: e.event,
+			properties: Object.fromEntries(
+				Object.entries(e.properties).filter(([key]) => !key.startsWith("exp_")),
+			),
+		}));
 
 async function startReading(page: Page, text = TEXT) {
 	await page.getByRole("textbox", { name: "Text to read" }).fill(text);
