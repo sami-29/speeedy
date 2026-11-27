@@ -1,9 +1,15 @@
 import type { Position } from "@speeedy/contracts";
+import type { PositionKeeper } from "./pending-position.ts";
 
 export type PositionSaverOptions = {
 	/** Writes a Position and its progress. A failure is dropped: reading goes on. */
 	save: (position: Position, progress: number) => Promise<unknown>;
 	progress: (position: Position) => number;
+	/**
+	 * Holds each Position at once, before `save` starts: `save` is async and cannot finish if
+	 * the page goes first. It is released when `save` has finished.
+	 */
+	keeper?: PositionKeeper;
 	/** How often a playing reader's Position is written. */
 	intervalMs?: number;
 };
@@ -29,7 +35,14 @@ export function createPositionSaver(
 	const flush = () => {
 		if (!latest || !dirty) return;
 		dirty = false;
-		options.save(latest, options.progress(latest)).catch(() => undefined);
+		const progress = options.progress(latest);
+		const kept = options.keeper?.keep(latest, progress);
+		options
+			.save(latest, progress)
+			.then(() => {
+				if (kept !== undefined) options.keeper?.release(kept);
+			})
+			.catch(() => undefined);
 	};
 	const onHide = () => {
 		if (document.visibilityState === "hidden") flush();

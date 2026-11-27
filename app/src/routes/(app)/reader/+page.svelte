@@ -2,7 +2,8 @@
 import type { Document, Position } from "@speeedy/contracts";
 import { onDestroy, onMount } from "svelte";
 import { deviceStorage } from "#lib/device-storage.ts";
-import { library } from "#lib/library/instance.ts";
+import { library, recoverPositions } from "#lib/library/instance.ts";
+import { createPositionKeeper } from "#lib/library/pending-position.ts";
 import {
 	createPositionSaver,
 	type PositionSaver,
@@ -83,6 +84,7 @@ function show(
 		saver = createPositionSaver({
 			save: (position, progress) => store.savePosition(id, position, progress),
 			progress: progressTracker(document),
+			keeper: createPositionKeeper(deviceStorage(), id),
 		});
 	}
 	failed = false;
@@ -125,6 +127,7 @@ async function open(
 		return;
 	}
 	try {
+		await recoverPositions();
 		const store = library();
 		const { meta, duplicate } = await store.addDocument({
 			document: result.document,
@@ -165,6 +168,7 @@ async function open(
 /** Open the document the Library holds as current, at its Position. */
 async function restore() {
 	try {
+		await recoverPositions();
 		const store = library();
 		const id = await store.currentId();
 		if (!id || session) return;

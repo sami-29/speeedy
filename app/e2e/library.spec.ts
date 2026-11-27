@@ -34,6 +34,44 @@ test.describe("resume", () => {
 		expect(WORDS.indexOf(resumed)).toBeLessThan(index + 8);
 	});
 
+	test("a refresh right after a pause keeps the Position while IndexedDB is slow", async ({
+		page,
+	}) => {
+		// A write to IndexedDB cannot finish once the page is gone. A busy disk makes that
+		// likely, so hold the documents table for a while the way a slow commit would.
+		await paste(page, TEXT);
+		await expect(page.getByTestId("word")).not.toHaveText("word1", {
+			timeout: 4000,
+		});
+		await page.evaluate(
+			() =>
+				new Promise<void>((ready, fail) => {
+					const open = indexedDB.open("speeedy-library");
+					open.onerror = () => fail(open.error);
+					open.onsuccess = () => {
+						const tx = open.result.transaction("documents", "readwrite");
+						const until = performance.now() + 2500;
+						const spin = () => {
+							if (performance.now() >= until) return;
+							tx.objectStore("documents").count().onsuccess = spin;
+						};
+						spin();
+						ready();
+					};
+				}),
+		);
+		await page.getByRole("button", { name: "Pause" }).click();
+		const paused = (await page.getByTestId("word").textContent()) ?? "";
+		const index = WORDS.indexOf(paused);
+		expect(index).toBeGreaterThan(0);
+
+		await page.reload();
+		await expect(page.getByTestId("word")).toHaveText(/\S/);
+		const resumed = (await page.getByTestId("word").textContent()) ?? "";
+		expect(WORDS.indexOf(resumed)).toBeGreaterThanOrEqual(index);
+		expect(WORDS.indexOf(resumed)).toBeLessThan(index + 8);
+	});
+
 	test("pasting text adds it to the Library with its progress", async ({
 		page,
 	}) => {
