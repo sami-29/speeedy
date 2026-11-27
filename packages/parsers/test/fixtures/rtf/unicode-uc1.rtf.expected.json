@@ -1,0 +1,18 @@
+{
+	"outcome": "document",
+	"format": "rtf",
+	"encoding": null,
+	"title": "unicode-uc1",
+	"language": "ru",
+	"blocks": 1,
+	"kinds": [
+		"paragraph"
+	],
+	"spans": 0,
+	"first": "Café привет 😀 שלום",
+	"last": "Café привет 😀 שלום",
+	"words": [
+		4,
+		4
+	]
+}

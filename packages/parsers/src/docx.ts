@@ -505,7 +505,7 @@ function isSkipped(name: string): boolean {
 }
 
 /** The target of a `HYPERLINK` field instruction, or null for other fields and internal links. */
-function fieldHref(instruction: string): string | null {
+export function fieldHref(instruction: string): string | null {
 	const match =
 		/^\s*HYPERLINK\s+((?:\\[a-z]\s+(?:"[^"]*"\s+)?)*)(?:"([^"]*)"|(\S+))/i.exec(
 			instruction.slice(0, MAX_INSTRUCTION),

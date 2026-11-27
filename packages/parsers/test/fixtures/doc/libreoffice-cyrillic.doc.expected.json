@@ -1,0 +1,20 @@
+{
+	"outcome": "document",
+	"format": "doc",
+	"title": "libreoffice-cyrillic",
+	"encoding": null,
+	"language": "ru",
+	"blocks": 3,
+	"kinds": [
+		"paragraph",
+		"paragraph",
+		"paragraph"
+	],
+	"spans": 0,
+	"first": "Маяк\nСмотритель каждый вечер",
+	"last": "Море было серебряным и тихим.",
+	"words": [
+		22,
+		22
+	]
+}
