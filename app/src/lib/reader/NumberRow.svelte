@@ -32,9 +32,12 @@ function commit(event: Event & { currentTarget: HTMLInputElement }) {
 	const typed = field.valueAsNumber;
 	const next = Number.isNaN(typed) ? value : clampRange(range, typed);
 	// The field may hold text the setting did not take (out of range, or empty).
-	field.value = String(next);
+	field.value = next.toFixed(range.decimals);
 	if (next !== value) onchange(next);
 }
+
+// Always the range's decimals ("2.0", not "2"), so the column does not jump between values.
+const shown = $derived(value.toFixed(range.decimals));
 
 const step = (direction: 1 | -1) =>
 	onchange(clampRange(range, value + direction * range.step));
@@ -60,7 +63,7 @@ const step = (direction: 1 | -1) =>
 			min={range.min}
 			max={range.max}
 			step={range.step}
-			{value}
+			value={shown}
 			aria-describedby={note ? `${id}-note` : undefined}
 			onchange={commit}
 		/>
@@ -71,6 +74,8 @@ const step = (direction: 1 | -1) =>
 			disabled={value >= range.max}
 			onclick={() => step(1)}>+</button
 		>
+		<!-- Said after a step or a typed change, which no other text announces. -->
+		<span class="sr-only" aria-live="polite">{label} {shown}{unit ? ` ${unit}` : ""}</span>
 	</span>
 	{#if note}<p id="{id}-note" class="caption note text-ink-2">{note}</p>{/if}
 </div>
@@ -86,6 +91,11 @@ const step = (direction: 1 | -1) =>
 		border-bottom: 2px solid var(--color-ink);
 	}
 
+	/* The name and its unit stay on one line, even in the narrow sidebar. */
+	.name {
+		white-space: nowrap;
+	}
+
 	.sub .name {
 		padding-inline-start: var(--spacing-s-2);
 	}
@@ -99,7 +109,7 @@ const step = (direction: 1 | -1) =>
 	/* A plain text field, so a number can be typed; the spin arrows are the steppers. */
 	.number {
 		box-sizing: border-box;
-		width: 5.5ch;
+		width: 5ch;
 		min-width: 0;
 		height: 40px;
 		padding: 0;

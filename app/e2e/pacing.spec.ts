@@ -51,7 +51,7 @@ test.describe("pacing settings in the panel", () => {
 		).toBeChecked();
 		await expect(
 			open.getByRole("spinbutton", { name: "Sentence pause" }),
-		).toHaveValue("2");
+		).toHaveValue("2.0");
 		await expect(
 			open.getByRole("spinbutton", { name: "Paragraph pause" }),
 		).toHaveValue("1.8");
@@ -116,14 +116,14 @@ test.describe("pacing settings in the panel", () => {
 
 		await sentence.fill("40");
 		await sentence.press("Enter");
-		await expect(sentence).toHaveValue("10");
+		await expect(sentence).toHaveValue("10.0");
 		await expect(
 			open.getByRole("button", { name: "Increase Sentence pause" }),
 		).toBeDisabled();
 
 		await sentence.fill("0");
 		await sentence.press("Tab");
-		await expect(sentence).toHaveValue("1");
+		await expect(sentence).toHaveValue("1.0");
 		await expect(
 			open.getByRole("button", { name: "Decrease Sentence pause" }),
 		).toBeDisabled();
@@ -344,5 +344,54 @@ test.describe("the start countdown", () => {
 		await expect(count).toHaveCount(0, { timeout: 4000 });
 		await expect(page.locator("html")).toHaveAttribute("data-focus", "on");
 		await expect.poll(() => place(page)).toBeGreaterThan(0);
+	});
+
+	test("with focus on Play, the focus state starts with the count and the stage does not move", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		await start(page);
+		await pause(page);
+		const open = await settings(page);
+		await setCountdown(page, true);
+		await open
+			.getByRole("checkbox", { name: "Focus when I press Play" })
+			.check();
+		await page.keyboard.press("Escape");
+
+		await page.getByRole("button", { name: "Play", exact: true }).click();
+		const count = page.getByTestId("countdown");
+		await expect(count).toBeVisible();
+		await expect(page.locator("html")).toHaveAttribute("data-focus", "on");
+		await expect(page.getByTestId("controls")).toBeHidden();
+		await page.screenshot({
+			path: "test-results/focus-on-play-countdown-390.png",
+		});
+		const during = await page.getByTestId("stage").boundingBox();
+
+		await expect(count).toHaveCount(0, { timeout: 4000 });
+		await expect.poll(() => place(page)).toBeGreaterThan(0);
+		const after = await page.getByTestId("stage").boundingBox();
+		expect(Math.abs((after?.y ?? 0) - (during?.y ?? 0))).toBeLessThan(1);
+		await expect(page.locator("html")).toHaveAttribute("data-focus", "on");
+	});
+
+	test("bringing the controls back during a count in the focus state cancels it", async ({
+		page,
+	}) => {
+		await start(page);
+		await pause(page);
+		await setCountdown(page, true);
+		await page.keyboard.press("Escape");
+		await page.keyboard.press("f");
+		await page.keyboard.press("k");
+		await expect(page.getByTestId("countdown")).toBeVisible();
+		await page.keyboard.press("Escape");
+		await expect(page.getByTestId("countdown")).toHaveCount(0);
+		await expect(page.locator("html")).not.toHaveAttribute("data-focus", "on");
+		await page.waitForTimeout(3000);
+		await expect(
+			page.getByRole("button", { name: "Play", exact: true }),
+		).toBeVisible();
 	});
 });

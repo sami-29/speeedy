@@ -172,6 +172,8 @@ $effect(() => {
 		margin: 0;
 		font-size: clamp(4rem, 2rem + 8vw, 8rem);
 		line-height: 1;
+		/* In the pivot's red, so the axis runs into the digit and does not cut through it. */
+		color: var(--color-red);
 	}
 
 	.before {

@@ -122,6 +122,8 @@ async function enterFocus() {
  */
 async function leaveFocus(by: "key" | "pointer" = "key") {
 	if (!focused) return;
+	// Bringing the controls back stops a count that was started in the focus state.
+	countdown.cancel();
 	const needsRefocus =
 		by === "key" &&
 		(document.activeElement === document.body ||
@@ -279,8 +281,12 @@ function togglePlay() {
 	const engine = reading.engine;
 	if (engine.playing) engine.pause();
 	else if (countdown.running) countdown.cancel();
-	else if (settings.countdown && usesCountdown) countdown.start();
-	else engine.play();
+	else if (settings.countdown && usesCountdown) {
+		// With focus on Play the chrome goes now, not when the words start: the stage must
+		// not move between the count and the first word.
+		if (focusOnPlay) void enterFocus();
+		countdown.start();
+	} else engine.play();
 }
 
 /** Rewind. There is nowhere to go back to without chapters, so that rewind does nothing. */
