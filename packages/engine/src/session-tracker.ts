@@ -66,6 +66,7 @@ export function createSessionTracker({
 	engine,
 	clock,
 	save,
+	onStart,
 	now = Date.now,
 	timeZone,
 	page = browserPage(),
@@ -80,7 +81,10 @@ export function createSessionTracker({
 	const openSegment = () => {
 		if (hidden || segmentStart !== undefined) return;
 		segmentStart = clock.now();
-		startedAt ??= now();
+		if (startedAt === undefined) {
+			startedAt = now();
+			onStart?.(startedAt);
+		}
 	};
 
 	const closeSegment = () => {

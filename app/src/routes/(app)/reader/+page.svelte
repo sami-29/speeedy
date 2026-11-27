@@ -98,6 +98,7 @@ function show(
 			settings,
 			client: built.client,
 			documentId: kept?.id ?? null,
+			source,
 			chapters: chapters.map((chapter) => chapter.position),
 			startAt,
 			onposition: saver?.record,

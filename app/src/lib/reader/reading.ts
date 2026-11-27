@@ -12,7 +12,9 @@ import {
 } from "@speeedy/engine";
 import { audio as audioSystem } from "#lib/audio/instance.ts";
 import { library } from "#lib/library/instance.ts";
+import type { DocumentSource } from "#lib/library/store.ts";
 import { recordSessions } from "#lib/stats/record.ts";
+import { visitContext } from "#lib/visit.ts";
 import { createLiveTimeline, type LiveTimeline } from "./live-timeline.ts";
 import { engineSettings, type ReaderSettings } from "./settings.ts";
 import type { TimelineClient } from "./timeline-client.ts";
@@ -57,6 +59,8 @@ type StartOptions = {
 	onError?: () => void;
 	/** The Library document being read, or null for text that is not kept. */
 	documentId?: string | null;
+	/** Where the text came from, for the Session start event. Without it no start is sent. */
+	source?: DocumentSource;
 	/** Where chapters start (see `findChapters`), for back one chapter. */
 	chapters?: readonly Position[];
 	/** Where to start reading. Without it reading starts at the first Frame. */
@@ -77,6 +81,7 @@ export function startReading({
 	onError,
 	audio = () => audioSystem().context,
 	documentId = null,
+	source,
 	chapters,
 	startAt,
 	onposition,
@@ -103,6 +108,7 @@ export function startReading({
 		clock: timer,
 		store: library(),
 		documentId,
+		...(source ? { start: { source, visit: visitContext } } : {}),
 	});
 	if (startAt) engine.seek(startAt);
 	let previous: "wpm" | "window" | "tail" | undefined;

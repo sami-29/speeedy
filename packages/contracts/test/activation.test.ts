@@ -140,11 +140,12 @@ describe("the closed lists", () => {
 				"too-big",
 			],
 		);
-		assert.ok(FILE_FORMATS.includes("other"));
+		const formats: readonly string[] = FILE_FORMATS;
+		assert.ok(formats.includes("other"));
 		for (const format of ["txt", "pdf", "epub", "docx", "rtf", "doc"]) {
-			assert.ok(FILE_FORMATS.includes(format), format);
+			assert.ok(formats.includes(format), format);
 		}
-		assert.ok(!FILE_FORMATS.includes("pasted"));
+		assert.ok(!formats.includes("pasted"));
 	});
 });
 

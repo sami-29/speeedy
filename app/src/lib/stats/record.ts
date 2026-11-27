@@ -5,6 +5,7 @@ import {
 	createSessionTracker,
 	daySummary,
 	type Engine,
+	localDate,
 	type PageTargets,
 	type SessionRecord,
 	streaks,
@@ -12,6 +13,7 @@ import {
 import type { DocumentSource, LibraryStore } from "#lib/library/store.ts";
 import { trackEvent } from "#lib/telemetry.ts";
 import type { VisitContext } from "#lib/visit.ts";
+import { sessionStartProps } from "./session-start.ts";
 
 export type SessionRecording = {
 	/** Save the Session so far and start a fresh one. */
@@ -22,6 +24,11 @@ export type SessionRecording = {
 	idle(): Promise<void>;
 };
 
+type Track = <N extends "daily_goal_met" | "session_started">(
+	event: N,
+	props: EventProps<N>,
+) => void;
+
 export type RecordSessionsOptions = {
 	engine: Engine;
 	/** The Clock the Engine runs on. The tracker measures active time with it. */
@@ -29,11 +36,8 @@ export type RecordSessionsOptions = {
 	store: Pick<LibraryStore, "addSession" | "sessions" | "dailyGoalChanges">;
 	/** The Library document being read, or null for text that is not kept. */
 	documentId?: string | null;
-	/** Sends `daily_goal_met`. Defaults to the typed analytics send. */
-	track?: (
-		event: "daily_goal_met",
-		props: EventProps<"daily_goal_met">,
-	) => void;
+	/** Sends `daily_goal_met` and `session_started`. Defaults to the typed analytics send. */
+	track?: Track;
 	now?: () => number;
 	timeZone?: string;
 	page?: PageTargets;
@@ -59,8 +63,25 @@ export function recordSessions({
 	now,
 	timeZone,
 	page,
+	start,
 }: RecordSessionsOptions): SessionRecording {
 	let queue: Promise<void> = Promise.resolve();
+
+	// Reads the Sessions stored so far, so it runs on the same queue as the saves: the Session
+	// that is starting is never one of them. A Library that will not answer sends nothing.
+	const announce = async (startedAt: number) => {
+		if (!start) return;
+		const sessions = await store.sessions();
+		track(
+			"session_started",
+			sessionStartProps({
+				sessions,
+				today: localDate(startedAt, timeZone),
+				source: start.source,
+				visit: start.visit(),
+			}),
+		);
+	};
 
 	const save = async (record: SessionRecord) => {
 		const stored = await store.addSession({ ...record, documentId });
@@ -83,6 +104,9 @@ export function recordSessions({
 		clock,
 		save: (record) => {
 			queue = queue.then(() => save(record)).catch(() => undefined);
+		},
+		onStart: (startedAt) => {
+			queue = queue.then(() => announce(startedAt)).catch(() => undefined);
 		},
 		...(now ? { now } : {}),
 		...(timeZone ? { timeZone } : {}),

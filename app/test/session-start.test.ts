@@ -66,16 +66,16 @@ describe("session_started properties", () => {
 	it.each([
 		["2026-11-03", "0"],
 		["2026-11-02", "1-6"],
-		["2026-10-27", "1-6"],
-		["2026-10-26", "7-29"],
+		["2026-10-28", "1-6"],
+		["2026-10-27", "7-29"],
 		["2026-10-05", "7-29"],
 		["2026-10-04", "30-89"],
-		["2026-08-05", "30-89"],
-		["2026-08-04", "90-plus"],
+		["2026-08-06", "30-89"],
+		["2026-08-05", "90-plus"],
 		["2024-01-01", "90-plus"],
 	])("puts a first Session on %s in the day bucket %s", (first, bucket) => {
 		expect(
-			props({ sessions: [past("2026-11-02"), past(first)] }).days_since_first,
+			props({ sessions: [past("2026-11-03"), past(first)] }).days_since_first,
 		).toBe(bucket);
 	});
 

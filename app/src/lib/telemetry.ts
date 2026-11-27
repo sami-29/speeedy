@@ -8,6 +8,7 @@ import {
 	installErrorCapture,
 	loadFlags,
 } from "@speeedy/contracts";
+import { visitContext } from "#lib/visit.ts";
 
 type Telemetry = { flags: Flags; analytics: Analytics };
 
@@ -36,6 +37,8 @@ export const appFlags = (): Promise<Flags> => start().then((t) => t.flags);
  */
 export function trackPageview(pathname: string): void {
 	if (document.documentElement.dataset.legacyRedirect) return;
+	// The first pageview of a Visit reads `ref` from the address and takes it out of it.
+	visitContext();
 	void start().then((t) => t.analytics.trackPageview(pathname));
 }
 

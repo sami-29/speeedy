@@ -7,6 +7,15 @@
  * cases are all derived from `EVENTS`, so a new event cannot leak data by accident.
  */
 
+import {
+	DAYS_SINCE_FIRST_BUCKETS,
+	FILE_FORMATS,
+	LIFETIME_SESSIONS_BUCKETS,
+	PARSE_FAILURE_REASONS,
+	REFS,
+	SESSION_SOURCES,
+	SURFACES,
+} from "./activation.ts";
 import { GOAL_MINUTES_BUCKETS, STREAK_DAYS_BUCKETS } from "./daily-goal.ts";
 import {
 	experimentProps,
@@ -130,6 +139,37 @@ const DECLARED_EVENTS = {
 		description:
 			"A reader started Listen on a text. Carries the text's language as one of a fixed list (`other` for the rest) and nothing else: no voice, no title, no text.",
 		props: { document_language: { kind: "enum", values: LISTEN_LANGUAGES } },
+	},
+	session_started: {
+		origin: "client",
+		kind: "product",
+		schemaVersion: 1,
+		description:
+			"A reading Session started. Carries where the text came from, the surface Speeedy runs on, the launch channel from the first address (only from a fixed list, otherwise `other`, and left out when there was none), whether this is the first month of reading this device has not yet counted, and two buckets the device works out from its own Sessions: days since the first Session and lifetime Sessions. No date, no count, no text.",
+		props: {
+			source: { kind: "enum", values: SESSION_SOURCES },
+			surface: { kind: "enum", values: SURFACES },
+			ref: { kind: "enum", values: REFS, optional: true },
+			first_this_month: { kind: "bool" },
+			days_since_first: { kind: "enum", values: DAYS_SINCE_FIRST_BUCKETS },
+			lifetime_sessions: { kind: "enum", values: LIFETIME_SESSIONS_BUCKETS },
+		},
+	},
+	file_uploaded: {
+		origin: "client",
+		kind: "product",
+		schemaVersion: 1,
+		description:
+			"A file was opened and read. Carries its format as one of a fixed list (`other` for the rest): no name, no size, no word count, no text.",
+		props: { format: { kind: "enum", values: FILE_FORMATS } },
+	},
+	parse_failed: {
+		origin: "client",
+		kind: "product",
+		schemaVersion: 1,
+		description:
+			"A file could not be read. Carries the reason as one of a fixed list: no name, no message, no text.",
+		props: { reason: { kind: "enum", values: PARSE_FAILURE_REASONS } },
 	},
 	checkout_started: {
 		origin: "server",

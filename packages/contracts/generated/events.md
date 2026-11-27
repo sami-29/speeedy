@@ -61,6 +61,44 @@ Sent by: the app. Schema version 1.
 | `document_language` | one of `en`, `es`, `fr`, `de`, `it`, `pt`, `nl`, `sv`, `da`, `no`, `fi`, `pl`, `cs`, `sk`, `sl`, `hr`, `sr`, `ru`, `uk`, `bg`, `tr`, `el`, `hu`, `ro`, `ar`, `he`, `hi`, `ja`, `ko`, `zh`, `other` | yes |
 | `exp_pipeline_check` | one of `off`, `on` | no |
 
+## `session_started`
+
+A reading Session started. Carries where the text came from, the surface Speeedy runs on, the launch channel from the first address (only from a fixed list, otherwise `other`, and left out when there was none), whether this is the first month of reading this device has not yet counted, and two buckets the device works out from its own Sessions: days since the first Session and lifetime Sessions. No date, no count, no text.
+
+Sent by: the app. Schema version 1.
+
+| Property | Value | Required |
+| --- | --- | --- |
+| `source` | one of `own`, `demo`, `share` | yes |
+| `surface` | one of `web`, `pwa`, `twa`, `share-link` | yes |
+| `ref` | one of `hn`, `reddit-speedreading`, `reddit-opensource`, `reddit-sideproject`, `reddit-studytips`, `ph`, `alternativeto`, `chrome-store`, `edge-store`, `amo`, `play`, `github`, `newsletter`, `changelog`, `readme`, `other` | no |
+| `first_this_month` | yes or no | yes |
+| `days_since_first` | one of `0`, `1-6`, `7-29`, `30-89`, `90-plus` | yes |
+| `lifetime_sessions` | one of `1`, `2-5`, `6-20`, `21-plus` | yes |
+| `exp_pipeline_check` | one of `off`, `on` | no |
+
+## `file_uploaded`
+
+A file was opened and read. Carries its format as one of a fixed list (`other` for the rest): no name, no size, no word count, no text.
+
+Sent by: the app. Schema version 1.
+
+| Property | Value | Required |
+| --- | --- | --- |
+| `format` | one of `txt`, `markdown`, `csv`, `html`, `docx`, `epub`, `odt`, `rtf`, `doc`, `pdf`, `other` | yes |
+| `exp_pipeline_check` | one of `off`, `on` | no |
+
+## `parse_failed`
+
+A file could not be read. Carries the reason as one of a fixed list: no name, no message, no text.
+
+Sent by: the app. Schema version 1.
+
+| Property | Value | Required |
+| --- | --- | --- |
+| `reason` | one of `drm`, `scanned-pdf`, `unsupported`, `empty`, `encoding-suspect`, `too-big` | yes |
+| `exp_pipeline_check` | one of `off`, `on` | no |
+
 ## `checkout_started`
 
 The Worker opened a hosted checkout for the Plus plan. Carries the billing interval only.
